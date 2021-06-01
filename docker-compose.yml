@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx-conf:/etc/nginx/conf.d
+      - ./public:/var/www
+      - ./logs/nginx:/var/log/nginx
+    expose:
+      - 8080
+    restart: always
+    links:
+      - php
+    environment:
+      VIRTUAL_HOST: starter-kit-foundation.lc
+      VIRTUAL_PORT: 8080
+  php:
+    build: ./images/php
+    links:
+      - mysql
+    volumes:
+      - ./public:/var/www
+    restart: always
+  mysql:
+     image: mysql:5.7
+     volumes:
+       - db_data:/var/lib/mysql
+     restart: always
+     environment:
+       MYSQL_ROOT_PASSWORD: PASSWORD
+       MYSQL_DATABASE: wordpress
+       MYSQL_USER: wordpress
+       MYSQL_PASSWORD: PASSWORD
+volumes:
+    db_data:
+networks:
+  default:
+    external:
+      name: nginx-proxy
