@@ -31,10 +31,23 @@ services:
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_DB_USER: ${MYSQL_USER}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DEBUG: ${WP_DEBUG}
+      WORDPRESS_CONFIG_EXTRA: |
+
+          define( 'WP_SITEURL', '${WP_SITEURL}' );
+          define( 'WP_HOME', '${WP_HOME}' );
+
+          define( 'WP_MEMORY_LIMIT', '${WP_MEMORY_LIMIT}' );
+          define( 'WP_MAX_MEMORY_LIMIT', '${WP_MAX_MEMORY_LIMIT}' );
+
+          define( 'WP_DEBUG_DISPLAY', '${WP_DEBUG_DISPLAY}' );
+          define( 'WP_DEBUG_LOG', '${WP_DEBUG_LOG}' );
+
     volumes:
       - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      - ./logs/wordpress:/var/log/wordpress
 
   nginx:
     image: nginx:1.20-alpine
