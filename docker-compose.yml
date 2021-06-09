@@ -4,23 +4,32 @@ services:
     image: nginx:latest
     volumes:
       - ./nginx-conf:/etc/nginx/conf.d
-      - ./public:/var/www
+      - ./public:/var/www/html
       - ./logs/nginx:/var/log/nginx
     expose:
       - 8080
     restart: always
     links:
-      - php
+      - wordpress
     environment:
-      VIRTUAL_HOST: starter-kit-foundation.lc
+      VIRTUAL_HOST: mealdeliveryservices.lc
       VIRTUAL_PORT: 8080
-  php:
-    build: ./images/php
+
+  wordpress:
+    image: wordpress:5.7.2-php7.3-fpm
+    container_name: wordpress
+    restart: unless-stopped
     links:
       - mysql
+    environment:
+      - WORDPRESS_DB_HOST=mysql
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD=PASSWORD
+      - WORDPRESS_DB_NAME=wordpress
     volumes:
-      - ./public:/var/www
-    restart: always
+      - ./public:/var/www/html
+
+
   mysql:
      image: mysql:5.7
      volumes:

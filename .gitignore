@@ -49,6 +49,19 @@ access_log
 #       Config. and npm Files       #
 #===================================#
 node_modules
+wp-content/themes/md-theme/vendor
+
+
+#===================================#
+#       Content Files       #
+#===================================#
+wp-content/uploads/
+wp-content/ai1wm-backups/
+
+#===================================#
+#       Themes       #
+#===================================#
+wp-content/themes/twentytwentyone
 
 
 #==========================================#
@@ -62,6 +75,6 @@ node_modules
 #===========================#
 #      Specific Plugins     #
 #===========================#
-build/broswer-sync.config.js
+wp-content/themes/md-theme/build/browser-sync.config.js
 #Additionals
 /vendor/
