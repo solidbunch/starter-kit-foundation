@@ -1,12 +1,19 @@
 version: "3.9"
+
+networks:
+  default:
+    external:
+      name: nginx-proxy
+
+
 services:
   nginx:
     image: nginx:latest
     volumes:
       - ./nginx-conf:/etc/nginx/conf.d
-      - ./public:/var/www/html
+      - wordpress:/var/www/html
       - ./logs/nginx:/var/log/nginx
-    restart: always
+    restart: unless-stopped
     links:
       - wordpress
 
@@ -22,22 +29,20 @@ services:
       - WORDPRESS_DB_PASSWORD=PASSWORD
       - WORDPRESS_DB_NAME=wordpress
     volumes:
-      - ./public:/var/www/html
+      - wordpress:/var/www/html/
 
 
   mysql:
      image: mysql:5.7
      volumes:
        - db_data:/var/lib/mysql
-     restart: always
+     restart: unless-stopped
      environment:
        MYSQL_ROOT_PASSWORD: PASSWORD
        MYSQL_DATABASE: wordpress
        MYSQL_USER: wordpress
        MYSQL_PASSWORD: PASSWORD
+
 volumes:
-    db_data:
-networks:
-  default:
-    external:
-      name: nginx-proxy
+  db_data:
+  wordpress:
