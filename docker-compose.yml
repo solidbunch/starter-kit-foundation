@@ -1,11 +1,5 @@
 version: "3.9"
 
-networks:
-  default:
-    external:
-      #external network for local development with nginx-proxy container
-      name: nginx-proxy
-
 
 services:
 
@@ -23,10 +17,12 @@ services:
       MYSQL_PASSWORD: PASSWORD
 
   wordpress:
-    image: wordpress:5.7.2-php7.4-fpm
+    image: wordpress:5.7.2-php7.4-fpm-alpine
     container_name: mealdeliveryservices_wordpress
     restart: unless-stopped
     links:
+      - mysql
+    depends_on:
       - mysql
     environment:
       - WORDPRESS_DB_HOST=mysql
@@ -39,10 +35,12 @@ services:
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
 
   nginx:
-    image: nginx:1.21.0
+    image: nginx:1.20-alpine
     container_name: mealdeliveryservices_nginx
     restart: unless-stopped
     links:
+      - wordpress
+    depends_on:
       - mysql
       - wordpress
     volumes:
@@ -55,4 +53,4 @@ services:
 
 volumes:
   db_data:
-  wordpress_core:
+  #wordpress_core:
