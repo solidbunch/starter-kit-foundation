@@ -7,15 +7,18 @@ networks:
 
 
 services:
-  nginx:
-    image: nginx:latest
+
+  mysql:
+    image: mysql:5.7
     volumes:
-      - ./nginx-conf:/etc/nginx/conf.d
-      - wordpress:/var/www/html
-      - ./logs/nginx:/var/log/nginx
+      - db_data:/var/lib/mysql
     restart: unless-stopped
-    links:
-      - wordpress
+    environment:
+      MYSQL_ROOT_PASSWORD: PASSWORD
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: PASSWORD
+
 
   wordpress:
     image: wordpress:5.7.2-php7.3-fpm
@@ -32,17 +35,17 @@ services:
       - wordpress:/var/www/html/
       - ./wp-content:/var/www/html/wp-content/
 
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx-conf:/etc/nginx/conf.d
+      - wordpress:/var/www/html
+      - ./wp-content:/var/www/html/wp-content/
+      - ./logs/nginx:/var/log/nginx
+    restart: unless-stopped
+    links:
+      - wordpress
 
-  mysql:
-     image: mysql:5.7
-     volumes:
-       - db_data:/var/lib/mysql
-     restart: unless-stopped
-     environment:
-       MYSQL_ROOT_PASSWORD: PASSWORD
-       MYSQL_DATABASE: wordpress
-       MYSQL_USER: wordpress
-       MYSQL_PASSWORD: PASSWORD
 
 volumes:
   db_data:
