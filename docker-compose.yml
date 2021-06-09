@@ -5,7 +5,6 @@ services:
 
   mysql:
     image: mariadb:10.5
-    container_name: mealdeliveryservices_database
     volumes:
       - db_data:/var/lib/mysql
     restart: unless-stopped
@@ -20,8 +19,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
   wordpress:
-    image: wordpress:5.7.2-php7.4-fpm-alpine
-    container_name: mealdeliveryservices_wordpress
+    build: ./images/wordpress
     restart: unless-stopped
     links:
       - mysql
@@ -40,7 +38,6 @@ services:
 
   nginx:
     image: nginx:1.20-alpine
-    container_name: mealdeliveryservices_nginx
     restart: unless-stopped
     links:
       - wordpress
