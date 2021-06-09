@@ -1,7 +1,10 @@
+# Do not edit .conf file, it will override by script.
+# Edit .template file to change settings
+
 server {
-    listen 8080;
+    listen ${NGINX_PORT};
     index index.php;
-    server_name ${APP_DOMAIN};
+    server_name ${NGINX_HOST};
     error_log  /var/log/nginx/error.log;
     #access_log /var/log/nginx/access.log;
     access_log  off;

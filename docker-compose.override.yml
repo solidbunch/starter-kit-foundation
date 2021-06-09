@@ -10,7 +10,7 @@ networks:
 services:
   nginx:
     expose:
-      - 8080
+      - ${APP_PORT}
     environment:
       VIRTUAL_HOST: ${APP_DOMAIN}
-      VIRTUAL_PORT: 8080
+      VIRTUAL_PORT: ${APP_PORT}

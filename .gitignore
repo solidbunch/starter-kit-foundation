@@ -103,4 +103,5 @@ node_modules
 #      Specific Plugins     #
 #===========================#
 /web/app/themes/*/build/browser-sync.config.js
+/config/nginx/default.conf
 
