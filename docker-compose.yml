@@ -6,14 +6,9 @@ services:
       - ./nginx-conf:/etc/nginx/conf.d
       - ./public:/var/www/html
       - ./logs/nginx:/var/log/nginx
-    expose:
-      - 8080
     restart: always
     links:
       - wordpress
-    environment:
-      VIRTUAL_HOST: mealdeliveryservices.lc
-      VIRTUAL_PORT: 8080
 
   wordpress:
     image: wordpress:5.7.2-php7.3-fpm
