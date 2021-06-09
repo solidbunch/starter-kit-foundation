@@ -3,6 +3,7 @@ version: "3.9"
 networks:
   default:
     external:
+      #external network for local development with nginx-proxy container
       name: nginx-proxy
 
 
@@ -10,10 +11,12 @@ services:
 
   mysql:
     image: mysql:5.7
+    container_name: mealdeliveryservices_database
     volumes:
       - db_data:/var/lib/mysql
     restart: unless-stopped
     environment:
+      # should be .env files for all environments
       MYSQL_ROOT_PASSWORD: PASSWORD
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wordpress
@@ -21,8 +24,8 @@ services:
 
 
   wordpress:
-    image: wordpress:5.7.2-php7.3-fpm
-    container_name: wordpress
+    image: wordpress:5.7.2-php7.4-fpm
+    container_name: mealdeliveryservices_wordpress
     restart: unless-stopped
     links:
       - mysql
@@ -32,19 +35,26 @@ services:
       - WORDPRESS_DB_PASSWORD=PASSWORD
       - WORDPRESS_DB_NAME=wordpress
     volumes:
-      - wordpress:/var/www/html/
-      - ./wp-content:/var/www/html/wp-content/
+      - ./app/wordpress-core:/var/www/html # wordpress root folder for development only
+      # all needed wp-content folders
+      - ./app/themes:/var/www/html/wp-content/themes/
+      - ./app/plugins:/var/www/html/wp-content/plugins/ # for now we are using all plugins in git
+      - ./app/mu-plugins:/var/www/html/wp-content/mu-plugins/
+      - ./app/languages:/var/www/html/wp-content/languages/
+      - ./app/uploads:/var/www/html/wp-content/uploads/ # should be in .gitignore
 
   nginx:
     image: nginx:latest
     volumes:
       - ./nginx-conf:/etc/nginx/conf.d
-      - wordpress:/var/www/html
-      - ./wp-content:/var/www/html/wp-content/
+      - ./web:/var/www/html
+      - ./web/wp-content:/var/www/html/wp-content/
       - ./logs/nginx:/var/log/nginx
     restart: unless-stopped
     links:
       - wordpress
+
+
 
 
 volumes:
