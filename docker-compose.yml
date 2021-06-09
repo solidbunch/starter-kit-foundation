@@ -10,7 +10,7 @@ networks:
 services:
 
   mysql:
-    image: mysql:5.7
+    image: mariadb:10.5
     container_name: mealdeliveryservices_database
     volumes:
       - db_data:/var/lib/mysql
