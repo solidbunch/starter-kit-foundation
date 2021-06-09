@@ -1,20 +1,21 @@
-###############################################################################
-##                                                                            #
-##		GIT IGNORE FOR WORDPRESS SITES     		                              #
-##		------------------------------     									  #
-##		Adapted from: http://bigwilliam.com/gitignore-for-wordpress-projects/ #
-##                                                                            #
-###############################################################################
+#################################################################################
+##                                                                              #
+##    GIT IGNORE FOR WORDPRESS SITES                                            #
+##    ------------------------------                                            #
+##    Adapted from: http://bigwilliam.com/gitignore-for-wordpress-projects/     #
+##    and https://github.com/github/gitignore/blob/master/WordPress.gitignore   #
+##                                                                              #
+#################################################################################
 
-###############################################################################
-##                                                                            #
-##       NOTE: TO STOP TRACKING A FILE AFTER IGNORING IT,                     #
-##             USE THESE GIT COMMANDS:                                        #
-##                                                                            #
-##             git rm --cached <file>                                         #
-##             git add . # or git add <file>                                  #
-##                                                                            #
-###############################################################################
+#################################################################################
+##                                                                              #
+##         NOTE: TO STOP TRACKING A FILE AFTER IGNORING IT,                     #
+##               USE THESE GIT COMMANDS:                                        #
+##                                                                              #
+##               git rm --cached <file>                                         #
+##               git add . # or git add <file>                                  #
+##                                                                              #
+#################################################################################
 
 
 ## OS and Utility Stuff ##
@@ -31,11 +32,21 @@
 ehthumbs.db
 *[Tt]humbs.db
 *.Trashes
-.idea
 
-#==================#
-#    Log files     #
-#==================#
+
+#===================#
+#     IDE Files     #
+#===================#
+.idea
+*.sublime-project
+*.sublime-workspace
+*.komodoproject
+*.codekit3
+
+
+#=========================#
+#     Log, map files      #
+#=========================#
 *.log
 error_log
 access_log
@@ -46,28 +57,40 @@ access_log
 
 
 #===================================#
-#       Config. and npm Files       #
+#       Vendor and npm Files        #
 #===================================#
 node_modules
-wp-content/themes/md-theme/vendor
+/web/app/themes/*/vendor
 
 
 #===================================#
-#       Content Files       #
+#       WordPress Core Files        #
 #===================================#
-wp-content/uploads/
-wp-content/ai1wm-backups/
-
-#===================================#
-#       Themes       #
-#===================================#
-wp-content/themes/twentytwentyone
+/web/wordpress-core
 
 
-#==========================================#
+#===================================#
+#          Content Files            #
+#===================================#
+/web/app/*
+!/web/app/mu-plugins/
+!/web/app/plugins/
+!/web/app/themes/
+!/web/app/uploads/
+/web/app/uploads/*
+#languages should be exluded too
+
+
+#======================================#
+#      Default Themes and Plugins      #
+#======================================#
+/web/app/themes/twenty*/
+/web/app//plugins/hello.php
+
+#=============================================================#
 #       Compiled code. It should not always be tracked.       #
-#==========================================#
-#dist
+#=============================================================#
+#/web/app/themes/*/dist
 
 
 ## Use these to get more specific ##
@@ -75,6 +98,5 @@ wp-content/themes/twentytwentyone
 #===========================#
 #      Specific Plugins     #
 #===========================#
-wp-content/themes/md-theme/build/browser-sync.config.js
-#Additionals
-/vendor/
+/web/app/themes/*/build/browser-sync.config.js
+
