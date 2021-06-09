@@ -9,12 +9,15 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     restart: unless-stopped
+    env_file: .env
     environment:
       # should be .env files for all environments
-      MYSQL_ROOT_PASSWORD: PASSWORD
-      MYSQL_DATABASE: wordpress
-      MYSQL_USER: wordpress
-      MYSQL_PASSWORD: PASSWORD
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
   wordpress:
     image: wordpress:5.7.2-php7.4-fpm-alpine
@@ -24,11 +27,12 @@ services:
       - mysql
     depends_on:
       - mysql
+    env_file: .env
     environment:
-      - WORDPRESS_DB_HOST=mysql
-      - WORDPRESS_DB_USER=wordpress
-      - WORDPRESS_DB_PASSWORD=PASSWORD
-      - WORDPRESS_DB_NAME=wordpress
+      WORDPRESS_DB_HOST: ${MYSQL_HOST}
+      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
@@ -43,6 +47,7 @@ services:
     depends_on:
       - mysql
       - wordpress
+    env_file: .env
     volumes:
       - ./config/nginx:/etc/nginx/conf.d
       - ./logs/nginx:/var/log/nginx
