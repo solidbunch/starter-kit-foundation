@@ -22,7 +22,6 @@ services:
       MYSQL_USER: wordpress
       MYSQL_PASSWORD: PASSWORD
 
-
   wordpress:
     image: wordpress:5.7.2-php7.4-fpm
     container_name: mealdeliveryservices_wordpress
@@ -35,28 +34,25 @@ services:
       - WORDPRESS_DB_PASSWORD=PASSWORD
       - WORDPRESS_DB_NAME=wordpress
     volumes:
-      - ./app/wordpress-core:/var/www/html # wordpress root folder for development only
-      # all needed wp-content folders
-      - ./app/themes:/var/www/html/wp-content/themes/
-      - ./app/plugins:/var/www/html/wp-content/plugins/ # for now we are using all plugins in git
-      - ./app/mu-plugins:/var/www/html/wp-content/mu-plugins/
-      - ./app/languages:/var/www/html/wp-content/languages/
-      - ./app/uploads:/var/www/html/wp-content/uploads/ # should be in .gitignore
+      - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
+      #- wordpress_core:/var/www/html # wordpress root folder volume for production
+      - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
 
   nginx:
-    image: nginx:latest
-    volumes:
-      - ./nginx-conf:/etc/nginx/conf.d
-      - ./web:/var/www/html
-      - ./web/wp-content:/var/www/html/wp-content/
-      - ./logs/nginx:/var/log/nginx
+    image: nginx:1.21.0
+    container_name: mealdeliveryservices_nginx
     restart: unless-stopped
     links:
+      - mysql
       - wordpress
-
-
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d
+      - ./logs/nginx:/var/log/nginx
+      - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
+      #- wordpress_core:/var/www/html # wordpress root folder volume for production
+      - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
 
 
 volumes:
   db_data:
-  wordpress:
+  wordpress_core:
