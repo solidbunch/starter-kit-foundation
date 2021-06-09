@@ -56,6 +56,8 @@ access_log
 *.LICENSE
 
 
+## Vendor, Libs and Content ##
+
 #===================================#
 #       Vendor and npm Files        #
 #===================================#
@@ -72,6 +74,7 @@ node_modules
 #===================================#
 #          Content Files            #
 #===================================#
+#/web/app/ folder is wp-content
 /web/app/*
 !/web/app/mu-plugins/
 !/web/app/plugins/
@@ -85,7 +88,7 @@ node_modules
 #      Default Themes and Plugins      #
 #======================================#
 /web/app/themes/twenty*/
-/web/app//plugins/hello.php
+/web/app/plugins/hello.php
 
 #=============================================================#
 #       Compiled code. It should not always be tracked.       #
