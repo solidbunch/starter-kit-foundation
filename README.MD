@@ -1,5 +1,6 @@
 # Starter Kit Foundation
 
+Starter Kit Foundation - is developers tool, server environment for fast and easy start WordPres project with docker containers, convenient credential settings etc
 
 ## Requirements
  
