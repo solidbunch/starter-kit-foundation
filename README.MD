@@ -7,7 +7,7 @@ Starter Kit Foundation - is developers tool, server environment for fast and eas
 1. Docker and Docker-compose
 2. To run in proxy mode need `nginx-proxy` (optional)
 
-## How to install
+## How to use
 
 ### Development mode
  
