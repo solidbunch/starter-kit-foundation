@@ -1,16 +1,5 @@
 version: "3.9"
-
-networks:
-  default:
-    external:
-      #external network for local development with nginx-proxy container
-      name: nginx-proxy
-
-
 services:
   nginx:
-    expose:
-      - ${APP_PORT}
-    environment:
-      VIRTUAL_HOST: ${APP_DOMAIN}
-      VIRTUAL_PORT: ${APP_PORT}
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
