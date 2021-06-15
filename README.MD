@@ -4,9 +4,35 @@ Starter Kit Foundation - is developers tool, server environment for fast and eas
 
 ## Requirements
  
- 1. Docker
- 2. Docker-compose
- 3. To run in dev mode need `nginx-proxy` on `8080:80` port
+1. Docker and Docker-compose
+2. To run in proxy mode need `nginx-proxy` (optional)
+
+## How to use
+
+### Development mode
+ 
+1. clone repo
+2. copy `.env.dev.sample` to  `.env`
+3. edit `.env` file - change options, url and port, passwords, etc
+4. run `docker-compose up -d`
+
+### Staging mode
+ 
+1. clone repo
+2. copy `.env.stage.sample` to  `.env`
+3. edit `.env` file - change options, url and port, passwords, etc
+4. run `docker-compose up -d`
+    
+### Production mode
+ 
+1. clone repo
+2. copy `.env.prod.sample` to  `.env`
+3. edit `.env` file - change options, url and port, passwords, etc
+4. run `docker-compose up -d`
+
+### Proxy mode
+
+1. start nginx-proxy container https://hub.docker.com/r/jwilder/nginx-proxy
 
 ```
 version: '3.9'
@@ -29,29 +55,10 @@ networks:
       name: nginx-proxy
 
 ```
-## How to install
 
-### Development mode
- 
- 1. clone repo
- 2. copy `.env.dev.sample` to  `.env`
- 3. edit `.env` file - change options, add passwords, etc
- 4. run `docker-compose up -d`
+2. clone repo, copy `.env` file the same as already described for dev, stage or prod mode
+3. run `docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`
 
-### Staging mode
- 
- 1. clone repo
- 2. copy `.env.stage.sample` to  `.env`
- 3. edit `.env` file - change options, add passwords, etc
- 4. edit `docker-compose.override.yml` - change network data and ports
- 5. run `docker-compose up -d`
-    
-### Production mode
- 
- 1. clone repo
- 2. copy `.env.prod.sample` to  `.env`
- 3. edit `.env` file - change options, add passwords, etc
- 4. run `docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
 
 ## Sturcture
  - config/ – config files
