@@ -67,5 +67,5 @@ networks:
  - web/ - main project files
     - wordpress-core/ - core wordpress files
     - app/ - application (shared wp-content folder)
-        - themes/md-theme/ - main theme
+        - themes/ - themes folder
       
