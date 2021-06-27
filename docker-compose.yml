@@ -57,6 +57,8 @@ services:
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       - ./logs/wordpress:/var/log/wordpress
+      - ./crontabs:/var/spool/cron/crontabs
+      - ./logs/cron:/var/log/cron
 
   nginx:
     image: nginx:1.20-alpine
