@@ -45,6 +45,9 @@ services:
           define( 'WP_DEBUG_DISPLAY', !!'${WP_DEBUG_DISPLAY}' );
           define( 'WP_DEBUG_LOG', '${WP_DEBUG_LOG}' );
 
+          //Cron
+          define( 'DISABLE_WP_CRON', true );
+
           //Redis
           define( 'WP_REDIS_HOST', '${WP_REDIS_HOST}' );
           define( 'WP_REDIS_PORT', ${WP_REDIS_PORT} );
@@ -57,8 +60,6 @@ services:
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       - ./logs/wordpress:/var/log/wordpress
-      - ./crontabs:/var/spool/cron/crontabs
-      - ./logs/cron:/var/log/cron
 
   nginx:
     image: nginx:1.20-alpine
@@ -79,6 +80,21 @@ services:
       - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+
+  cron:
+    build: ./images/cron
+    restart: unless-stopped
+    links:
+      - wordpress
+    depends_on:
+      - mysql
+      - wordpress
+      - nginx
+    env_file: .env
+    volumes:
+      - ./web/wordpress-core:/var/www/html
+      - ./config/crontabs:/var/spool/cron/crontabs
+      - ./logs/cron:/var/log/cron
 
   redis:
     image: redis:6.2-alpine
