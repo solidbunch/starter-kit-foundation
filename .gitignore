@@ -54,6 +54,7 @@ access_log
 *.css.map
 *.js.map
 *.LICENSE
+*.lck
 .env
 
 
