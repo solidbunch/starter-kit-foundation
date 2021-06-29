@@ -92,7 +92,7 @@ services:
       - nginx
     env_file: .env
     volumes:
-      - ./web/wordpress-core:/var/www/html
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./config/crontabs:/var/spool/cron/crontabs
       - ./logs/cron:/var/log/cron
 
