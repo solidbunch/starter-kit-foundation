@@ -1,4 +1,21 @@
-*/1 * * * * php /var/www/html/wp-cron.php >> /var/log/cron/wp-cron.log 2>&1
+# www-data user crontab file
+
+# Example cronjob
+# >> - append, > renew log file
+# >>/var/log/cron/wp-cron.log 2>&1 - send output to log
+# >/dev/null 2>&1 - send output to black hole
+# 2>&1 redirects the output include both the Standard Error and Standard Out.
+
+# * * * * *	/var/log/cron/wp-cron.lck php /var/www/html/wp-cron.php >>/var/log/cron/wp-cron.log 2>&1
+# * * * * *	/var/log/cron/wp-cron.lck php /var/www/html/wp-cron.php >/dev/null 2>&1
+
+
+
+# Let's run!
+
+
+# WordPress cron run by system cron
+
+*/1 * * * * flock -n /var/log/cron/wp-cron.lck php /var/www/html/wp-cron.php >>/var/log/cron/wp-cron.log 2>&1
+
 # An empty line is required at the end of this file for a valid cron file
-
-
