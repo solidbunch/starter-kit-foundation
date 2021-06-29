@@ -60,6 +60,9 @@ services:
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       - ./logs/wordpress:/var/log/wordpress
+      # cron
+      - ./config/crontabs:/etc/crontabs
+      - ./logs/cron:/var/log/cron
 
   nginx:
     image: nginx:1.20-alpine
@@ -81,25 +84,9 @@ services:
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
 
-  cron:
-    build: ./images/cron
-    restart: unless-stopped
-    links:
-      - wordpress
-    depends_on:
-      - mysql
-      - wordpress
-      - nginx
-    env_file: .env
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./config/crontabs:/var/spool/cron/crontabs
-      - ./logs/cron:/var/log/cron
-
   redis:
     image: redis:6.2-alpine
     restart: unless-stopped
-    command: ["redis-server"]
 
 volumes:
   db_data:

@@ -1,3 +1,5 @@
 FROM wordpress:5.7.2-php7.4-fpm-alpine
 
-CMD ["php-fpm"]
+COPY start-cmd.sh /usr/local/bin/
+
+CMD ["start-cmd.sh"]
