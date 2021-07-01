@@ -1,5 +1,12 @@
 FROM wordpress:5.7.2-php7.4-fpm-alpine
 
-COPY start-cmd.sh /usr/local/bin/
+# Install rsync
+RUN apk update \
+ && apk add --no-cache rsync \
+ && rm -rf /var/cache/apk/*
 
-CMD ["start-cmd.sh"]
+COPY ./crontabs/* /etc/crontabs/
+
+COPY start-wordpress.sh /usr/local/bin/
+
+CMD ["start-wordpress.sh"]

@@ -3,10 +3,8 @@ version: "3.9"
 
 services:
 
-  mysql:
-    image: mariadb:10.5
-    volumes:
-      - db_data:/var/lib/mysql
+  database:
+    build: ./images/database
     restart: unless-stopped
     env_file: .env
     environment:
@@ -17,14 +15,20 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      # cron log
+      - ./logs/cron:/var/log/cron
+      # backups folder
+      - ./backup:/srv/rsync/backup
 
   wordpress:
     build: ./images/wordpress
     restart: unless-stopped
     links:
-      - mysql
+      - database
     depends_on:
-      - mysql
+      - database
     env_file: .env
     environment:
       WORDPRESS_DB_HOST: ${MYSQL_HOST}
@@ -60,9 +64,10 @@ services:
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       - ./logs/wordpress:/var/log/wordpress
-      # cron
-      - ./config/crontabs:/etc/crontabs
+      # cron log
       - ./logs/cron:/var/log/cron
+      # backups folder
+      - ./backup:/srv/rsync/backup
 
   nginx:
     image: nginx:1.20-alpine
@@ -70,7 +75,7 @@ services:
     links:
       - wordpress
     depends_on:
-      - mysql
+      - database
       - wordpress
     env_file: .env
     environment:

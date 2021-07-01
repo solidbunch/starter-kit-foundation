@@ -1,0 +1,23 @@
+# This is root user crontab file for Ubuntu. Here you can customize your cron-jobs.
+# Changes will apply when container rebuild
+# WARNING - be careful with root cron-jobs. This can cause problems
+
+# * * * * * - time options, see more https://crontab.guru/
+# >> - append, > renew log file
+# >>/var/log/cron/wp-cron.log 2>&1 - send output to log
+# >/dev/null 2>&1 - send output to black hole
+# 2>&1 redirects the output include both the Standard Error and Standard Out. Look details https://tldp.org/LDP/abs/html/io-redirection.html
+
+# Example
+# * * * * * [flock -n <path-to-lck-file>] <some-command> >><path-to-log-file> 2>&1
+# * * * * * [flock -n <path-to-lck-file>] <some-command> >/dev/null 2>&1
+
+
+
+# Let's run!
+
+
+# Backup database
+*/1 * * * * backup.sh >>/var/log/cron/backup.log 2>&1
+
+# An empty line is required at the end of this file for a valid cron file
