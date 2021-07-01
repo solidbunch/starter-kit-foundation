@@ -10,6 +10,7 @@ RUN apt-get update -y \
 COPY ./crontabs/* /etc/cron.d/
 
 COPY db-backup-daily.sh /usr/local/bin/
+COPY db-backup-weekly.sh /usr/local/bin/
 
 COPY start-database.sh /usr/local/bin/
 

@@ -18,6 +18,7 @@
 
 
 # Backup database
-*/1 * * * * /usr/local/bin/db-backup-daily.sh >>/var/log/cron/db-backup-daily.log 2>&1
+20 3 * * * /usr/local/bin/db-backup-daily.sh >>/var/log/cron/backup.log 2>&1
+35 3 * * 1 /usr/local/bin/db-backup-weekly.sh >>/var/log/cron/db-backup-weekly.log 2>&1
 
 # An empty line is required at the end of this file for a valid cron file
