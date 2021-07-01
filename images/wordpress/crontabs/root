@@ -18,6 +18,7 @@
 
 
 # Backup media uploads
-*/1 * * * * wp-backup-daily.sh >>/var/log/cron/backup.log 2>&1
+15 3 * * * wp-backup-daily.sh >>/var/log/cron/backup.log 2>&1
+30 3 * * 1 wp-backup-weekly.sh >>/var/log/cron/backup-weekly.log 2>&1
 
 # An empty line is required at the end of this file for a valid cron file
