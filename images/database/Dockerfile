@@ -9,7 +9,8 @@ RUN apt-get update -y \
 # COPY cp backup-daily.sh /usr/local/bin/
 COPY ./crontabs/* /etc/cron.d/
 
+COPY db-backup-daily.sh /usr/local/bin/
+
 COPY start-database.sh /usr/local/bin/
 
 CMD ["start-database.sh"]
-#CMD ["mysqld"]
