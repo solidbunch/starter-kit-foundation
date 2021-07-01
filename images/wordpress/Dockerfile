@@ -7,6 +7,8 @@ RUN apk update \
 
 COPY ./crontabs/* /etc/crontabs/
 
+COPY wp-backup-daily.sh /usr/local/bin/
+
 COPY start-wordpress.sh /usr/local/bin/
 
 CMD ["start-wordpress.sh"]
