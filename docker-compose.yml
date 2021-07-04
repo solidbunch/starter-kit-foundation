@@ -17,10 +17,6 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      # cron log
-      - ./logs/cron:/var/log/cron
-      # backups folder
-      - ./backup:/srv/rsync/backup
 
   wordpress:
     build: ./images/wordpress
@@ -64,7 +60,8 @@ services:
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       - ./logs/wordpress:/var/log/wordpress
-      # cron log
+      # cron
+      - ./config/crontabs:/etc/crontabs
       - ./logs/cron:/var/log/cron
       # backups folder
       - ./backup:/srv/rsync/backup

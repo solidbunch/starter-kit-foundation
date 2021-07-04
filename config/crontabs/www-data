@@ -1,6 +1,6 @@
-# This is root user crontab file for Alpine. Here you can customize your cron-jobs.
-# Changes will apply when container rebuild
-# WARNING - be careful with root cron-jobs. This can cause problems
+# This is www-data user crontab file for Alpine. Here you can customize your cron-jobs.
+# Changes will apply after file save. Container restart not need
+#
 
 # * * * * * - time options, see more https://crontab.guru/
 # >> - append, > renew log file
@@ -17,8 +17,10 @@
 # Let's run!
 
 
-# Backup media uploads
-15 3 * * * wp-backup-daily.sh >>/var/log/cron/backup.log 2>&1
-30 3 * * 1 wp-backup-weekly.sh >>/var/log/cron/backup-weekly.log 2>&1
+# WordPress cron run by system cron
+* * * * * flock -n /var/log/cron/wp-cron.lck php /var/www/html/wp-cron.php >>/var/log/cron/wp-cron.log 2>&1
+
+# Remove wp-cron log file once a week
+1 3 * * 2 rm /var/log/cron/wp-cron.log >/dev/null 2>&1
 
 # An empty line is required at the end of this file for a valid cron file
