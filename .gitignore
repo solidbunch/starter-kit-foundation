@@ -54,6 +54,7 @@ access_log
 *.css.map
 *.js.map
 *.LICENSE
+*.lck
 .env
 
 
@@ -84,6 +85,16 @@ node_modules
 /web/app/uploads/*
 #languages should be exluded too
 
+
+#===================================#
+#          Database Files           #
+#===================================#
+/db_data/
+
+#===================================#
+#          Backup Files           #
+#===================================#
+/backup/
 
 #======================================#
 #      Default Themes and Plugins      #
