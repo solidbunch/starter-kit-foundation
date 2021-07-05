@@ -15,6 +15,11 @@ fi
 # Load enviroment variables
 source .env
 
+# Check is backup enable
+if [ ! $APP_WP_BACKUP_ENABLE ] || [ $APP_WP_BACKUP_ENABLE == 0 ]; then
+    echo "[Fail] Backup is disabled in .env file"; exit 1;
+fi
+
 # Go to the script directory 
 cd $SCRIPT_PATH
 
