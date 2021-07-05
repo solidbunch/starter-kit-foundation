@@ -44,6 +44,9 @@ do
         break
     fi
     sleep 3
+    if [ $i = 5 ]; then
+        echo "[Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
+    fi
 done
 
 
