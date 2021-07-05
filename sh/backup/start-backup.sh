@@ -4,19 +4,21 @@
 command -v docker-compose >/dev/null 2>&1 || { echo "[Error] Please install docker-compose"; exit 1; }
 command -v gzip >/dev/null 2>&1 || { echo "[Error] Please install gzip"; exit 1; }
 
+# Default values
+DATABASE_CONTAINER="database"
+MODE="daily"
+MODE_TIMER=7
+
 # Parce args
 if [ $1 ] && ([ $1 == "daily" ] || [ $1 == "weekly" ]); then
     MODE="$1"
-else
-    MODE="daily"
-    MODE_TIMER=7
 fi
 
 if [ $MODE == "weekly" ]; then
     MODE_TIMER=31
 fi
 
-DATABASE_CONTAINER="database"
+
 
 
 # Go to the project root directory & create backups directory (if not exist)
@@ -40,7 +42,7 @@ fi
 # Wait 5 times
 for i in {1..5}
 do
-    if (docker-compose exec $DATABASE_CONTAINER mysqladmin -u $MYSQL_ROOT_USER --password=${MYSQL_ROOT_PASSWORD} ping --silent); then
+    if (docker-compose exec -T $DATABASE_CONTAINER mysqladmin -u $MYSQL_ROOT_USER --password=${MYSQL_ROOT_PASSWORD} ping --silent); then
         break
     fi
     sleep 3

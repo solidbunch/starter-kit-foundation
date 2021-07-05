@@ -1,5 +1,5 @@
 # This is root user crontab file for Ubuntu (template). Here you can customize your cron-jobs.
-# Changes will apply when container rebuild. Template will copy to /etc/cron.d/<project-name-backup> automatically
+# Changes will apply when backup init - template will copy to APP_HOST_SYSTEM_CRON_DIR/<project-name>-backup automatically (/etc/cron.d/<project-name>-backup)
 # WARNING - be careful with root cron-jobs. This can cause problems
 
 # * * * * * - time options, see more https://crontab.guru/
@@ -10,21 +10,21 @@
 # 2>&1 redirects the output include both the Standard Error and Standard Out. Look details https://tldp.org/LDP/abs/html/io-redirection.html
 
 # Example
-# * * * * * [flock -n <path-to-lck-file>] <some-command> >><path-to-log-file> 2>&1
-# * * * * * [flock -n <path-to-lck-file>] <some-command> >/dev/null 2>&1
-
+# * * * * * username [flock -n <path-to-lck-file>] <some-command> >><path-to-log-file> 2>&1
+# * * * * * username [flock -n <path-to-lck-file>] <some-command> >/dev/null 2>&1
 
 
 # Let's run!
 
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
 
 # Backup database and media
-*/1 * * * * /srv/viwes/apps/starter-kit-foundation.loc/sh/backup/daily.sh >>/srv/viwes/apps/starter-kit-foundation.loc/logs/cron/backup.log 2>&1
-#20 3 * * * /usr/local/bin/db-backup-daily.sh >>/var/log/cron/backup.log 2>&1
-#35 3 * * 1 /usr/local/bin/db-backup-weekly.sh >>/var/log/cron/db-backup-weekly.log 2>&1
+15 3 * * * root PATH_TO_PROJECT_ROOT/sh/backup/start-backup.sh daily >>PATH_TO_PROJECT_ROOT/logs/cron/backup.log 2>&1
+15 4 * * * root PATH_TO_PROJECT_ROOT/sh/backup/start-backup.sh weekly >>PATH_TO_PROJECT_ROOT/logs/cron/backup.log 2>&1
+
+# Remove backup log file once a month
+30 4 3 * * root rm PATH_TO_PROJECT_ROOT/logs/cron/backup.log >/dev/null 2>&1
 
 # An empty line is required at the end of this file for a valid cron file
-
-
-#tar -zcf ./backup/uploads-backup-daily-(date +%Y%m%d).tar.gz -C ./web/app/ uploads
-#docker-compose exec database sh -c 'exec mysqldump --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' > ./backup/all-databases.sql
