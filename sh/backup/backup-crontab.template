@@ -1,0 +1,30 @@
+# This is root user crontab file for Ubuntu (template). Here you can customize your cron-jobs.
+# Changes will apply when container rebuild. Template will copy to /etc/cron.d/<project-name-backup> automatically
+# WARNING - be careful with root cron-jobs. This can cause problems
+
+# * * * * * - time options, see more https://crontab.guru/
+# flock - lock files are used to determine if a script or application is already running
+# >> - append, > renew log file
+# >>/var/log/cron/wp-cron.log 2>&1 - send output to log
+# >/dev/null 2>&1 - send output to black hole
+# 2>&1 redirects the output include both the Standard Error and Standard Out. Look details https://tldp.org/LDP/abs/html/io-redirection.html
+
+# Example
+# * * * * * [flock -n <path-to-lck-file>] <some-command> >><path-to-log-file> 2>&1
+# * * * * * [flock -n <path-to-lck-file>] <some-command> >/dev/null 2>&1
+
+
+
+# Let's run!
+
+
+# Backup database and media
+*/1 * * * * /srv/viwes/apps/starter-kit-foundation.loc/sh/backup/daily.sh >>/srv/viwes/apps/starter-kit-foundation.loc/logs/cron/backup.log 2>&1
+#20 3 * * * /usr/local/bin/db-backup-daily.sh >>/var/log/cron/backup.log 2>&1
+#35 3 * * 1 /usr/local/bin/db-backup-weekly.sh >>/var/log/cron/db-backup-weekly.log 2>&1
+
+# An empty line is required at the end of this file for a valid cron file
+
+
+#tar -zcf ./backup/uploads-backup-daily-(date +%Y%m%d).tar.gz -C ./web/app/ uploads
+#docker-compose exec database sh -c 'exec mysqldump --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' > ./backup/all-databases.sql

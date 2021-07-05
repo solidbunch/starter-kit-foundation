@@ -34,26 +34,26 @@ services:
       WORDPRESS_DEBUG: ${WP_DEBUG}
       WORDPRESS_CONFIG_EXTRA: |
 
-          define( 'WP_SITEURL', '${WP_SITEURL}' );
-          define( 'WP_HOME', '${WP_HOME}' );
+        define( 'WP_SITEURL', '${WP_SITEURL}' );
+        define( 'WP_HOME', '${WP_HOME}' );
 
-          define( 'WP_MEMORY_LIMIT', '${WP_MEMORY_LIMIT}' );
-          define( 'WP_MAX_MEMORY_LIMIT', '${WP_MAX_MEMORY_LIMIT}' );
+        define( 'WP_MEMORY_LIMIT', '${WP_MEMORY_LIMIT}' );
+        define( 'WP_MAX_MEMORY_LIMIT', '${WP_MAX_MEMORY_LIMIT}' );
 
-          define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE}' );
+        define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE}' );
 
-          define( 'WP_DEBUG_DISPLAY', !!'${WP_DEBUG_DISPLAY}' );
-          define( 'WP_DEBUG_LOG', '${WP_DEBUG_LOG}' );
+        define( 'WP_DEBUG_DISPLAY', !!'${WP_DEBUG_DISPLAY}' );
+        define( 'WP_DEBUG_LOG', '${WP_DEBUG_LOG}' );
 
-          //Cron
-          define( 'DISABLE_WP_CRON', true );
+        //Cron
+        define( 'DISABLE_WP_CRON', true );
 
-          //Redis
-          define( 'WP_REDIS_HOST', '${WP_REDIS_HOST}' );
-          define( 'WP_REDIS_PORT', ${WP_REDIS_PORT} );
-          define( 'WP_CACHE_KEY_SALT', '${WP_CACHE_KEY_SALT}' );
-          // automatically delete cache keys after 7 days
-          // define( 'WP_REDIS_MAXTTL', ${WP_REDIS_MAXTTL} );
+        //Redis
+        define( 'WP_REDIS_HOST', '${WP_REDIS_HOST}' );
+        define( 'WP_REDIS_PORT', ${WP_REDIS_PORT} );
+        define( 'WP_CACHE_KEY_SALT', '${WP_CACHE_KEY_SALT}' );
+        // automatically delete cache keys after 7 days
+        // define( 'WP_REDIS_MAXTTL', ${WP_REDIS_MAXTTL} );
 
     volumes:
       - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
@@ -63,8 +63,6 @@ services:
       # cron
       - ./config/crontabs:/etc/crontabs
       - ./logs/cron:/var/log/cron
-      # backups folder
-      - ./backup:/srv/rsync/backup
 
   nginx:
     image: nginx:1.20-alpine
