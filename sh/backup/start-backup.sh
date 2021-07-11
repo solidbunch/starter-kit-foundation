@@ -65,4 +65,4 @@ tar -zcf ./backups/$MODE-media-$(date +%Y%m%d).tar.gz -C ./web/app/ uploads
 # Check old files to delete
 find ./backups/$MODE-* -mtime +$MODE_TIMER -delete
 
-echo "[Success] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"
+echo "[Success] [$MODE] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"
