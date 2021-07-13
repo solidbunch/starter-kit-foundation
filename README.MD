@@ -1,11 +1,11 @@
 # Starter Kit Foundation
 
-Starter Kit Foundation - is developers tool, server environment for fast and easy start WordPres project with docker containers, convenient credential settings etc
+Starter Kit Foundation - is developers tool, server environment for fast and easy start WordPress project with docker containers, convenient credential settings, etc
 
 ## Requirements
  
-1. Docker and Docker-compose
-2. To run in proxy mode need `nginx-proxy` (optional)
+1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+ and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
+2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional) or you can use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
 
