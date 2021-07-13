@@ -5,7 +5,6 @@ services:
 
   database:
     image: mariadb:10.5
-    #build: ./images/database
     restart: unless-stopped
     env_file: .env
     environment:
@@ -19,7 +18,7 @@ services:
       - db_data:/var/lib/mysql
 
   wordpress:
-    build: ./images/wordpress
+    build: ./docker/wordpress
     restart: unless-stopped
     links:
       - database
