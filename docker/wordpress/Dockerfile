@@ -96,7 +96,8 @@ RUN set -eux; \
 ##
 ## set PHP.ini settings for sendmail
 	{ \
-		echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
+		#echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
+		echo 'sendmail_path = /usr/sbin/sendmail -t'; \
 	} > /usr/local/etc/php/conf.d/sendmail.ini; \
 ##
     set -eux; \
@@ -145,8 +146,6 @@ RUN set -eux; \
 COPY --chown=www-data:www-data wp-config-docker.php /usr/src/wordpress/
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-COPY ssmtp.conf /etc/ssmtp/ssmtp.conf
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
