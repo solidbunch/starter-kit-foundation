@@ -109,8 +109,17 @@ $table_prefix = getenv_docker('WORDPRESS_TABLE_PREFIX', 'wp_');
  * Can be use with port https://example.com:8080
  *
  */
-define( 'WP_SITEURL', getenv_docker( 'WORDPRESS_SITEURL', '' ) );
-define( 'WP_HOME', getenv_docker( 'WORDPRESS_HOME', '' ) );
+
+$app_port = getenv_docker( 'APP_PORT', '' );
+
+$app_url = getenv_docker( 'APP_PROTOCOL', '' ) . '://' . getenv_docker( 'APP_DOMAIN', '' );
+
+if ( !empty($app_port) && $app_port != 80 && $app_port != 443 ) {
+   $app_url .= ':' . $app_port;
+}
+
+define( 'WP_SITEURL', $app_url );
+define( 'WP_HOME', $app_url );
 
 /**
  * Environment type
