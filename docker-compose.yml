@@ -4,11 +4,10 @@ version: "3.9"
 services:
 
   database:
-    build: ./images/database
+    image: mariadb:10.5
     restart: unless-stopped
     env_file: .env
     environment:
-      # should be .env files for all environments
       MYSQL_HOST: ${MYSQL_HOST}
       MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -19,7 +18,7 @@ services:
       - db_data:/var/lib/mysql
 
   wordpress:
-    build: ./images/wordpress
+    build: ./docker/wordpress
     restart: unless-stopped
     links:
       - database
@@ -27,40 +26,38 @@ services:
       - database
     env_file: .env
     environment:
+      # Database
       WORDPRESS_DB_HOST: ${MYSQL_HOST}
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
       WORDPRESS_DB_USER: ${MYSQL_USER}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      # Site URL
+      APP_PROTOCOL: ${APP_PROTOCOL}
+      APP_DOMAIN: ${APP_DOMAIN}
+      APP_PORT: ${APP_PORT}
+      # Environment type
+      WORDPRESS_ENVIRONMENT_TYPE: ${WP_ENVIRONMENT_TYPE}
+      # Debugging
       WORDPRESS_DEBUG: ${WP_DEBUG}
-      WORDPRESS_CONFIG_EXTRA: |
-
-        define( 'WP_SITEURL', '${WP_SITEURL}' );
-        define( 'WP_HOME', '${WP_HOME}' );
-
-        define( 'WP_MEMORY_LIMIT', '${WP_MEMORY_LIMIT}' );
-        define( 'WP_MAX_MEMORY_LIMIT', '${WP_MAX_MEMORY_LIMIT}' );
-
-        define( 'WP_ENVIRONMENT_TYPE', '${WP_ENVIRONMENT_TYPE}' );
-
-        define( 'WP_DEBUG_DISPLAY', !!'${WP_DEBUG_DISPLAY}' );
-        define( 'WP_DEBUG_LOG', '${WP_DEBUG_LOG}' );
-
-        //Cron
-        define( 'DISABLE_WP_CRON', true );
-
-        //Redis
-        define( 'WP_REDIS_HOST', '${WP_REDIS_HOST}' );
-        define( 'WP_REDIS_PORT', ${WP_REDIS_PORT} );
-        define( 'WP_CACHE_KEY_SALT', '${WP_CACHE_KEY_SALT}' );
-        // automatically delete cache keys after 7 days
-        // define( 'WP_REDIS_MAXTTL', ${WP_REDIS_MAXTTL} );
+      WORDPRESS_DEBUG_DISPLAY: ${WP_DEBUG_DISPLAY}
+      WORDPRESS_DEBUG_LOG: ${WP_DEBUG_LOG}
+      # Memory
+      WORDPRESS_MEMORY_LIMIT: ${WP_MEMORY_LIMIT}
+      WORDPRESS_MAX_MEMORY_LIMIT: ${WP_MAX_MEMORY_LIMIT}
+      # Cron
+      WORDPRESS_DISABLE_WP_CRON: ${DISABLE_WP_CRON}
+      # Redis
+      WORDPRESS_REDIS_HOST: ${WP_REDIS_HOST}
+      WORDPRESS_REDIS_PORT: ${WP_REDIS_PORT}
+      WORDPRESS_REDIS_PREFIX: ${WP_REDIS_PREFIX}
+      WORDPRESS_REDIS_MAXTTL: ${WP_REDIS_MAXTTL}
 
     volumes:
       - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
       - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       - ./logs/wordpress:/var/log/wordpress
-      # cron
+      # Cron
       - ./config/crontabs:/etc/crontabs
       - ./logs/cron:/var/log/cron
 
