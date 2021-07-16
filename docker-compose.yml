@@ -60,8 +60,6 @@ services:
       # Cron
       - ./config/crontabs:/etc/crontabs
       - ./logs/cron:/var/log/cron
-      # SMTP
-      #- ./config/ssmtp:/etc/ssmtp
 
   nginx:
     image: nginx:1.20-alpine
