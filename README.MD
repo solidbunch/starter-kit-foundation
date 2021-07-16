@@ -1,11 +1,11 @@
 # Starter Kit Foundation
 
-Starter Kit Foundation - is developers tool, server environment for fast and easy start WordPres project with docker containers, convenient credential settings etc
+Starter Kit Foundation - is developers tool, server environment for fast and easy start WordPress project with docker containers, convenient credential settings, etc
 
 ## Requirements
  
-1. Docker and Docker-compose
-2. To run in proxy mode need `nginx-proxy` (optional)
+1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+ and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
+2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional) or you can use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
 
@@ -62,16 +62,25 @@ networks:
 ### Init backup script
 
 1. edit .env file - enable APP_WP_BACKUP_ENABLE and check APP_HOST_SYSTEM_CRON_DIR
-2. check ./sh/backup/backup-crontab.template - change cronjob time if need 
+2. check ./sh/backup/backup-crontab.template - change cronjob time if need
 3. run `bash ./sh/backup/backup-init.sh`
 4. backups will appear in ./backups folder, logs in ./logs/cron/backup.log
 
 ## Sturcture
- - config/ – config files
- - images/ - docker images (Dockerfiles)
- - logs/ - system and wordpress logs
- - web/ - main project files
-    - wordpress-core/ - core wordpress files
-    - app/ - application (shared wp-content folder)
-        - themes/ - themes folder
+
+- ./backups - wordpress backups
+- ./config – config files
+- ./images - docker images (Dockerfiles)
+- ./logs - system and wordpress logs
+- ./sh - bash scripts
+- ./web - main project files
+    - /wordpress-core - core wordpress files
+    - /app - application (shared wp-content folder)
+        - /themes/md-theme - main theme
       
+## Sending emails
+
+Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your .env file.
+
+See an example https://www.wordpressdocker.com/mailgun-ssmtp/
+
