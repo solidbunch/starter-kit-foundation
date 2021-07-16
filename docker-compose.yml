@@ -61,7 +61,7 @@ services:
       - ./config/crontabs:/etc/crontabs
       - ./logs/cron:/var/log/cron
       # SMTP
-      - ./config/ssmtp:/etc/ssmtp
+      #- ./config/ssmtp:/etc/ssmtp
 
   nginx:
     image: nginx:1.20-alpine
@@ -86,12 +86,6 @@ services:
   redis:
     image: redis:6.2-alpine
     restart: unless-stopped
-
-  mailhog:
-    image: mailhog/mailhog
-    ports:
-      - 1025:1025 # smtp server
-      - 8025:8025 # web ui
 
 volumes:
   db_data:

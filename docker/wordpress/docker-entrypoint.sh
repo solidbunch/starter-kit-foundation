@@ -98,7 +98,10 @@ fi
 ## Remove wp-config-docker.php
 rm -f wp-config-docker.php
 
-#/bin/sh -c "envsubst '$$SSMTP_MAILHUB, $$SSMTP_HOSTNAME' < /etc/ssmtp/ssmtp.conf.template > /etc/ssmtp/ssmtp.conf"
+# Replace env variables with values in sSMTP config
+envsubst < /etc/ssmtp/ssmtp.conf.template > /etc/ssmtp/ssmtp.conf
+envsubst < /etc/ssmtp/revaliases.template > /etc/ssmtp/revaliases
+echo "sSMTP config ready"
 
 ## Add owner www-data to all wp-content files
 ## ToDo sync users id with host and sync files permissions
