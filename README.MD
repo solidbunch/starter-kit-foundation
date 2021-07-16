@@ -80,5 +80,7 @@ networks:
       
 ## Sending emails
 
-Current docker containers do not have a custom SMTP server. We use SMTP relay service. You can set up an SMTP server like Gmail or AWS, etc, or use another server you like. Just edit ssmtp.conf
-https://support.google.com/a/answer/176600?hl=en
+Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your .env file.
+
+See an example https://www.wordpressdocker.com/mailgun-ssmtp/
+
