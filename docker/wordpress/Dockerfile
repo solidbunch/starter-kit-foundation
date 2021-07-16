@@ -18,6 +18,8 @@ RUN set -eux; \
 		imagemagick \
 # Use SMTP relay service
 		ssmtp \
+# Need envsubst for operate with env variables in config files
+        gettext \
 	; \
 
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
@@ -143,7 +145,10 @@ RUN set -eux; \
 ## We do not need this volume
 #VOLUME /var/www/html
 
-COPY --chown=www-data:www-data wp-config-docker.php /usr/src/wordpress/
+COPY ./config/ssmtp.conf.template /etc/ssmtp/
+COPY ./config/revaliases.template /etc/ssmtp/
+
+COPY --chown=www-data:www-data ./config/wp-config-docker.php /usr/src/wordpress/
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
