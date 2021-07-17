@@ -78,3 +78,9 @@ networks:
     - /app - application (shared wp-content folder)
         - /themes/md-theme - main theme
       
+## Sending emails
+
+Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your .env file.
+
+See an example https://www.wordpressdocker.com/mailgun-ssmtp/
+
