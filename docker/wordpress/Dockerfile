@@ -16,6 +16,10 @@ RUN set -eux; \
 		ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
 		imagemagick \
+# Use SMTP relay service
+		ssmtp \
+# Need envsubst for operate with env variables in config files
+        gettext \
 	; \
 
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
@@ -91,7 +95,13 @@ RUN set -eux; \
 		echo 'ignore_repeated_source = Off'; \
 		echo 'html_errors = Off'; \
 	} > /usr/local/etc/php/conf.d/error-logging.ini; \
-
+##
+## set PHP.ini settings for sendmail
+	{ \
+		#echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
+		echo 'sendmail_path = /usr/sbin/sendmail -t'; \
+	} > /usr/local/etc/php/conf.d/sendmail.ini; \
+##
     set -eux; \
     ## ToDo WordPress version to .env
 	version='5.7.2'; \
@@ -135,18 +145,12 @@ RUN set -eux; \
 ## We do not need this volume
 #VOLUME /var/www/html
 
-COPY --chown=www-data:www-data wp-config-docker.php /usr/src/wordpress/
+COPY ./config/ssmtp.conf.template /etc/ssmtp/
+COPY ./config/revaliases.template /etc/ssmtp/
+
+COPY --chown=www-data:www-data ./config/wp-config-docker.php /usr/src/wordpress/
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
-
-
-
-#COPY start-wordpress.sh /usr/local/bin/
-#RUN chmod +x /usr/local/bin/start-wordpress.sh
-
-#ENTRYPOINT ["docker-entrypoint.sh", "php-fpm"]
-
-#CMD ["start-wordpress.sh"]
