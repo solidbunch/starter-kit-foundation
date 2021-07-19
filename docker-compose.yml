@@ -7,6 +7,9 @@ services:
     image: mariadb:10.5
     restart: unless-stopped
     env_file: .env
+    #ports:
+      # 3306 port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
+      #- 127.0.0.1:3306:3306
     environment:
       MYSQL_HOST: ${MYSQL_HOST}
       MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
