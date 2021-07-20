@@ -7,9 +7,10 @@ services:
     image: mariadb:10.5
     restart: unless-stopped
     env_file: .env
+    # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
+    # Uncomment ports directive for using SSH tunnel, amd uncomment SSH_TUNNEL_EXT_PORT var in .env file
     #ports:
-      # 3306 port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
-      #- 127.0.0.1:3306:3306
+    #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
     environment:
       MYSQL_HOST: ${MYSQL_HOST}
       MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
