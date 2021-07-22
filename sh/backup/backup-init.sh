@@ -23,9 +23,6 @@ fi
 # Go to the script directory 
 cd $SCRIPT_PATH
 
-# Make backup script executable
-chmod +x ./start-backup.sh
-
 # Copy crontab template to system cron directory and replace current project path
 sed 's|PATH_TO_PROJECT_ROOT|'$PROJECT_ROOT_DIR'|g' ./backup-crontab.template > $APP_HOST_SYSTEM_CRON_DIR/${APP_NAME,,}-backup 
 
