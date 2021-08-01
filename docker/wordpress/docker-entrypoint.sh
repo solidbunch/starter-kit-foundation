@@ -64,6 +64,9 @@ if [ ! -e index.php ] && [ ! -e wp-includes/version.php ]; then
     fi
   done
   tar "${sourceTarArgs[@]}" . | tar "${targetTarArgs[@]}"
+  ## WordPress logs folder make writable
+  mkdir -p /var/log/wordpress
+  chown "$user:$group" /var/log/wordpress
   echo >&2 "Complete! WordPress has been successfully copied to $PWD"
 fi
 
@@ -106,10 +109,6 @@ echo "sSMTP config ready"
 ## Add owner www-data to all wp-content files
 ## ToDo sync users id with host and sync files permissions
 chown "$user:$group" -R wp-content
-
-## WordPress logs folder make writable
-mkdir -p /var/log/wordpress
-chown "$user:$group" /var/log/wordpress
 
 ## Added Cron
 mkdir -p /var/log/cron
