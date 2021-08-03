@@ -60,7 +60,7 @@ docker-compose exec -T $DATABASE_CONTAINER mysqldump -u $MYSQL_ROOT_USER --passw
 #docker-compose exec -T $DATABASE_CONTAINER mysqldump -u $MYSQL_ROOT_USER --password=$MYSQL_ROOT_PASSWORD --all-databases | gzip --rsyncable > ./backups/$MODE-all-databases-$(date +%Y%m%d).sql.gz
 
 # Make uploads folder archive
-tar -zcf ./backups/$MODE-media-$(date +%Y%m%d).tar.gz -C ./web/app/ uploads
+tar -zcf ./backups/$MODE-media-$(date +%Y%m%d).tar.gz -C ./wp-content/ uploads
 
 # Check old files to delete
 find ./backups/$MODE-* -mtime +$MODE_TIMER -delete
