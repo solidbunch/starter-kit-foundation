@@ -57,9 +57,10 @@ services:
       WORDPRESS_REDIS_MAXTTL: ${WP_REDIS_MAXTTL}
 
     volumes:
-      - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
+      - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
-      - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      # Debug log
       - ./logs/wordpress:/var/log/wordpress
       # Cron
       - ./config/crontabs:/etc/crontabs
@@ -81,9 +82,9 @@ services:
     volumes:
       - ./config/nginx:/etc/nginx/conf.d
       - ./logs/nginx:/var/log/nginx
-      - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
+      - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
-      - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
 
   redis:
     image: redis:6.2-alpine
