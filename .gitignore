@@ -76,7 +76,6 @@ node_modules
 #===================================#
 #          Content Files            #
 #===================================#
-#/web/app/ folder is wp-content
 /wp-content/*
 !/wp-content/mu-plugins/
 !/wp-content/plugins/
