@@ -19,7 +19,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - db_data:/var/lib/mysql
+      - ./db-data:/var/lib/mysql
 
   wordpress:
     build: ./docker/wordpress
@@ -90,6 +90,5 @@ services:
     image: redis:6.2-alpine
     restart: unless-stopped
 
-volumes:
-  db_data:
+#volumes:
   #wordpress_core:
