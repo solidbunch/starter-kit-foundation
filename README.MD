@@ -1,11 +1,30 @@
-# Starter Kit Foundation
+<p style="text-align: center;">
+    <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo1.png" height="100">
+</p>
 
-Starter Kit Foundation - is developers tool, server environment for fast and easy start WordPress project with docker containers, convenient credential settings, etc
+<p style="text-align: center;">
+
+![GitHub](https://img.shields.io/github/license/solidbunch/starter-kit-foundation)
+![GitHub all releases](https://img.shields.io/github/downloads/solidbunch/starter-kit-foundation/total?color=green)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/solidbunch/starter-kit-foundation) 
+
+Starter Kit Foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.
+
+</p>
+
+## Works on
+
+![PHP](https://img.shields.io/badge/PHP%20fpm%20-7.4-blue)
+![MariaDB](https://img.shields.io/badge/MariaDB-10.5-red)
+![WordPress](https://img.shields.io/badge/WordPress-5.8-lightgrey)
+![Nginx](https://img.shields.io/badge/Nginx-1.20-brightgreen)
+![Redis](https://img.shields.io/badge/Redis-6.2-red)
+![phpMyAdmin](https://img.shields.io/badge/phpMyAdmin-5.1-orange)
 
 ## Requirements
  
 1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+ and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
-2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional) or you can use [Traefik](https://traefik.io/) (optional)
+2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
 
@@ -56,7 +75,7 @@ networks:
 
 ```
 
-2. clone repo, copy `.env` file the same as already described for dev, stage or prod mode
+2. clone repo, copy `.env` file the same as already described for the dev, stage or prod mode
 3. run `docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`
 
 ### Init backup script
@@ -66,7 +85,7 @@ networks:
 3. run `bash ./sh/backup/backup-init.sh`
 4. backups will appear in ./backups folder, logs in ./logs/cron/backup.log
 
-## Sturcture
+## Structure
 
 - ./backups - wordpress backups
 - ./config – config files
