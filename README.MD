@@ -58,17 +58,18 @@
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+
    and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
-2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can
+2. To run few instances on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can
    use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
 
 ### Development mode
 
-1. clone repo
-2. copy `.env.dev.sample` to  `.env`
-3. edit `.env` file - change options, url and port, passwords, etc
-4. run `docker-compose up -d`
+1. make project folder `mkdir you-project-dir-name`
+2. clone repo `git clone git@github.com:solidbunch/starter-kit-foundation.git you-project-dir-name`
+3. copy `.env.dev.sample` to  `.env`
+4. edit `.env` file - change options, url and port, passwords, etc
+5. run `docker-compose up -d`
 
 ### Staging mode
 
@@ -86,9 +87,12 @@
 
 ### Proxy mode
 
-1. start nginx-proxy container https://hub.docker.com/r/jwilder/nginx-proxy
+1. start nginx-proxy container
 
-```
+<details>
+  <summary>Nginx-proxy docker-compose.yml file</summary>
+
+  ```
 version: '3.9'
 services:
   nginx-proxy:
@@ -109,6 +113,9 @@ networks:
       name: nginx-proxy
 
 ```
+</details>
+
+[Docker hub Nginx-proxy details](https://hub.docker.com/r/jwilder/nginx-proxy)
 
 2. clone repo, copy `.env` file the same as already described for the dev, stage or prod mode
 3. run `docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`
@@ -122,6 +129,23 @@ networks:
 
 ## Structure
 
+```
+backups/                  # Daily and weekly WordPress media and database backups 
+config/                   # Global config files
+db-data/                  # Database docker mounted volume
+docker/                   # Docker images (Dockerfiles) and additional scripts
+logs/                     # System and wordpress logs
+sh/                       # Bash scripts
+└── backup/               # Backup scripts (crontab, backup-init, start-backup)
+wp-content/               # Docker mounted volume WordPress wp-content folder
+├── mu-plugins/           # Must use plugins
+├── plugins/              # Plugins folder. Add your plugins here
+├── themes/               # Themes folder. Add your theme here
+│   └── twenty*/          # Standard themes added to .gitignore
+├── .../                  # Everything else in the wp-content folder is gitignored
+└── uploads/              # Media uploads folder. All subfolders content is gitignored
+wp-core/                  # WordPress core files, docker mounted volume. Gitignored
+```
 - ./backups - wordpress backups
 - ./config – config files
 - ./images - docker images (Dockerfiles)
@@ -139,4 +163,42 @@ like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just 
 file.
 
 See an example https://www.wordpressdocker.com/mailgun-ssmtp/
+
+## Database management
+### SSH tunnel options
+You can use an SSH tunnel to connect to database from an external app (for example [HeidiSQL](https://www.heidisql.com/))
+Uncomment ports directive in database service in docker-compose.yml and use constant `SSH_TUNNEL_EXT_PORT` to set up an external app port.
+
+
+### phpMyadmin options
+To use phpMyadmin need to run phpMyadmin container first. It's not running by default. 
+1. edit `.env` file, find `PMA_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
+2. run `docker-compose -f docker-compose.phpmyadmin.yml up -d`
+3. open your-app-domain.com:PMA_EXT_PORT URL in the browser to access phpMyadmin
+
+> :warning: **If you are using mobile browser**: Be very careful here!
+
+<div class="panel panel-warning">
+**Warning**
+{: .panel-heading}
+<div class="panel-body">
+
+WARNING DESCRIPTION
+
+</div>
+</div>
+
+
+My warning paragraph.
+{: .alert .alert-warning}
+
+WARNING Do not run phpMyadmin on production, it's not secure
+
+to stop phpMyadmin container run `docker-compose -f docker-compose.phpmyadmin.yml down -v`
+
+Use your-app-domain.com:PMA_EXT_PORT URL to access phpMyadmin
+WARNING Do not run phpMyadmin on production, it's not secure
+
+
+
 
