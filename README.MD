@@ -1,13 +1,26 @@
 <p style="text-align: center;">
-    <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo1.png" height="100">
+
+  <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo1.png" height="100">
+
 </p>
 
 <p style="text-align: center;">
 
-![GitHub](https://img.shields.io/github/license/solidbunch/starter-kit-foundation)
-![GitHub all releases](https://img.shields.io/github/downloads/solidbunch/starter-kit-foundation/total?color=green)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/solidbunch/starter-kit-foundation) 
+  <a href="LICENSE.md">
+    <img alt="GitHub" src="https://img.shields.io/github/license/solidbunch/starter-kit-foundation">
+  </a>
 
+  <a href="https://github.com/solidbunch/starter-kit-foundation/releases">
+    <img alt="GitHub downloads" src="https://img.shields.io/github/downloads/solidbunch/starter-kit-foundation/total?color=green">
+  </a>
+
+  <a href="https://github.com/solidbunch/starter-kit-foundation/releases">
+    <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/solidbunch/starter-kit-foundation">
+  </a>
+
+</p>
+
+<p style="text-align: center;">
 Starter Kit Foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.
 
 </p>
@@ -22,28 +35,30 @@ Starter Kit Foundation - is a WordPress environment boilerplate for fast and eas
 ![phpMyAdmin](https://img.shields.io/badge/phpMyAdmin-5.1-orange)
 
 ## Requirements
- 
-1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+ and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
-2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can use [Traefik](https://traefik.io/) (optional)
+
+1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+
+   and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
+2. To run on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can
+   use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
 
 ### Development mode
- 
+
 1. clone repo
 2. copy `.env.dev.sample` to  `.env`
 3. edit `.env` file - change options, url and port, passwords, etc
 4. run `docker-compose up -d`
 
 ### Staging mode
- 
+
 1. clone repo
 2. copy `.env.stage.sample` to  `.env`
 3. edit `.env` file - change options, url and port, passwords, etc
 4. run `docker-compose up -d`
-    
+
 ### Production mode
- 
+
 1. clone repo
 2. copy `.env.prod.sample` to  `.env`
 3. edit `.env` file - change options, url and port, passwords, etc
@@ -93,13 +108,15 @@ networks:
 - ./logs - system and wordpress logs
 - ./sh - bash scripts
 - ./web - main project files
-    - /wordpress-core - core wordpress files
-    - /app - application (shared wp-content folder)
-        - /themes/md-theme - main theme
-      
+	- /wordpress-core - core wordpress files
+	- /app - application (shared wp-content folder)
+		- /themes/md-theme - main theme
+
 ## Sending emails
 
-Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your .env file.
+Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server
+like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your .env
+file.
 
 See an example https://www.wordpressdocker.com/mailgun-ssmtp/
 
