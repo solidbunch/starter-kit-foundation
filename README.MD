@@ -1,10 +1,10 @@
-<p style="text-align: center;">
+<p align="center">
 
   <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo1.png" height="100">
 
 </p>
 
-<p style="text-align: center;">
+<p align="center">
 
   <a href="LICENSE.md">
     <img alt="GitHub" src="https://img.shields.io/github/license/solidbunch/starter-kit-foundation">
@@ -20,7 +20,7 @@
 
 </p>
 
-<p style="text-align: center;">
+<p align="center">
 Starter Kit Foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.
 
 </p>
