@@ -15,24 +15,44 @@
   </a>
 
   <a href="https://github.com/solidbunch/starter-kit-foundation/releases">
-    <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/solidbunch/starter-kit-foundation">
+    <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/solidbunch/starter-kit-foundation?color=blueviolet">
   </a>
 
 </p>
 
 <p align="center">
-Starter Kit Foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.
+<strong>Starter Kit Foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.</strong>
 
 </p>
 
-## Works on
+## What's inside the containers
+<p align="center">
 
-![PHP](https://img.shields.io/badge/PHP%20fpm%20-7.4-blue)
-![MariaDB](https://img.shields.io/badge/MariaDB-10.5-red)
-![WordPress](https://img.shields.io/badge/WordPress-5.8-lightgrey)
-![Nginx](https://img.shields.io/badge/Nginx-1.20-brightgreen)
-![Redis](https://img.shields.io/badge/Redis-6.2-red)
-![phpMyAdmin](https://img.shields.io/badge/phpMyAdmin-5.1-orange)
+  <a href="https://hub.docker.com/_/php">
+    <img alt="PHP" src="https://img.shields.io/badge/PHP%20fpm-7.4-8892bf">
+  </a>
+
+  <a href="https://hub.docker.com/_/mariadb">
+    <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-10.5-c0765a">
+  </a>
+
+  <a href="https://hub.docker.com/_/wordpress">
+    <img alt="WordPress" src="https://img.shields.io/badge/WordPress-5.8-lightgrey">
+  </a>
+
+  <a href="https://hub.docker.com/_/nginx">
+    <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.20-00a652">
+  </a>
+
+  <a href="https://hub.docker.com/_/redis">
+    <img alt="Redis" src="https://img.shields.io/badge/Redis-6.2-d82c20">
+  </a>
+
+  <a href="https://hub.docker.com/_/phpmyadmin">
+    <img alt="phpMyAdmin" src="https://img.shields.io/badge/phpMyAdmin-5.1-f99d0f">
+  </a>
+
+</p>
 
 ## Requirements
 
