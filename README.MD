@@ -146,15 +146,6 @@ wp-content/               # Docker mounted volume WordPress wp-content folder
 └── uploads/              # Media uploads folder. All subfolders content is gitignored
 wp-core/                  # WordPress core files, docker mounted volume. Gitignored
 ```
-- ./backups - wordpress backups
-- ./config – config files
-- ./images - docker images (Dockerfiles)
-- ./logs - system and wordpress logs
-- ./sh - bash scripts
-- ./web - main project files
-	- /wordpress-core - core wordpress files
-	- /app - application (shared wp-content folder)
-		- /themes/md-theme - main theme
 
 ## Sending emails
 
@@ -176,28 +167,11 @@ To use phpMyadmin need to run phpMyadmin container first. It's not running by de
 2. run `docker-compose -f docker-compose.phpmyadmin.yml up -d`
 3. open your-app-domain.com:PMA_EXT_PORT URL in the browser to access phpMyadmin
 
-> :warning: **If you are using mobile browser**: Be very careful here!
-
-<div class="panel panel-warning">
-**Warning**
-{: .panel-heading}
-<div class="panel-body">
-
-WARNING DESCRIPTION
-
-</div>
-</div>
+> :warning: **WARNING Do not run phpMyadmin on production, it's not secure!**
 
 
-My warning paragraph.
-{: .alert .alert-warning}
+To stop phpMyadmin container run `docker-compose -f docker-compose.phpmyadmin.yml down -v`
 
-WARNING Do not run phpMyadmin on production, it's not secure
-
-to stop phpMyadmin container run `docker-compose -f docker-compose.phpmyadmin.yml down -v`
-
-Use your-app-domain.com:PMA_EXT_PORT URL to access phpMyadmin
-WARNING Do not run phpMyadmin on production, it's not secure
 
 
 
