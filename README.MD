@@ -95,13 +95,14 @@ services:
   nginx-proxy:
     image: jwilder/nginx-proxy:alpine
     container_name: nginx-proxy
+    environment:
+      DISABLE_ACCESS_LOGS: 1
     ports:
-      - "8080:80"
       - "80:80"
-      - "8443:443"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./logs:/var/log/nginx
     restart: always
 
 networks:
@@ -119,12 +120,13 @@ networks:
 
 ### Init backup script
 
-1. edit .env file - enable APP_WP_BACKUP_ENABLE and check APP_HOST_SYSTEM_CRON_DIR
-2. check ./sh/backup/backup-crontab.template - change cronjob time if need
+1. edit `.env` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
+2. check `./sh/backup/backup-crontab.template` - change cronjob time if need
 3. run `bash ./sh/backup/backup-init.sh`
-4. backups will appear in ./backups folder, logs in ./logs/cron/backup.log
+4. backups will appear in `./backups folder`, logs in `./logs/cron/backup.log`
 
 ## Structure
+wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
 
 ```
 backups/                  # Daily and weekly WordPress media and database backups 
@@ -134,7 +136,7 @@ docker/                   # Docker images (Dockerfiles) and additional scripts
 logs/                     # System and wordpress logs
 sh/                       # Bash scripts
 └── backup/               # Backup scripts (crontab, backup-init, start-backup)
-wp-content/               # Docker mounted volume WordPress wp-content folder
+wp-content/               # Docker mounted volume, WordPress wp-content folder
 ├── mu-plugins/           # Must use plugins
 ├── plugins/              # Plugins folder. Add your plugins here
 ├── themes/               # Themes folder. Add your theme here
@@ -143,6 +145,8 @@ wp-content/               # Docker mounted volume WordPress wp-content folder
 └── uploads/              # Media uploads folder. All subfolders content is gitignored
 wp-core/                  # WordPress core files, docker mounted volume. Gitignored
 ```
+
+Do not edit files in the wp-core folder, it builds automatically.
 
 ## Sending emails
 
