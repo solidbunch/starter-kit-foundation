@@ -11,10 +11,6 @@
   </a>
 
   <a href="https://github.com/solidbunch/starter-kit-foundation/releases">
-    <img alt="GitHub downloads" src="https://img.shields.io/github/downloads/solidbunch/starter-kit-foundation/total?color=green">
-  </a>
-
-  <a href="https://github.com/solidbunch/starter-kit-foundation/releases">
     <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/solidbunch/starter-kit-foundation?color=blueviolet">
   </a>
 
@@ -67,9 +63,10 @@
 
 1. make project folder `mkdir you-project-dir-name`
 2. clone repo `git clone git@github.com:solidbunch/starter-kit-foundation.git you-project-dir-name`
-3. copy `.env.dev.sample` to  `.env`
-4. edit `.env` file - change options, url and port, passwords, etc
-5. run `docker-compose up -d`
+3. `cd you-project-dir-name`
+4. copy `.env.dev.sample` to  `.env`
+5. edit `.env` file - change options, url and port, passwords, etc
+6. run `docker-compose up -d`
 
 ### Staging mode
 
@@ -162,17 +159,12 @@ Uncomment ports directive in database service in docker-compose.yml and use cons
 
 
 ### phpMyadmin options
-To use phpMyadmin need to run phpMyadmin container first. It's not running by default. 
-1. edit `.env` file, find `PMA_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
+To use phpMyadmin need to run the phpMyadmin container first. It's not running by default.
+1. edit the `.env` file, find `PMA_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
 2. run `docker-compose -f docker-compose.phpmyadmin.yml up -d`
-3. open your-app-domain.com:PMA_EXT_PORT URL in the browser to access phpMyadmin
+3. open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use PMA_EXT_PORT=8800. Open `your-app-domain.com:8800`
 
-> :warning: **WARNING Do not run phpMyadmin on production, it's not secure!**
-
-
-To stop phpMyadmin container run `docker-compose -f docker-compose.phpmyadmin.yml down -v`
+> :warning: **WARNING Do not use phpMyadmin on public (production or open stage), it's not secure!**
 
 
-
-
-
+To stop the phpMyadmin container run command `docker-compose -f docker-compose.phpmyadmin.yml down -v`
