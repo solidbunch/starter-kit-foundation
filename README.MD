@@ -144,21 +144,24 @@ Do not edit files in the wp-core folder, it builds automatically.
 ## Sending emails
 
 Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server
-like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your `.env` file. 
+like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. 
+
+Just edit sSMTP config block in your `.env` file.
+
 sSMTP config files `./docker/wordpress/config/ssmtp.conf.template` and `./docker/wordpress/config/revaliases.template` automatically loaded into the WordPress container
 
-See [an example](https://www.wordpressdocker.com/mailgun-ssmtp/)
+See [an example](https://www.wordpressdocker.com/mailgun-ssmtp/) of ssmtp.conf
 
 ## Database management
 ### SSH tunnel options
-You can use an SSH tunnel to connect to database from an external app (for example [HeidiSQL](https://www.heidisql.com/))
-1. uncomment ports directive in database service in docker-compose.yml
+You can use an SSH tunnel to connect to database from an external app (for example [MySQL Workbench](https://www.mysql.com/products/workbench/), [HeidiSQL](https://www.heidisql.com/) or [PHPStorm](https://www.jetbrains.com/help/phpstorm/configuring-ssh-and-ssl.html))
+1. uncomment ports directive in database service in `docker-compose.yml`
 ```
 ports:
   - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
 ```
 2. edit the `.env` file, find `SSH_TUNNEL_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
-3. open your database management app and configure SSH tunnel and database connection 
+3. open your database management app and configure SSH tunnel, database connection 
 
 
 ### phpMyadmin options
@@ -174,8 +177,10 @@ To stop the phpMyadmin container run command `docker-compose -f docker-compose.p
 
 ## Additional scripts
 ### Init backup script
+The system has automatic backups. Launched by a cronjob. By default, daily and weekly backups work. With a retention period of 7 and 31 days, respectively. You can customize the frequency and content of backups yourself. To activate backups:
 
 1. edit `.env` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
 2. check `./sh/backup/backup-crontab.template` - change cronjob time if need
 3. run `bash ./sh/backup/backup-init.sh`
-4. backups will appear in `./backups folder`, logs in `./logs/cron/backup.log`
+
+Backups will appear in the `./backups` folder, logs in `./logs/cron/backup.log`
