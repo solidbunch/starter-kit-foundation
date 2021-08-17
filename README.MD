@@ -89,7 +89,7 @@
 <details>
   <summary>Nginx-proxy docker-compose.yml file</summary>
 
-  ```
+```
 version: '3.9'
 services:
   nginx-proxy:
@@ -118,13 +118,6 @@ networks:
 2. clone repo, copy `.env` file the same as already described for the dev, stage or prod mode
 3. run `docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`
 
-### Init backup script
-
-1. edit `.env` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
-2. check `./sh/backup/backup-crontab.template` - change cronjob time if need
-3. run `bash ./sh/backup/backup-init.sh`
-4. backups will appear in `./backups folder`, logs in `./logs/cron/backup.log`
-
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
 
@@ -151,24 +144,38 @@ Do not edit files in the wp-core folder, it builds automatically.
 ## Sending emails
 
 Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server
-like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your .env
-file.
+like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. Just edit sSMTP config block in your `.env` file. 
+sSMTP config files `./docker/wordpress/config/ssmtp.conf.template` and `./docker/wordpress/config/revaliases.template` automatically loaded into the WordPress container
 
-See an example https://www.wordpressdocker.com/mailgun-ssmtp/
+See [an example](https://www.wordpressdocker.com/mailgun-ssmtp/)
 
 ## Database management
 ### SSH tunnel options
 You can use an SSH tunnel to connect to database from an external app (for example [HeidiSQL](https://www.heidisql.com/))
-Uncomment ports directive in database service in docker-compose.yml and use constant `SSH_TUNNEL_EXT_PORT` to set up an external app port.
+1. uncomment ports directive in database service in docker-compose.yml
+```
+ports:
+  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
+```
+2. edit the `.env` file, find `SSH_TUNNEL_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
+3. open your database management app and configure SSH tunnel and database connection 
 
 
 ### phpMyadmin options
 To use phpMyadmin need to run the phpMyadmin container first. It's not running by default.
 1. edit the `.env` file, find `PMA_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
 2. run `docker-compose -f docker-compose.phpmyadmin.yml up -d`
-3. open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use PMA_EXT_PORT=8800. Open `your-app-domain.com:8800`
+3. open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
 
 > :warning: **WARNING Do not use phpMyadmin on public (production or open stage), it's not secure!**
 
 
 To stop the phpMyadmin container run command `docker-compose -f docker-compose.phpmyadmin.yml down -v`
+
+## Additional scripts
+### Init backup script
+
+1. edit `.env` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
+2. check `./sh/backup/backup-crontab.template` - change cronjob time if need
+3. run `bash ./sh/backup/backup-init.sh`
+4. backups will appear in `./backups folder`, logs in `./logs/cron/backup.log`
