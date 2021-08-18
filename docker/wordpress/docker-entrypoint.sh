@@ -64,6 +64,10 @@ if [ ! -e index.php ] && [ ! -e wp-includes/version.php ]; then
     fi
   done
   tar "${sourceTarArgs[@]}" . | tar "${targetTarArgs[@]}"
+  ## Add owner www-data to all wp-content files
+  ## ToDo sync users id with host and sync files permissions
+  chown "$user:$group" -R wp-content
+  ##
   echo >&2 "Complete! WordPress has been successfully copied to $PWD"
 fi
 
@@ -102,10 +106,6 @@ rm -f wp-config-docker.php
 envsubst < /etc/ssmtp/ssmtp.conf.template > /etc/ssmtp/ssmtp.conf
 envsubst < /etc/ssmtp/revaliases.template > /etc/ssmtp/revaliases
 echo "sSMTP config ready"
-
-## Add owner www-data to all wp-content files
-## ToDo sync users id with host and sync files permissions
-chown "$user:$group" -R wp-content
 
 ## WordPress logs folder make writable
 mkdir -p /var/log/wordpress

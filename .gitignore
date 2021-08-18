@@ -64,43 +64,42 @@ access_log
 #       Vendor and npm Files        #
 #===================================#
 node_modules
-/web/app/themes/*/vendor
+/wp-content/themes/*/vendor
 
 
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/web/wordpress-core
+/wp-core
 
 
 #===================================#
 #          Content Files            #
 #===================================#
-#/web/app/ folder is wp-content
-/web/app/*
-!/web/app/mu-plugins/
-!/web/app/plugins/
-!/web/app/themes/
-!/web/app/uploads/
-/web/app/uploads/*
+/wp-content/*
+!/wp-content/mu-plugins/
+!/wp-content/plugins/
+!/wp-content/themes/
+!/wp-content/uploads/
+/wp-content/uploads/*
 #languages should be exluded too
 
 
 #===================================#
 #          Database Files           #
 #===================================#
-/db_data/
+/db-data
 
 #===================================#
 #          Backup Files           #
 #===================================#
-/backups/
+/backups
 
 #======================================#
 #      Default Themes and Plugins      #
 #======================================#
-/web/app/themes/twenty*/
-/web/app/plugins/hello.php
+/wp-content/themes/twenty*/
+/wp-content/plugins/hello.php
 
 #=============================================================#
 #       Compiled code. It should not always be tracked.       #
@@ -113,6 +112,6 @@ node_modules
 #===========================#
 #      Specific Plugins     #
 #===========================#
-/web/app/themes/*/build/browser-sync.config.js
+/wp-content/themes/*/build/browser-sync.config.js
 /config/nginx/default.conf
 

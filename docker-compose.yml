@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
-    # Uncomment ports directive for using SSH tunnel, amd uncomment SSH_TUNNEL_EXT_PORT var in .env file
+    # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     #ports:
     #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
     environment:
@@ -19,7 +19,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
-      - db_data:/var/lib/mysql
+      - ./db-data:/var/lib/mysql
 
   wordpress:
     build: ./docker/wordpress
@@ -57,9 +57,10 @@ services:
       WORDPRESS_REDIS_MAXTTL: ${WP_REDIS_MAXTTL}
 
     volumes:
-      - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
+      - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
-      - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      # Debug log
       - ./logs/wordpress:/var/log/wordpress
       # Cron
       - ./config/crontabs:/etc/crontabs
@@ -81,14 +82,13 @@ services:
     volumes:
       - ./config/nginx:/etc/nginx/conf.d
       - ./logs/nginx:/var/log/nginx
-      - ./web/wordpress-core:/var/www/html # wordpress root folder for development only
+      - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
-      - ./web/app:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
 
   redis:
     image: redis:6.2-alpine
     restart: unless-stopped
 
-volumes:
-  db_data:
+#volumes:
   #wordpress_core:

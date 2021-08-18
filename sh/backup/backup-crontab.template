@@ -21,8 +21,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 
 # Backup database and media
-15 3 * * * root PATH_TO_PROJECT_ROOT/sh/backup/start-backup.sh daily >>PATH_TO_PROJECT_ROOT/logs/cron/backup.log 2>&1
-15 4 * * 1 root PATH_TO_PROJECT_ROOT/sh/backup/start-backup.sh weekly >>PATH_TO_PROJECT_ROOT/logs/cron/backup.log 2>&1
+15 3 * * * bash PATH_TO_PROJECT_ROOT/sh/backup/start-backup.sh daily >>PATH_TO_PROJECT_ROOT/logs/cron/backup.log 2>&1
+15 4 * * 1 bash PATH_TO_PROJECT_ROOT/sh/backup/start-backup.sh weekly >>PATH_TO_PROJECT_ROOT/logs/cron/backup.log 2>&1
 
 # Remove backup log file once a month
 30 4 3 * * root rm PATH_TO_PROJECT_ROOT/logs/cron/backup.log >/dev/null 2>&1
