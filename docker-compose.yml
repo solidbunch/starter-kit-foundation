@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
-    # Uncomment ports directive for using SSH tunnel, amd uncomment SSH_TUNNEL_EXT_PORT var in .env file
+    # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     #ports:
     #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
     environment:
