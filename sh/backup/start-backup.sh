@@ -9,7 +9,7 @@ DATABASE_CONTAINER="database"
 MODE="daily"
 MODE_TIMER=7
 
-# Parce args
+# Parse args
 if [ $1 ] && ([ $1 == "daily" ] || [ $1 == "weekly" ]); then
     MODE="$1"
 fi
