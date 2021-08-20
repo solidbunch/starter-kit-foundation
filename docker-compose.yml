@@ -6,18 +6,14 @@ services:
   database:
     image: mariadb:10.5
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - .env
+      - .env.${WP_ENVIRONMENT_TYPE}
+      - .env.local
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     #ports:
     #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
-    environment:
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_ROOT_USER: ${MYSQL_ROOT_USER}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - ./db-data:/var/lib/mysql
 
@@ -28,34 +24,10 @@ services:
       - database
     depends_on:
       - database
-    env_file: .env
-    environment:
-      # Database
-      WORDPRESS_DB_HOST: ${MYSQL_HOST}
-      WORDPRESS_DB_NAME: ${MYSQL_DATABASE}
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      # Site URL
-      APP_PROTOCOL: ${APP_PROTOCOL}
-      APP_DOMAIN: ${APP_DOMAIN}
-      APP_PORT: ${APP_PORT}
-      # Environment type
-      WORDPRESS_ENVIRONMENT_TYPE: ${WP_ENVIRONMENT_TYPE}
-      # Debugging
-      WORDPRESS_DEBUG: ${WP_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WP_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WP_DEBUG_LOG}
-      # Memory
-      WORDPRESS_MEMORY_LIMIT: ${WP_MEMORY_LIMIT}
-      WORDPRESS_MAX_MEMORY_LIMIT: ${WP_MAX_MEMORY_LIMIT}
-      # Cron
-      WORDPRESS_DISABLE_WP_CRON: ${DISABLE_WP_CRON}
-      # Redis
-      WORDPRESS_REDIS_HOST: ${WP_REDIS_HOST}
-      WORDPRESS_REDIS_PORT: ${WP_REDIS_PORT}
-      WORDPRESS_REDIS_PREFIX: ${WP_REDIS_PREFIX}
-      WORDPRESS_REDIS_MAXTTL: ${WP_REDIS_MAXTTL}
-
+    env_file:
+      - .env
+      - .env.${WP_ENVIRONMENT_TYPE}
+      - .env.local
     volumes:
       - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
@@ -74,7 +46,10 @@ services:
     depends_on:
       - database
       - wordpress
-    env_file: .env
+    env_file:
+      - .env
+      - .env.${WP_ENVIRONMENT_TYPE}
+      - .env.local
     environment:
       NGINX_HOST: ${APP_DOMAIN}
       NGINX_PORT: ${APP_PORT}
