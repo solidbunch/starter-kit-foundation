@@ -6,10 +6,7 @@ services:
   database:
     image: mariadb:10.5
     restart: unless-stopped
-    env_file:
-      - .env
-      - .env.${WP_ENVIRONMENT_TYPE}
-      - .env.local
+    env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     #ports:
@@ -24,10 +21,7 @@ services:
       - database
     depends_on:
       - database
-    env_file:
-      - .env
-      - .env.${WP_ENVIRONMENT_TYPE}
-      - .env.local
+    env_file: .env
     volumes:
       - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
@@ -46,10 +40,7 @@ services:
     depends_on:
       - database
       - wordpress
-    env_file:
-      - .env
-      - .env.${WP_ENVIRONMENT_TYPE}
-      - .env.local
+    env_file: .env
     environment:
       NGINX_HOST: ${APP_DOMAIN}
       NGINX_PORT: ${APP_PORT}

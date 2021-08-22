@@ -20,6 +20,6 @@ if [ ! -f .env."${ENVIRONMENT_TYPE}" ]; then
 fi
 
 # Run secrets generator and make .env.secret file
-bash sh/env/secret-gen.sh
+#bash sh/env/secret-gen.sh
 
 cat .env.main <(echo) .env."${ENVIRONMENT_TYPE}" <(echo) .env.secret > .env
