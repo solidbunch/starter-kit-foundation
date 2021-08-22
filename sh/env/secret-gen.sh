@@ -18,7 +18,7 @@ fi
 # Generate secrets, copy .env.secret template to .env.secret and replace generated secrets
 awk '
   /generatepass/ {
-    cmd = "head -c 13 /dev/urandom | sha1sum | cut -d\\  -f1 | head -c 20"
+    cmd = "< /dev/urandom tr -dc A-Za-z0-9_%* | head -c 20"
     cmd | getline str
     close(cmd)
     gsub("generatepass", str)
