@@ -59,14 +59,31 @@
 
 ## How to use
 
-### Development mode
+### First run
 
-1. make project folder `mkdir you-project-dir-name`
-2. clone repo `git clone git@github.com:solidbunch/starter-kit-foundation.git you-project-dir-name`
-3. `cd you-project-dir-name`
-4. copy `.env.dev.sample` to  `.env`
-5. edit `.env` file - change options, url and port, passwords, etc
-6. run `docker-compose up -d`
+1. make project folder
+
+```bash
+mkdir you-project-dir-name
+```
+2. clone repo to your project dir 
+```bash
+cd you-project-dir-name
+```
+
+```bash
+git clone git@github.com:solidbunch/starter-kit-foundation.git .
+```   
+3. generate secrets env - run `bash sh/env/secret-gen.sh`
+4. edit `.env.main` file - change your App name, etc
+5. edit `.env.dev|.env.stage|.env.prod` - specific environment types for development, staging and production (you can add any new environment type)
+6. run `bash sh/env/init.sh dev` to put together environment files development mode. You can run
+
+```bash
+bash sh/env/init.sh [environment_type]
+```
+`environment_type` - any type that exist, like `.env.[environment_type]` `dev` mode is default
+7. run `docker-compose up -d`
 
 ### Staging mode
 
