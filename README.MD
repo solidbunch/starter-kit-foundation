@@ -76,14 +76,20 @@ git clone git@github.com:solidbunch/starter-kit-foundation.git .
 ```   
 3. generate secrets env - run `bash sh/env/secret-gen.sh`
 4. edit `.env.main` file - change your App name, etc
-5. edit `.env.dev|.env.stage|.env.prod` - specific environment types for development, staging and production (you can add any new environment type)
+5. edit `.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging and production (you can add any new environment type)
 6. run `bash sh/env/init.sh dev` to put together environment files development mode. You can run
 
 ```bash
 bash sh/env/init.sh [environment_type]
 ```
 `environment_type` - any type that exist, like `.env.[environment_type]` `dev` mode is default
+
 7. run `docker-compose up -d`
+
+Do not edit the automatically compiled `.env` file. It will be overwritten every time the app run.
+After the first run, you can add secrets to `.env.secret`, but keep in mind that your secrets will not go to the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
+
+You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatepass`   real password when you run `bash sh/env/secret-gen.sh`.
 
 ### Staging mode
 
