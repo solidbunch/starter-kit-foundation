@@ -62,7 +62,7 @@
 
 ### Installation
 
-1. Create a new project directory[^1]:
+1. Create a new project directory<sup>[1](#footnote_fhs)</sup>:
 
 ```bash
 mkdir you-project.com && cd you-project.com
@@ -85,7 +85,7 @@ make secret
 
 5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. Change your App domain. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
 
-[^1]: We recomend to use `/srv` folder. Create `/srv/apps/` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
+<a name="footnote_fhs"></a>[1]: We recommend to use `/srv` folder. Create `/srv/apps/` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
 ### Launch
 
