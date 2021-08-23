@@ -76,7 +76,7 @@ git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm
 3. Generate secrets env file:
 
 ```bash
-bash sh/env/secret-gen.sh
+make secret
 ```
 
 4. Update environment variables in the `./config/environment/.env.main` file. Change your App name, etc
@@ -87,30 +87,26 @@ bash sh/env/secret-gen.sh
 
 ### Launch
 
-1. Compile the root `.env` file:
+1. Compile the root `.env` file and run docker-compose:
 
 ```bash
-bash sh/env/init.sh [environment_type]
+make up [t=environment_type]
 ```
 
 Where `environment_type` - any type that exist in `./config/environment/`. `dev` is default.
 
-**Example:**
+**Examples:**
 
 ```bash
-bash sh/env/init.sh stage
-```
-
-2. Run docker-compose 
-   
-```bash
-docker-compose up -d
+make up
+make up t=stage
+make up t=prod
 ```
 
 Do not edit the automatically compiled root `.env` file. It will be overwritten every time the app run.
 After the installation, you can add your custom secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
-You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass`   real password when you run `bash sh/env/secret-gen.sh`.
+You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with real password when you run `bash sh/env/secret-gen.sh`.
 
 
 :warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
@@ -149,11 +145,29 @@ networks:
 
 [Docker hub Nginx-proxy details](https://hub.docker.com/r/jwilder/nginx-proxy)
 
-2. Do everything as usual (install, compile the root `.env` file) except for the last point - instead `docker-compose up -d` run:
+2. Install and Makefile command for the proxy mode:
 
 ``` bash 
-docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+make pup [t=environment_type]
 ```
+
+**Examples:**
+
+```bash
+make pup
+make pup t=stage
+make pup t=prod
+```
+
+### Makefile commands
+
+- `make secret` - `bash sh/env/secret-gen.sh`
+- `make up [t=environment_type]`
+- `make pup [t=environment_type]`
+- `make down` - `docker-compose down -v`
+- `make start` - `docker-compose start`
+- `make stop` - `docker-compose stop`
+- `make pause` - `docker-compose pause`
 
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.

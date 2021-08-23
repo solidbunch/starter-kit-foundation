@@ -1,2 +1,22 @@
+.SILENT:
+
+secret:
+	bash sh/env/secret-gen.sh
+
 up:
-	docker-compose up -d
+	bash sh/env/init.sh $(t) && docker-compose up -d
+
+pup:
+	bash sh/env/init.sh $(t) && docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+
+down:
+	docker-compose down -v
+
+start:
+	docker-compose start
+
+stop:
+	docker-compose stop
+
+pause:
+	docker-compose pause
