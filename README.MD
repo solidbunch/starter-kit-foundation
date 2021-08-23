@@ -113,7 +113,8 @@ After the first run, you can add secrets to `.env.secret`, but keep in mind that
 You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass`   real password when you run `bash sh/env/secret-gen.sh`.
 
 
-### Proxy mode launch
+### Launch in proxy mode
+A proxy mode is useful when you are launching multiply instances of the application, and 80 port is busy.
 
 1. Start nginx-proxy container
 
