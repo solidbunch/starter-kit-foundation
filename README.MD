@@ -55,7 +55,7 @@
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+
    and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
-2. To run few instances on 80 port need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can
+2. To run few instances on port 80 need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can
    use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
@@ -115,7 +115,7 @@ You can add secret variables names there without secret data, just for structure
 :warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ### Launch in proxy mode
-A proxy mode is useful when you are launching multiply instances of the application, and 80 port is busy.
+A proxy mode is useful when you are launching multiply instances of the application, and port 80 is busy.
 
 1. Start nginx-proxy container
 
