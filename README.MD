@@ -1,3 +1,4 @@
+<!--suppress HtmlDeprecatedAttribute -->
 <p align="center">
 
   <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo1.png" height="100">
@@ -61,7 +62,7 @@
 
 ### Installation
 
-1. Create a new project directory:
+1. Create a new project directory[^1]:
 
 ```bash
 mkdir you-project.com && cd you-project.com
@@ -82,8 +83,9 @@ make secret
 4. Update environment variables in the `./config/environment/.env.main` file. Change your App name, etc
 
 
-5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging and production. Change your App domain. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
+5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. Change your App domain. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
 
+[^1]: We recomend to use `/srv` folder. Create `/srv/apps/` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
 ### Launch
 
@@ -93,7 +95,7 @@ make secret
 make up [t=environment_type]
 ```
 
-Where `environment_type` - any type that exist in `./config/environment/`. `dev` is default.
+Where `environment_type` - any type that exist in `./config/environment/`. `dev` is the default.
 
 **Examples:**
 
@@ -104,9 +106,10 @@ make up t=prod
 ```
 
 Do not edit the automatically compiled root `.env` file. It will be overwritten every time the app run.
+
 After the installation, you can add your custom secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
-You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with real password when you run `bash sh/env/secret-gen.sh`.
+You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with the real password when you run `bash sh/env/secret-gen.sh`.
 
 
 :warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
@@ -145,7 +148,7 @@ networks:
 
 [Docker hub Nginx-proxy details](https://hub.docker.com/r/jwilder/nginx-proxy)
 
-2. Install and Makefile command for the proxy mode:
+2. [Install](#installation) and use the Makefile command to run the proxy mode:
 
 ``` bash 
 make pup [t=environment_type]
@@ -252,7 +255,7 @@ To activate backups:
 1. Edit `./config/environment/.env.type.[environment_type]` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
 
 
-2. Check `./sh/backup/backup-crontab.template` - change cronjob time if need.
+2. Check `./sh/backup/backup-crontab.template` - change cronjob time if it needs.
 
 
 3. Run backups init script:
