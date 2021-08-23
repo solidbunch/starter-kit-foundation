@@ -108,10 +108,12 @@ docker-compose up -d
 ```
 
 Do not edit the automatically compiled root `.env` file. It will be overwritten every time the app run.
-After the first run, you can add secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
+After the installation, you can add your custom secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
 You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass`   real password when you run `bash sh/env/secret-gen.sh`.
 
+
+:warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ### Launch in proxy mode
 A proxy mode is useful when you are launching multiply instances of the application, and 80 port is busy.
@@ -217,7 +219,8 @@ docker-compose -f docker-compose.phpmyadmin.yml up -d
 
 3. Open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
 
-> :warning: **WARNING Do not use phpMyadmin on public (production or open stage), it's not secure!**
+
+:warning: **WARNING Do not use phpMyadmin on public (production or open stage), it's not secure!**
 
 
 To stop the phpMyadmin container run command:
