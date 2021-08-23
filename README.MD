@@ -59,55 +59,63 @@
 
 ## How to use
 
-### First run
+### Installation
 
-1. make project folder
+1. Create a new project directory:
 
 ```bash
-mkdir you-project-dir-name
-```
-2. clone repo to your project dir 
-```bash
-cd you-project-dir-name
+mkdir you-project.com && cd you-project.com
 ```
 
+2. Install Starter Kit Foundation:
+
 ```bash
-git clone git@github.com:solidbunch/starter-kit-foundation.git .
-```   
-3. generate secrets env - run `bash sh/env/secret-gen.sh`
-4. edit `.env.main` file - change your App name, etc
-5. edit `.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging and production (you can add any new environment type)
-6. run `bash sh/env/init.sh dev` to put together environment files development mode. You can run
+git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm -rf .git
+```
+
+3. Generate secrets env file:
+
+```bash
+bash sh/env/secret-gen.sh
+```
+
+4. Update environment variables in the `./config/environment/.env.main` file. Change your App name, etc
+
+
+5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging and production. Change your App domain. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
+
+
+### Launch
+
+1. Compile the root `.env` file:
 
 ```bash
 bash sh/env/init.sh [environment_type]
 ```
-`environment_type` - any type that exist, like `.env.[environment_type]` `dev` mode is default
 
-7. run `docker-compose up -d`
+Where `environment_type` - any type that exist in `./config/environment/`. `dev` is default.
 
-Do not edit the automatically compiled `.env` file. It will be overwritten every time the app run.
-After the first run, you can add secrets to `.env.secret`, but keep in mind that your secrets will not go to the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
+**Example:**
 
-You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatepass`   real password when you run `bash sh/env/secret-gen.sh`.
+```bash
+bash sh/env/init.sh stage
+```
 
-### Staging mode
+2. Run docker-compose 
+   
+```bash
+docker-compose up -d
+```
 
-1. clone repo
-2. copy `.env.stage.sample` to  `.env`
-3. edit `.env` file - change options, url and port, passwords, etc
-4. run `docker-compose up -d`
+Do not edit the automatically compiled root `.env` file. It will be overwritten every time the app run.
+After the first run, you can add secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
-### Production mode
+You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass`   real password when you run `bash sh/env/secret-gen.sh`.
 
-1. clone repo
-2. copy `.env.prod.sample` to  `.env`
-3. edit `.env` file - change options, url and port, passwords, etc
-4. run `docker-compose up -d`
 
-### Proxy mode
+### Proxy mode launch
 
-1. start nginx-proxy container
+1. Start nginx-proxy container
 
 <details>
   <summary>Nginx-proxy docker-compose.yml file</summary>
@@ -138,8 +146,11 @@ networks:
 
 [Docker hub Nginx-proxy details](https://hub.docker.com/r/jwilder/nginx-proxy)
 
-2. clone repo, copy `.env` file the same as already described for the dev, stage or prod mode
-3. run `docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d`
+2. Do everything as usual (install, compile the root `.env` file) except for the last point - instead `docker-compose up -d` run:
+
+``` bash 
+docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+```
 
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
@@ -166,10 +177,10 @@ Do not edit files in the wp-core folder, it builds automatically.
 
 ## Sending emails
 
-Current docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server
+Docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server
 like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. 
 
-Just edit sSMTP config block in your `.env` file.
+Just edit sSMTP config block in your `.env.secret` file.
 
 sSMTP config files `./docker/wordpress/config/ssmtp.conf.template` and `./docker/wordpress/config/revaliases.template` automatically loaded into the WordPress container
 
@@ -178,32 +189,58 @@ See [an example](https://www.wordpressdocker.com/mailgun-ssmtp/) of ssmtp.conf
 ## Database management
 ### SSH tunnel options
 You can use an SSH tunnel to connect to database from an external app (for example [MySQL Workbench](https://www.mysql.com/products/workbench/), [HeidiSQL](https://www.heidisql.com/) or [PHPStorm](https://www.jetbrains.com/help/phpstorm/configuring-ssh-and-ssl.html))
-1. uncomment ports directive in database service in `docker-compose.yml`
+1. Uncomment ports directive in database service in `docker-compose.yml`
+
 ```
 ports:
   - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
 ```
-2. edit the `.env` file, find `SSH_TUNNEL_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
-3. open your database management app and configure SSH tunnel, database connection 
+
+2. Edit the `.env.main` file, find `SSH_TUNNEL_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value.
+
+
+3. Open your database management app and configure SSH tunnel, database connection 
 
 
 ### phpMyadmin options
 To use phpMyadmin need to run the phpMyadmin container first. It's not running by default.
-1. edit the `.env` file, find `PMA_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value
-2. run `docker-compose -f docker-compose.phpmyadmin.yml up -d`
-3. open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
+
+1. Edit the `.env.main` file, find `PMA_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value.
+
+
+2. Run phpMyadmin container:
+
+```bash
+docker-compose -f docker-compose.phpmyadmin.yml up -d
+```
+
+3. Open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
 
 > :warning: **WARNING Do not use phpMyadmin on public (production or open stage), it's not secure!**
 
 
-To stop the phpMyadmin container run command `docker-compose -f docker-compose.phpmyadmin.yml down -v`
+To stop the phpMyadmin container run command:
+
+```bash
+docker-compose -f docker-compose.phpmyadmin.yml down -v
+```
 
 ## Additional scripts
 ### Init backup script
-The system has automatic backups. Launched by a cronjob. By default, daily and weekly backups work. With a retention period of 7 and 31 days, respectively. You can customize the frequency and content of backups yourself. To activate backups:
+The system has automatic backups. Launched by a cronjob. By default, daily and weekly backups work. With a retention period of 7 and 31 days, respectively. You can customize the frequency and content of backups yourself.
 
-1. edit `.env` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
-2. check `./sh/backup/backup-crontab.template` - change cronjob time if need
-3. run `bash ./sh/backup/backup-init.sh`
+To activate backups:
+
+1. Edit `./config/environment/.env.type.[environment_type]` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
+
+
+2. Check `./sh/backup/backup-crontab.template` - change cronjob time if need.
+
+
+3. Run backups init script:
+
+```bash
+bash ./sh/backup/backup-init.sh
+```
 
 Backups will appear in the `./backups` folder, logs in `./logs/cron/backup.log`

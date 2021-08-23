@@ -5,6 +5,7 @@ SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
 
 # Project root directory
 cd $(dirname "$(readlink -f "$0")")/../../ || exit 1
+PROJECT_ROOT_DIR=$PWD
 
 # Default values
 ENVIRONMENT_TYPE=dev
@@ -14,12 +15,12 @@ if [ "$1" ]; then
     ENVIRONMENT_TYPE="$1"
 fi
 
-# Check .env.${ENVIRONMENT_TYPE} file exist
-if [ ! -f .env.type."${ENVIRONMENT_TYPE}" ]; then
-    echo "[Error] .env.type.${ENVIRONMENT_TYPE} file not found in $PWD"; exit 1;
+# Check .env.type.${ENVIRONMENT_TYPE} file exist
+if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
+    echo "[Error] .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
 fi
 
 # Run secrets generator and make .env.secret file
 #bash sh/env/secret-gen.sh
 
-cat .env.main <(echo) .env.type."${ENVIRONMENT_TYPE}" <(echo) .env.secret > .env
+cat ./config/environment/.env.main <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}" <(echo) ./config/environment/.env.secret > .env
