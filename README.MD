@@ -171,6 +171,8 @@ make upp t=prod
 - `make start` - `docker-compose start`
 - `make stop` - `docker-compose stop`
 - `make pause` - `docker-compose pause`
+- `make pma-up` - `docker-compose -f docker-compose.phpmyadmin.yml up -d $(s)`
+- `make pma-down` - `docker-compose -f docker-compose.phpmyadmin.yml down -v`
 - `make backup-init` - `sudo bash sh/backup/backup-init.sh`
 
 ## Structure
@@ -232,7 +234,7 @@ To use phpMyadmin need to run the phpMyadmin container first. It's not running b
 2. Run phpMyadmin container:
 
 ```bash
-docker-compose -f docker-compose.phpmyadmin.yml up -d
+make pma-up
 ```
 
 3. Open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
@@ -244,7 +246,7 @@ docker-compose -f docker-compose.phpmyadmin.yml up -d
 To stop the phpMyadmin container run command:
 
 ```bash
-docker-compose -f docker-compose.phpmyadmin.yml down -v
+make pma-down
 ```
 
 ## Additional scripts

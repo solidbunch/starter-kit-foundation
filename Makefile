@@ -21,5 +21,11 @@ stop:
 pause:
 	docker-compose pause
 
+pma-up:
+	docker-compose -f docker-compose.phpmyadmin.yml up -d $(s)
+
+pma-down:
+	docker-compose -f docker-compose.phpmyadmin.yml down -v
+
 backup-init:
 	sudo bash sh/backup/backup-init.sh
