@@ -171,6 +171,7 @@ make upp t=prod
 - `make start` - `docker-compose start`
 - `make stop` - `docker-compose stop`
 - `make pause` - `docker-compose pause`
+- `make backup-init` - `sudo bash sh/backup/backup-init.sh`
 
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
@@ -258,10 +259,12 @@ To activate backups:
 2. Check `./sh/backup/backup-crontab.template` - change cronjob time if it needs.
 
 
-3. Run backups init script:
+3. Run backups init script<sup>[2](#footnote_backup)</sup>:
 
 ```bash
-bash ./sh/backup/backup-init.sh
+make backup-init
 ```
 
 Backups will appear in the `./backups` folder, logs in `./logs/cron/backup.log`
+
+<a name="footnote_backup"></a>[2] Need sudo access
