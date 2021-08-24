@@ -80,22 +80,22 @@ git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm
 make secret
 ```
 
-4. Update environment variables in the `./config/environment/.env.main` file. Change your App name, etc
+4. Update environment variables in the `./config/environment/.env.main` file. Change your App name, etc.
 
 
-5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. Change your App domain. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
+5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. Change App domain variable to yours. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
 
-<a name="footnote_fhs"></a>[1]: We recommend to use `/srv` folder. Create `/srv/apps/` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
+<a name="footnote_fhs"></a>[1]: We recommend to use `/srv` folder instead `/var/www`. Create `/srv/apps` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
 ### Launch
 
 1. Compile the root `.env` file and run docker-compose:
 
 ```bash
-make up [t=environment_type]
+make up [t=<environment_type>]
 ```
 
-Where `environment_type` - any type that exist in `./config/environment/`. `dev` is the default.
+Where `environment_type` - any type that exist in `./config/environment/.env.type.*`. `dev` is the default.
 
 **Examples:**
 
@@ -109,15 +109,15 @@ Do not edit the automatically compiled root `.env` file. It will be overwritten 
 
 After the installation, you can add your custom secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
-You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with the real password when you run `bash sh/env/secret-gen.sh`.
+You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with the real password when you run `make secret` (`bash sh/env/secret-gen.sh`).
 
 
 :warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ### Launch in proxy mode
-A proxy mode is useful when you are launching multiply instances of the application, and port 80 is busy.
+A proxy mode is useful when you are launching multiply web applications on port 80.
 
-1. Start nginx-proxy container
+1. Start the nginx-proxy container
 
 <details>
   <summary>Nginx-proxy docker-compose.yml file</summary>
@@ -151,22 +151,22 @@ networks:
 2. [Install](#installation) and use the Makefile command to run the proxy mode:
 
 ``` bash 
-make pup [t=environment_type]
+make upp [t=<environment_type>]
 ```
 
 **Examples:**
 
 ```bash
-make pup
-make pup t=stage
-make pup t=prod
+make upp
+make upp t=stage
+make upp t=prod
 ```
 
 ### Makefile commands
 
 - `make secret` - `bash sh/env/secret-gen.sh`
-- `make up [t=environment_type]`
-- `make pup [t=environment_type]`
+- `make up [t=<environment_type>]`
+- `make upp [t=<environment_type>]`
 - `make down` - `docker-compose down -v`
 - `make start` - `docker-compose start`
 - `make stop` - `docker-compose stop`
