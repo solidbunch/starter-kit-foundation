@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Stop when error
+set -e
+
 # Script path
 SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
 
@@ -31,4 +34,4 @@ awk '
   { print }
 ' .env.secret.template > "$PROJECT_ROOT_DIR"/config/environment/.env.secret
 
-echo "[Info] Secrets done in ./config/environment/.env.secret"
+echo "[Success] Secrets done in ./config/environment/.env.secret"

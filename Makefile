@@ -20,3 +20,6 @@ stop:
 
 pause:
 	docker-compose pause
+
+backup-init:
+	sudo bash sh/backup/backup-init.sh

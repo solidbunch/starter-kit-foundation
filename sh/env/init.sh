@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Stop when error
+set -e
+
 # Script path
 SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
 
@@ -20,7 +23,7 @@ if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
     echo "[Error] .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
 fi
 
-# Run secrets generator and make .env.secret file
-#bash sh/env/secret-gen.sh
-
+# Compile root .env file
 cat ./config/environment/.env.main <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}" <(echo) ./config/environment/.env.secret > .env
+
+echo "[Success] root .env ready"

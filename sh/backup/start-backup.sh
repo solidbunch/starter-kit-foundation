@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Stop when error
+set -e
+
 # Check package availability
 command -v docker-compose >/dev/null 2>&1 || { echo "[Error] Please install docker-compose"; exit 1; }
 command -v gzip >/dev/null 2>&1 || { echo "[Error] Please install gzip"; exit 1; }
