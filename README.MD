@@ -89,7 +89,7 @@ make secret
 
 ### Launch
 
-1. Compile the root `.env` file and run docker-compose:
+1. Build the root `.env` file and run docker-compose:
 
 ```bash
 make up [t=<environment_type>]
@@ -105,7 +105,7 @@ make up t=stage
 make up t=prod
 ```
 
-Do not edit the automatically compiled root `.env` file. It will be overwritten every time the app run.
+Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
 
 After the installation, you can add your custom secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
@@ -248,7 +248,7 @@ docker-compose -f docker-compose.phpmyadmin.yml down -v
 ```
 
 ## Additional scripts
-### Init backup script
+### Automatic backups
 The system has automatic backups. Launched by a cronjob. By default, daily and weekly backups work. With a retention period of 7 and 31 days, respectively. You can customize the frequency and content of backups yourself.
 
 To activate backups:

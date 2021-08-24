@@ -23,7 +23,14 @@ if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
     echo "[Error] .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
 fi
 
-# Compile root .env file
+# Concatenate root .env file
 cat ./config/environment/.env.main <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}" <(echo) ./config/environment/.env.secret > .env
+
+# Check .env.type.${ENVIRONMENT_TYPE}.override file exist
+if [ -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override ]; then
+    # Concatenate root .env file
+    cat <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override >> .env
+
+fi
 
 echo "[Success] root .env ready"
