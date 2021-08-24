@@ -24,7 +24,7 @@
 /**
  * Copy of official WordPress wp-config-docker.php https://hub.docker.com/_/wordpress
  *
- * Added some constatns and improvements with eval
+ * Added some constants and improvements with eval
  *
  */
 
@@ -49,13 +49,13 @@ if (!function_exists('getenv_docker')) {
 
 // ** MySQL settings - You can get this info from your web host ** //
 /** The name of the database for WordPress */
-define( 'DB_NAME', getenv_docker('WORDPRESS_DB_NAME', 'wordpress') );
+define( 'DB_NAME', getenv_docker('MYSQL_DATABASE', 'wordpress') );
 
 /** MySQL database username */
-define( 'DB_USER', getenv_docker('WORDPRESS_DB_USER', 'example_username') );
+define( 'DB_USER', getenv_docker('MYSQL_USER', 'example_username') );
 
 /** MySQL database password */
-define( 'DB_PASSWORD', getenv_docker('WORDPRESS_DB_PASSWORD', 'example_password') );
+define( 'DB_PASSWORD', getenv_docker('MYSQL_PASSWORD', 'example_password') );
 
 /**
  * Docker image fallback values above are sourced from the official WordPress installation wizard:
@@ -64,13 +64,17 @@ define( 'DB_PASSWORD', getenv_docker('WORDPRESS_DB_PASSWORD', 'example_password'
  */
 
 /** MySQL hostname */
-define( 'DB_HOST', getenv_docker('WORDPRESS_DB_HOST', 'mysql') );
+define( 'DB_HOST', getenv_docker('MYSQL_HOST', 'database') );
 
-/** Database charset to use in creating database tables. */
-define( 'DB_CHARSET', getenv_docker('WORDPRESS_DB_CHARSET', 'utf8') );
+/**
+ * Database charset to use in creating database tables.
+ * Using utf8mb4 store 4 byte characters
+ * https://make.wordpress.org/core/2015/04/02/the-utf8mb4-upgrade/
+ */
+define( 'DB_CHARSET', getenv_docker('WP_DB_CHARSET', 'utf8mb4') );
 
 /** The database collate type. Don't change this if in doubt. */
-define( 'DB_COLLATE', getenv_docker('WORDPRESS_DB_COLLATE', '') );
+define( 'DB_COLLATE', getenv_docker('WP_DB_COLLATE', '') );
 
 /**#@+
  * Authentication unique keys and salts.
@@ -83,14 +87,14 @@ define( 'DB_COLLATE', getenv_docker('WORDPRESS_DB_COLLATE', '') );
  *
  * @since 2.6.0
  */
-define( 'AUTH_KEY',         getenv_docker('WORDPRESS_AUTH_KEY',         'put your unique phrase here') );
-define( 'SECURE_AUTH_KEY',  getenv_docker('WORDPRESS_SECURE_AUTH_KEY',  'put your unique phrase here') );
-define( 'LOGGED_IN_KEY',    getenv_docker('WORDPRESS_LOGGED_IN_KEY',    'put your unique phrase here') );
-define( 'NONCE_KEY',        getenv_docker('WORDPRESS_NONCE_KEY',        'put your unique phrase here') );
-define( 'AUTH_SALT',        getenv_docker('WORDPRESS_AUTH_SALT',        'put your unique phrase here') );
-define( 'SECURE_AUTH_SALT', getenv_docker('WORDPRESS_SECURE_AUTH_SALT', 'put your unique phrase here') );
-define( 'LOGGED_IN_SALT',   getenv_docker('WORDPRESS_LOGGED_IN_SALT',   'put your unique phrase here') );
-define( 'NONCE_SALT',       getenv_docker('WORDPRESS_NONCE_SALT',       'put your unique phrase here') );
+define( 'AUTH_KEY',         getenv_docker('WP_AUTH_KEY',         'put your unique phrase here') );
+define( 'SECURE_AUTH_KEY',  getenv_docker('WP_SECURE_AUTH_KEY',  'put your unique phrase here') );
+define( 'LOGGED_IN_KEY',    getenv_docker('WP_LOGGED_IN_KEY',    'put your unique phrase here') );
+define( 'NONCE_KEY',        getenv_docker('WP_NONCE_KEY',        'put your unique phrase here') );
+define( 'AUTH_SALT',        getenv_docker('WP_AUTH_SALT',        'put your unique phrase here') );
+define( 'SECURE_AUTH_SALT', getenv_docker('WP_SECURE_AUTH_SALT', 'put your unique phrase here') );
+define( 'LOGGED_IN_SALT',   getenv_docker('WP_LOGGED_IN_SALT',   'put your unique phrase here') );
+define( 'NONCE_SALT',       getenv_docker('WP_NONCE_SALT',       'put your unique phrase here') );
 // (See also https://wordpress.stackexchange.com/a/152905/199287)
 
 /**#@-*/
@@ -101,12 +105,12 @@ define( 'NONCE_SALT',       getenv_docker('WORDPRESS_NONCE_SALT',       'put you
  * You can have multiple installations in one database if you give each
  * a unique prefix. Only numbers, letters, and underscores please!
  */
-$table_prefix = getenv_docker('WORDPRESS_TABLE_PREFIX', 'wp_');
+$table_prefix = getenv_docker('MYSQL_DB_PREFIX', 'wp_');
 
 /**
  * Site main URL.
  *
- * Can be use with port https://example.com:8080
+ * Can be use with port http://example.com:8080
  *
  */
 
@@ -127,7 +131,7 @@ define( 'WP_HOME', $app_url );
  * local, development, staging, production
  * Use function wp_get_environment_type() to operate with it
  */
-define( 'WP_ENVIRONMENT_TYPE', getenv_docker('WORDPRESS_ENVIRONMENT_TYPE', 'production') );
+define( 'WP_ENVIRONMENT_TYPE', getenv_docker('WP_ENVIRONMENT_TYPE', 'production') );
 
 /**
  * For developers: WordPress debugging mode.
@@ -141,33 +145,33 @@ define( 'WP_ENVIRONMENT_TYPE', getenv_docker('WORDPRESS_ENVIRONMENT_TYPE', 'prod
  *
  * @link https://wordpress.org/support/article/debugging-in-wordpress/
  */
-define( 'WP_DEBUG', !!getenv_docker('WORDPRESS_DEBUG', '') );
-define( 'WP_DEBUG_DISPLAY', !!getenv_docker('WORDPRESS_DEBUG_DISPLAY', '') );
-define( 'WP_DEBUG_LOG', getenv_docker('WORDPRESS_DEBUG_LOG', '') );
+define( 'WP_DEBUG', !!getenv_docker('WP_DEBUG', '') );
+define( 'WP_DEBUG_DISPLAY', !!getenv_docker('WP_DEBUG_DISPLAY', '') );
+define( 'WP_DEBUG_LOG', getenv_docker('WP_DEBUG_LOG', '') );
 
 /**
  * Memory limits
  *
  */
-define( 'WP_MEMORY_LIMIT', getenv_docker( 'WORDPRESS_MEMORY_LIMIT', '256M' ) );
-define( 'WP_MAX_MEMORY_LIMIT', getenv_docker( 'WORDPRESS_MAX_MEMORY_LIMIT', '512M' ) );
+define( 'WP_MEMORY_LIMIT', getenv_docker( 'WP_MEMORY_LIMIT', '256M' ) );
+define( 'WP_MAX_MEMORY_LIMIT', getenv_docker( 'WP_MAX_MEMORY_LIMIT', '512M' ) );
 
 /**
  * Better to use server cron
  *
  * Look to ./config/crontabs snd ./logs/cron
  */
-define( 'DISABLE_WP_CRON', !!getenv_docker( 'WORDPRESS_DISABLE_WP_CRON', true ) );
+define( 'DISABLE_WP_CRON', !!getenv_docker( 'WP_DISABLE_WP_CRON', true ) );
 
 /**
  * Redis options
  *
  * Need for Redis Object Cache plugin
  */
-define( 'WP_REDIS_HOST', getenv_docker( 'WORDPRESS_REDIS_HOST', '' ) );
-define( 'WP_REDIS_PORT', getenv_docker( 'WORDPRESS_REDIS_PORT', '' ) );
-define( 'WP_REDIS_PREFIX', getenv_docker( 'WORDPRESS_REDIS_PREFIX', '' ) );
-define( 'WP_REDIS_MAXTTL', getenv_docker( 'WORDPRESS_REDIS_MAXTTL', '' ) );
+define( 'WP_REDIS_HOST', getenv_docker( 'WP_REDIS_HOST', '' ) );
+define( 'WP_REDIS_PORT', getenv_docker( 'WP_REDIS_PORT', '' ) );
+define( 'WP_REDIS_PREFIX', getenv_docker( 'WP_REDIS_PREFIX', '' ) );
+define( 'WP_REDIS_MAXTTL', getenv_docker( 'WP_REDIS_MAXTTL', '' ) );
 
 
 /* Add any custom values between this line and the "stop editing" line. */

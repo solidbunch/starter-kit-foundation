@@ -165,8 +165,8 @@ make upp t=prod
 ### Makefile commands
 
 - `make secret` - `bash sh/env/secret-gen.sh`
-- `make up [t=<environment_type>]`
-- `make upp [t=<environment_type>]`
+- `make up [t=<environment_type>] [s=<command>]`
+- `make upp [t=<environment_type>] [s=<command>]` - `make upp t=stage s=--build`
 - `make down` - `docker-compose down -v`
 - `make start` - `docker-compose start`
 - `make stop` - `docker-compose stop`
