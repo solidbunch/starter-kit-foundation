@@ -71,14 +71,14 @@ if [ ! -e index.php ] && [ ! -e wp-includes/version.php ]; then
   echo >&2 "Complete! WordPress has been successfully copied to $PWD"
 fi
 
-wpEnvs=( "${!WORDPRESS_@}" )
+wpEnvs=( "${!WP_@}" )
 if [ ! -s wp-config.php ] && [ "${#wpEnvs[@]}" -gt 0 ]; then
   for wpConfigDocker in \
     wp-config-docker.php \
     /usr/src/wordpress/wp-config-docker.php \
   ; do
     if [ -s "$wpConfigDocker" ]; then
-      echo >&2 "No 'wp-config.php' found in $PWD, but 'WORDPRESS_...' variables supplied; copying '$wpConfigDocker' (${wpEnvs[*]})"
+      echo >&2 "No 'wp-config.php' found in $PWD, but 'WP_...' variables supplied; copying '$wpConfigDocker' (${wpEnvs[*]})"
       # using "awk" to replace all instances of "put your unique phrase here" with a properly unique string (for AUTH_KEY and friends to have safe defaults if they aren't specified with environment variables)
       awk '
         /put your unique phrase here/ {
