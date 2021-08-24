@@ -44,6 +44,7 @@ access_log
 *.LICENSE
 *.lck
 .env
+.env.*override
 .env.*secret
 
 
