@@ -4,10 +4,10 @@ secret:
 	bash sh/env/secret-gen.sh
 
 up:
-	bash sh/env/init.sh $(t) && docker-compose up -d
+	bash sh/env/init.sh $(t) && docker-compose up -d $(s)
 
 upp:
-	bash sh/env/init.sh $(t) && docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d
+	bash sh/env/init.sh $(t) && docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d $(s)
 
 down:
 	docker-compose down -v
