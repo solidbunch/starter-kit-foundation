@@ -2,9 +2,13 @@
 # Edit .template file to change settings
 
 server {
-    listen ${NGINX_PORT};
+    listen ${APP_PORT};
+    #ssl on;
     index index.php;
-    server_name ${NGINX_HOST};
+    server_name ${APP_DOMAIN};
+
+    include /etc/nginx/conf.d/partials/${APP_PROTOCOL}.conf;
+
     error_log  /var/log/nginx/error.log;
     #access_log /var/log/nginx/access.log;
     access_log  off;

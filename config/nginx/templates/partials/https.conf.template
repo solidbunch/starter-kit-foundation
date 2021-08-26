@@ -1,0 +1,3 @@
+   ssl on;
+   ssl_certificate /etc/nginx/ssl/${APP_DOMAIN}.crt;
+   ssl_certificate_key /etc/nginx/ssl/${APP_DOMAIN}.key;

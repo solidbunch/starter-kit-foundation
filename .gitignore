@@ -43,9 +43,16 @@ access_log
 *.js.map
 *.LICENSE
 *.lck
+
+
+#=============================#
+#    Config, secrets, .env    #
+#=============================#
 .env
 .env.*override
 .env.*secret
+/config/nginx/ssl/*.key
+/config/nginx/ssl/*.crt
 
 
 ## Vendor, Libs and Content ##
