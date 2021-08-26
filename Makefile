@@ -6,6 +6,9 @@ secret:
 up:
 	bash sh/env/init.sh $(t) && docker-compose up -d $(s)
 
+upd:
+	bash sh/env/init.sh $(t) && docker-compose up $(s)
+
 upp:
 	bash sh/env/init.sh $(t) && docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d $(s)
 
