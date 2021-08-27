@@ -162,11 +162,24 @@ make upp t=stage
 make upp t=prod
 ```
 
+### Production Launch with HTTPS
+
+1. Put your certificate files in `./config/nginx/ssl/` with names <your-app-domain.com>.crt and <your-app-domain.com>.key
+2. Change var APP_PROTOCOL=https in your .env.type.[environment_type]
+3. Start containers with http > https redirect:
+
+```bash
+make up-prod
+```
+It will up special file `docker-compose.prod.yml` with 80 and your port (most likely 443). The configuration file `/config/nginx/templates/partials/https.conf.template`  will also be used instead of `/config/nginx/templates/partials/http.conf.template`
+
 ### Makefile commands
 
 - `make secret` - `bash sh/env/secret-gen.sh`
 - `make up [t=<environment_type>] [s=<command>]`
+- `make upd [t=<environment_type>] [s=<command>]` - same without `-d`
 - `make upp [t=<environment_type>] [s=<command>]` - `make upp t=stage s=--build`
+- `make up-prod [s=<command>]` - production launch with http>https redirect
 - `make down` - `docker-compose down -v`
 - `make start` - `docker-compose start`
 - `make stop` - `docker-compose stop`
