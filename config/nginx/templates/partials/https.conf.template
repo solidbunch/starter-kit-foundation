@@ -1,7 +1,7 @@
 # Do not edit .conf file, it will override by script.
 # Edit .template file to change settings
 
-# Special config for SSL
+# Special config for HTTPS
 
 server {
     listen 80;
@@ -18,32 +18,14 @@ server {
 
     ssl_certificate /etc/nginx/ssl/${APP_DOMAIN}.crt;
     ssl_certificate_key /etc/nginx/ssl/${APP_DOMAIN}.key;
-    ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+    ssl_protocols TLSv1.2 TLSv1.3;
 
+    include /etc/nginx/conf.d/partials/logs.conf;
 
-    error_log  /var/log/nginx/error.log;
-    #access_log /var/log/nginx/access.log;
-    access_log  off;
-    root /var/www/html;
+    include /etc/nginx/conf.d/partials/wordpress.conf;
 
-    location / {
-            # This is cool because no php is touched for static content.
-            # include the "?$args" part so non-default permalinks doesn't break when using query string
-            try_files $uri $uri/ /index.php?$args;
-    }
+    include /etc/nginx/conf.d/partials/php.conf;
 
-    location ~ \.php$ {
-        try_files $uri =404;
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass wordpress:9000;
-        fastcgi_index index.php;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        fastcgi_param PATH_INFO $fastcgi_path_info;
-    }
+    include /etc/nginx/conf.d/partials/static.conf;
 
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
-            expires max;
-            log_not_found off;
-    }
 }
