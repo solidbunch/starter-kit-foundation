@@ -12,6 +12,9 @@ upd:
 upp:
 	bash sh/env/init.sh $(t) && docker-compose -f docker-compose.yml -f docker-compose.proxy.yml up -d $(s)
 
+up-prod:
+	bash sh/env/init.sh prod && docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d $(s)
+
 down:
 	docker-compose down -v
 
