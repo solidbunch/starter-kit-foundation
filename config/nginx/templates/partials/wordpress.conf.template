@@ -1,0 +1,8 @@
+# Do not edit .conf file, it will override by script.
+# Edit .template file to change settings
+
+    location / {
+        # This is cool because no php is touched for static content.
+        # include the "?$args" part so non-default permalinks doesn't break when using query string
+        try_files $uri $uri/ /index.php?$args;
+    }

@@ -1,4 +1,6 @@
 # Do not edit .conf file, it will override by script.
 # Edit .template file to change settings
+#
+# Bootstrap project nginx config file
 
 include /etc/nginx/conf.d/partials/${APP_PROTOCOL}.conf;
