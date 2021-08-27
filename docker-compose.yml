@@ -41,12 +41,9 @@ services:
       - database
       - wordpress
     env_file: .env
-    environment:
-      NGINX_HOST: ${APP_DOMAIN}
-      NGINX_PORT: ${APP_PORT}
-    command: /bin/sh -c "envsubst '$$NGINX_HOST, $$NGINX_PORT' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
     volumes:
-      - ./config/nginx:/etc/nginx/conf.d
+      - ./config/nginx/templates:/etc/nginx/templates
+      - ./config/nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
       - ./wp-core:/var/www/html # wordpress root folder for development only
       #- wordpress_core:/var/www/html # wordpress root folder volume for production
