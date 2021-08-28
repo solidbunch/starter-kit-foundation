@@ -10,9 +10,12 @@ SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
 cd $(dirname "$(readlink -f "$0")")/../../ || exit 1
 PROJECT_ROOT_DIR=$PWD
 
+# Colors
+source ./sh/utils/colors
+
 # Check .env.secret file exist
 if [ -f ./config/environment/.env.secret ]; then
-    echo "[Info] .env.secret file already exist in ./config/environment/"; exit;
+    echo -e "${CYAN}[Info]${WHITE} .env.secret file already exist in ./config/environment/${NOCOLOR}"; exit;
 fi
 
 # Go to the script directory
@@ -20,7 +23,7 @@ cd "$SCRIPT_PATH" || exit 1
 
 # Check .env template file exist
 if [ ! -f .env.secret.template ]; then
-    echo "[Error] .env.secret.template file not found in $PWD"; exit 1;
+    echo -e "${LIGHTRED}[Error]${WHITE} .env.secret.template file not found in ${PWD}${NOCOLOR}"; exit 1;
 fi
 
 # Generate secrets, copy .env.secret template to .env.secret and replace generated secrets
@@ -32,6 +35,6 @@ awk '
     gsub("generatethispass", str)
   }
   { print }
-' .env.secret.template > "$PROJECT_ROOT_DIR"/config/environment/.env.secret
+' .env.secret.template > "${PROJECT_ROOT_DIR}"/config/environment/.env.secret
 
-echo "[Success] Secrets done in ./config/environment/.env.secret"
+echo -e "${LIGHTGREEN}[Success]${WHITE} Secrets done in ./config/environment/.env.secret${NOCOLOR}"

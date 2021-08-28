@@ -13,11 +13,11 @@ MODE="daily"
 MODE_TIMER=7
 
 # Parse args
-if [ $1 ] && ([ $1 == "daily" ] || [ $1 == "weekly" ]); then
+if [ "$1" ] && ([ "$1" == "daily" ] || [ "$1" == "weekly" ]); then
     MODE="$1"
 fi
 
-if [ $MODE == "weekly" ]; then
+if [ "$MODE" == "weekly" ]; then
     MODE_TIMER=31
 fi
 
@@ -38,7 +38,7 @@ fi
 source .env
 
 # Check is backup enable
-if [ ! $APP_WP_BACKUP_ENABLE ] || [ $APP_WP_BACKUP_ENABLE == 0 ]; then
+if [ ! "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" == 0 ]; then
     echo "[Fail] Backup is disabled in .env file"; exit 1;
 fi
 
