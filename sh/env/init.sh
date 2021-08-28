@@ -10,6 +10,9 @@ SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
 cd $(dirname "$(readlink -f "$0")")/../../ || exit 1
 PROJECT_ROOT_DIR=$PWD
 
+# Colors
+source ./sh/utils/colors
+
 # Default values
 ENVIRONMENT_TYPE=dev
 
@@ -20,7 +23,7 @@ fi
 
 # Check .env.type.${ENVIRONMENT_TYPE} file exist
 if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
-    echo "[Error] .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
+    echo -e "${LIGHTRED}[Error]${WHITE} .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/${NOCOLOR}"; exit 1;
 fi
 
 # Concatenate root .env file
@@ -33,4 +36,4 @@ if [ -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override ]; then
 
 fi
 
-echo "[Success] root .env ready"
+echo -e "${LIGHTGREEN}[Success]${WHITE} root .env ready for '${ENVIRONMENT_TYPE}'${NOCOLOR}"
