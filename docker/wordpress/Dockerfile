@@ -22,7 +22,6 @@ RUN set -eux; \
 # Need envsubst for operate with env variables in config files
         gettext \
 	; \
-
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
     set -ex; \
 	\

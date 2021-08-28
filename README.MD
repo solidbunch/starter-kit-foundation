@@ -92,7 +92,7 @@ make secret
 1. Build the root `.env` file and run docker-compose:
 
 ```bash
-make up [t=<environment_type>]
+make [t=<environment_type>] up
 ```
 
 Where `environment_type` - any type that exist in `./config/environment/.env.type.*`. `dev` is the default.
@@ -101,8 +101,8 @@ Where `environment_type` - any type that exist in `./config/environment/.env.typ
 
 ```bash
 make up
-make up t=stage
-make up t=prod
+make t=stage up
+make t=prod up
 ```
 
 Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
@@ -151,7 +151,7 @@ networks:
 2. [Install](#installation) and use the Makefile command to run the proxy mode:
 
 ``` bash 
-make upp [t=<environment_type>]
+make [t=<environment_type>] upp
 ```
 
 **Examples:**
@@ -175,18 +175,18 @@ It will up special file `docker-compose.prod.yml` with 80 and your port (most li
 
 ### Makefile commands
 
-- `make secret` - `bash sh/env/secret-gen.sh`
-- `make up [t=<environment_type>] [s=<command>]`
-- `make upd [t=<environment_type>] [s=<command>]` - same without `-d`
-- `make upp [t=<environment_type>] [s=<command>]` - `make upp t=stage s=--build`
-- `make up-prod [s=<command>]` - production launch with http>https redirect
+- `make secret`
+- `make [t=<environment_type>] [s=<command>] up`
+- `make [t=<environment_type>] [s=<command>] upd`
+- `make [t=<environment_type>] [s=<command>] upp` - `make t=stage s=--build upp`
+- `make [s=<command>] up-prod` - production launch with http > https redirect
 - `make down` - `docker-compose down -v`
 - `make start` - `docker-compose start`
 - `make stop` - `docker-compose stop`
 - `make pause` - `docker-compose pause`
-- `make pma-up` - `docker-compose -f docker-compose.phpmyadmin.yml up -d $(s)`
-- `make pma-down` - `docker-compose -f docker-compose.phpmyadmin.yml down -v`
-- `make backup-init` - `sudo bash sh/backup/backup-init.sh`
+- `make pma-up`
+- `make pma-down`
+- `make backup-init`
 
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
