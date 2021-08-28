@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Stop when error
+set -e
+
 # Check package availability
 command -v docker-compose >/dev/null 2>&1 || { echo "[Error] Please install docker-compose"; exit 1; }
 command -v gzip >/dev/null 2>&1 || { echo "[Error] Please install gzip"; exit 1; }
@@ -9,12 +12,12 @@ DATABASE_CONTAINER="database"
 MODE="daily"
 MODE_TIMER=7
 
-# Parce args
-if [ $1 ] && ([ $1 == "daily" ] || [ $1 == "weekly" ]); then
+# Parse args
+if [ "$1" ] && ([ "$1" == "daily" ] || [ "$1" == "weekly" ]); then
     MODE="$1"
 fi
 
-if [ $MODE == "weekly" ]; then
+if [ "$MODE" == "weekly" ]; then
     MODE_TIMER=31
 fi
 
@@ -35,7 +38,7 @@ fi
 source .env
 
 # Check is backup enable
-if [ ! $APP_WP_BACKUP_ENABLE ] || [ $APP_WP_BACKUP_ENABLE == 0 ]; then
+if [ ! "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" == 0 ]; then
     echo "[Fail] Backup is disabled in .env file"; exit 1;
 fi
 

@@ -18,10 +18,10 @@ RUN set -eux; \
 		imagemagick \
 # Use SMTP relay service
 		ssmtp \
+# ToDo - better to separate this to additional container (run, work and stop)
 # Need envsubst for operate with env variables in config files
         gettext \
 	; \
-
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
     set -ex; \
 	\

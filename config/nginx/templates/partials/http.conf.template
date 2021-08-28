@@ -1,0 +1,19 @@
+# Do not edit .conf file, it will override by script.
+# Edit .template file to change settings
+
+# Special config for HTTP
+
+server {
+    listen ${APP_PORT};
+    listen [::]:${APP_PORT};
+    index index.php;
+    server_name ${APP_DOMAIN};
+
+    include /etc/nginx/conf.d/partials/logs.conf;
+
+    include /etc/nginx/conf.d/partials/wordpress.conf;
+
+    include /etc/nginx/conf.d/partials/php.conf;
+
+    include /etc/nginx/conf.d/partials/static.conf;
+}

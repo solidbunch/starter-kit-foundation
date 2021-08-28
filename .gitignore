@@ -1,22 +1,10 @@
 #################################################################################
 ##                                                                              #
-##    GIT IGNORE FOR WORDPRESS SITES                                            #
+##                       GIT IGNORE FOR WORDPRESS SITES                         #
 ##    ------------------------------                                            #
-##    Adapted from: http://bigwilliam.com/gitignore-for-wordpress-projects/     #
-##    and https://github.com/github/gitignore/blob/master/WordPress.gitignore   #
+##    Adapted https://github.com/github/gitignore/blob/master/WordPress.gitignore   #
 ##                                                                              #
 #################################################################################
-
-#################################################################################
-##                                                                              #
-##         NOTE: TO STOP TRACKING A FILE AFTER IGNORING IT,                     #
-##               USE THESE GIT COMMANDS:                                        #
-##                                                                              #
-##               git rm --cached <file>                                         #
-##               git add . # or git add <file>                                  #
-##                                                                              #
-#################################################################################
-
 
 ## OS and Utility Stuff ##
 
@@ -44,9 +32,9 @@ ehthumbs.db
 *.codekit3
 
 
-#===============================#
-#     Log, map files, .env      #
-#===============================#
+#===================================#
+#    Log, map files, secret .env    #
+#===================================#
 *.log
 error_log
 access_log
@@ -55,7 +43,16 @@ access_log
 *.js.map
 *.LICENSE
 *.lck
+
+
+#=============================#
+#    Config, secrets, .env    #
+#=============================#
 .env
+.env.*override
+.env.*secret
+/config/nginx/ssl/*.key
+/config/nginx/ssl/*.crt
 
 
 ## Vendor, Libs and Content ##
