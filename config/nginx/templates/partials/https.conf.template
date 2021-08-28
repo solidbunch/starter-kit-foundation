@@ -1,0 +1,31 @@
+# Do not edit .conf file, it will override by script.
+# Edit .template file to change settings
+
+# Special config for HTTPS
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${APP_DOMAIN};
+    return 301 https://${APP_DOMAIN};
+}
+
+server {
+    listen ${APP_PORT} ssl http2;
+    listen [::]:${APP_PORT} ssl http2;
+    index index.php;
+    server_name ${APP_DOMAIN};
+
+    ssl_certificate /etc/nginx/ssl/${APP_DOMAIN}.crt;
+    ssl_certificate_key /etc/nginx/ssl/${APP_DOMAIN}.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    include /etc/nginx/conf.d/partials/logs.conf;
+
+    include /etc/nginx/conf.d/partials/wordpress.conf;
+
+    include /etc/nginx/conf.d/partials/php.conf;
+
+    include /etc/nginx/conf.d/partials/static.conf;
+
+}
