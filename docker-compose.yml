@@ -33,7 +33,7 @@ services:
       - ./logs/cron:/var/log/cron
 
   nginx:
-    image: nginx:1.20-alpine
+    build: ./docker/nginx
     restart: unless-stopped
     links:
       - wordpress
