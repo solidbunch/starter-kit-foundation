@@ -158,8 +158,8 @@ make [t=<environment_type>] upp
 
 ```bash
 make upp
-make upp t=stage
-make upp t=prod
+make t=stage upp
+make t=prod upp
 ```
 
 ### Production Launch with HTTPS
