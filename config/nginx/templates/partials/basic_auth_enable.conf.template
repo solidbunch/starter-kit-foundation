@@ -1,0 +1,9 @@
+# Do not edit .conf file, it will override by script.
+# Edit .template file to change settings
+
+    location ^~ /wp-login.php {
+        auth_basic           "Restricted Area: Look password in .env.secret";
+        auth_basic_user_file /etc/nginx/auth/.wplogin;
+
+        include /etc/nginx/conf.d/partials/php.conf;
+    }
