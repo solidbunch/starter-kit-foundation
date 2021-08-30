@@ -117,5 +117,5 @@ chown "$user:$group" /var/log/cron
 crond -b
 echo "Cron started"
 
-## exec php-fpm (added as paramener in Dockerfile CMD ["php-fpm"])
+## exec php-fpm (added as parameter in Dockerfile CMD ["php-fpm"])
 exec "$@"
