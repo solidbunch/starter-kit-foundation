@@ -3,32 +3,43 @@
 
 # Special config for HTTPS
 
+# http > https redirect. 80 port should be open
+# http://www > https://non-www redirect
 server {
     listen 80;
     listen [::]:80;
-    server_name ${APP_DOMAIN};
-    return 301 https://${APP_DOMAIN};
-}
-
-server {
-    listen ${APP_PORT} ssl http2;
-    listen [::]:${APP_PORT} ssl http2;
-    index index.php;
-    server_name ${APP_DOMAIN};
-
-    ssl_certificate /etc/nginx/ssl/${APP_DOMAIN}.crt;
-    ssl_certificate_key /etc/nginx/ssl/${APP_DOMAIN}.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
-
-    # Recommendations from https://raymii.org/s/tutorials/Strong_SSL_Security_On_nginx.html
-    ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
-    ssl_prefer_server_ciphers on;
-    ssl_session_cache shared:SSL:10m;
+    server_name ${APP_DOMAIN} www.${APP_DOMAIN};
 
     include /etc/nginx/conf.d/partials/logs.conf;
 
-    # Check and include Basic Auth config (15-setup-basic-auth.sh)
-    include /etc/nginx/conf.d/partials/basic_auth_${APP_BA}.conf;
+    return 301 https://${APP_DOMAIN}$request_uri;
+}
+
+# https://www > https://non-www redirect
+server {
+    listen ${APP_PORT} ssl http2;
+    listen [::]:${APP_PORT} ssl http2;
+    server_name www.${APP_DOMAIN};
+
+    include /etc/nginx/conf.d/partials/ssl.conf;
+
+    include /etc/nginx/conf.d/partials/logs.conf;
+
+    return 301 https://${APP_DOMAIN}$request_uri;
+}
+
+# Main directive
+server {
+    listen ${APP_PORT} ssl http2;
+    listen [::]:${APP_PORT} ssl http2;
+    server_name ${APP_DOMAIN};
+
+    root /var/www/html;
+    index index.php;
+
+    include /etc/nginx/conf.d/partials/ssl.conf;
+
+    include /etc/nginx/conf.d/partials/logs.conf;
 
     include /etc/nginx/conf.d/partials/wordpress.conf;
 

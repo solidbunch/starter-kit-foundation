@@ -1,8 +1,6 @@
 # Do not edit .conf file, it will override by script.
 # Edit .template file to change settings
 
-    root /var/www/html;
-
     error_log  /var/log/nginx/error.log;
     #access_log /var/log/nginx/access.log;
     access_log  off;
