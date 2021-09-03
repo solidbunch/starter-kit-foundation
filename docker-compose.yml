@@ -29,8 +29,8 @@ services:
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
       # Cron
-      - ./config/crontabs:/etc/crontabs
-      - ./logs/cron:/var/log/cron
+      #- ./config/crontabs:/etc/crontabs
+      #- ./logs/cron:/var/log/cron
 
   nginx:
     build: ./docker/nginx
@@ -52,6 +52,14 @@ services:
   redis:
     image: redis:6.2-alpine
     restart: unless-stopped
+    
+  crontab:
+    build: ./docker/crontab
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/crontabs:/etc/crontabs
+#      - "${PWD}/config-samples/config.sample.mapping.json:/opt/crontab/config.json:rw"
 
 #volumes:
   #wordpress_core:
