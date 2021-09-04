@@ -22,9 +22,9 @@ esac
 # adding additional cron jobs passed by arguments
 # every job must be a single quoted string and have standard crontab format,
 # e.g.: start-cron --user user "0 \* \* \* \* env >> /var/log/cron.log 2>&1"
-{ for cron_job in "$@"; do echo -e ${cron_job}; done } \
-    | sed --regexp-extended 's/\\(.)/\1/g' \
-    | crontab ${crontab_user} -
+#{ for cron_job in "$@"; do echo -e ${cron_job}; done } \
+#    | sed --regexp-extended 's/\\(.)/\1/g' \
+#    | crontab ${crontab_user} -
 
 # start cron
 default_crontabs_dir=/etc/crontabs
