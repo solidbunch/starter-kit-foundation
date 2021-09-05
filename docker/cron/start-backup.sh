@@ -42,9 +42,9 @@ fi
 # Wait 3 times
 for i in {1..3}
 do
-#    if (docker exec "$DATABASE_CONTAINER" mysqladmin -u "$MYSQL_ROOT_USER" --password="${MYSQL_ROOT_PASSWORD}" ping --silent); then
+    if (docker exec "$DATABASE_CONTAINER" mysqladmin -u "$MYSQL_ROOT_USER" --password="${MYSQL_ROOT_PASSWORD}" ping > /dev/null 2>&1); then
         break
-#    fi
+    fi
     sleep 3
     if [ "$i" = 3 ]; then
         echo "[Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
