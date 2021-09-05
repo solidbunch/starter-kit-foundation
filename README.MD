@@ -197,7 +197,8 @@ db-data/                  # Database docker mounted volume
 docker/                   # Docker images (Dockerfiles) and additional scripts
 logs/                     # System and wordpress logs
 sh/                       # Bash scripts
-└── backup/               # Backup scripts (crontab, backup-init, start-backup)
+├── env/                  # Operations with environment files 
+└── utils/                # Additional bash utils
 wp-content/               # Docker mounted volume, WordPress wp-content folder
 ├── mu-plugins/           # Must use plugins
 ├── plugins/              # Plugins folder. Add your plugins here
@@ -273,7 +274,7 @@ To activate backups:
 2. Check crontab file in `./config/crontabs` - change cronjob time if it needs.
 
 
-3. If you have more than one wordpress database (maybe custom databases), check `mysqldump` command parameters in `./docker/cron/start-backup.sh`
+3. If you have more than one database (maybe custom databases), check `mysqldump` command parameters in `./docker/cron/start-backup.sh`
 
 Backups will appear in the `./backups` folder, logs in docker cron container logs
 
