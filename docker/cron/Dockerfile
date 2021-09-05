@@ -1,3 +1,7 @@
+# Based on https://habr.com/ru/company/redmadrobot/blog/305364/
+# https://github.com/renskiy/cron-docker-image
+# Thanks to renskiy
+
 FROM alpine:3.14
 
 RUN set -ex \

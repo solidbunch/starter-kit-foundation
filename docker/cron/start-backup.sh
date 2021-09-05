@@ -28,16 +28,14 @@ if [ "$MODE" == "weekly" ]; then
 fi
 
 
-
-
-# Create backups directory (if not exist)
-mkdir -p "$BACKUPS_DIR"
-mkdir -p "$BACKUPS_DIR"/"$MODE"
-
 # Check is backup enable
 if [ ! "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" == 0 ]; then
     echo "[Fail] Backup is disabled in .env file"; exit 1;
 fi
+
+# Create backups directory (if not exist)
+mkdir -p "$BACKUPS_DIR"
+mkdir -p "$BACKUPS_DIR"/"$MODE"
 
 # Wait 3 times
 for i in {1..3}
@@ -50,7 +48,6 @@ do
         echo "[Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
     fi
 done
-
 
 # Make database backup
 docker exec "$DATABASE_CONTAINER" \

@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Based on https://habr.com/ru/company/redmadrobot/blog/305364/
+# https://github.com/renskiy/cron-docker-image
+# Thanks to renskiy
+
+# Stop when error
+set -e
+
 # setting user for additional cron jobs
 case $1 in
 -u=*|--user=*)
