@@ -28,6 +28,15 @@ esac
 
 # start cron
 default_crontabs_dir=/etc/crontabs
+
+# Replace env variables with values in sSMTP config
+#envsubst < /etc/cron_templates/root > ${CRONTABS_DIR:-$default_crontabs_dir}/root
+
+chown "root:root" ${CRONTABS_DIR:-$default_crontabs_dir}/root
+
+# Cron log dir (ToDo 101 Systematize logs in one place.)
+#mkdir -p /var/log/cron
+
 crond -L /var/log/cron.log -c ${CRONTABS_DIR:-$default_crontabs_dir}
 
 # trap SIGINT and SIGTERM signals and gracefully exit
