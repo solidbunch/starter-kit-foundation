@@ -186,7 +186,6 @@ It will up special file `docker-compose.prod.yml` with 80 and your port (most li
 - `make pause` - `docker-compose pause`
 - `make pma-up`
 - `make pma-down`
-- `make backup-init`
 
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
@@ -268,18 +267,13 @@ The system has automatic backups. Launched by a cronjob. By default, daily and w
 
 To activate backups:
 
-1. Edit `./config/environment/.env.type.[environment_type]` file - enable `APP_WP_BACKUP_ENABLE` and check `APP_HOST_SYSTEM_CRON_DIR`
+1. Edit `./config/environment/.env.type.[environment_type]` file - enable `APP_WP_BACKUP_ENABLE`
 
 
-2. Check `./sh/backup/backup-crontab.template` - change cronjob time if it needs.
+2. Check crontab file in `./config/crontabs` - change cronjob time if it needs.
 
 
-3. Run backups init script<sup>[2](#footnote_backup)</sup>:
+3. If you have more than one wordpress database (maybe custom databases), check `mysqldump` command parameters in `./docker/cron/start-backup.sh`
 
-```bash
-make backup-init
-```
+Backups will appear in the `./backups` folder, logs in docker cron container logs
 
-Backups will appear in the `./backups` folder, logs in `./logs/cron/backup.log`
-
-<a name="footnote_backup"></a>[2] Need sudo access

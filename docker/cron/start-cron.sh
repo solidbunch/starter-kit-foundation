@@ -34,9 +34,6 @@ default_crontabs_dir=/etc/crontabs
 
 chown "root:root" ${CRONTABS_DIR:-$default_crontabs_dir}/root
 
-# Cron log dir (ToDo 101 Systematize logs in one place.)
-#mkdir -p /var/log/cron
-
 crond -L /var/log/cron.log -c ${CRONTABS_DIR:-$default_crontabs_dir}
 
 # trap SIGINT and SIGTERM signals and gracefully exit
