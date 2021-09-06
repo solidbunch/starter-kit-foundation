@@ -10,15 +10,15 @@
 # 2>&1 redirects the output include both the Standard Error and Standard Out. Look details https://tldp.org/LDP/abs/html/io-redirection.html
 
 # Example
-# * * * * * [flock -n <path-to-lck-file>] <some-command> >><path-to-log-file> 2>&1
-# * * * * * [flock -n <path-to-lck-file>] <some-command> >/dev/null 2>&1
+# * * * * * [flock -n <path-to-lck-file>] <some-command> >> <path-to-log-file> 2>&1
+# * * * * * [flock -n <path-to-lck-file>] <some-command> > /dev/null 2>&1
 
 
 
 # Let's run!
 
 # WordPress cron run by system cron
-*/30 * * * * docker exec ${APP_NAME}_wordpress flock -n /var/log/wordpress/wp-cron.lck php /var/www/html/wp-cron.php >> /var/log/cron.log 2>&1
+*/10 * * * * docker exec ${APP_NAME}_wordpress flock -n /var/log/wordpress/wp-cron.lck php /var/www/html/wp-cron.php >> /var/log/cron.log 2>&1
 
 
 # Backup database and media
