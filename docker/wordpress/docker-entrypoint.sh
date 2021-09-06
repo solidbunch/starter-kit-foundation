@@ -2,7 +2,7 @@
 ##
 ## Copy of official WordPress docker-entrypoint.sh https://hub.docker.com/_/wordpress
 ##
-## Added cron run and some improvements.
+## Added some config improvements.
 ##
 
 set -Eeuo pipefail
@@ -111,11 +111,5 @@ echo "sSMTP config ready"
 mkdir -p /var/log/wordpress
 chown "$user:$group" /var/log/wordpress
 
-## Added Cron
-mkdir -p /var/log/cron
-chown "$user:$group" /var/log/cron
-crond -b
-echo "Cron started"
-
-## exec php-fpm (added as paramener in Dockerfile CMD ["php-fpm"])
+## exec php-fpm (added as parameter in Dockerfile CMD ["php-fpm"])
 exec "$@"
