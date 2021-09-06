@@ -5,6 +5,7 @@ services:
 
   database:
     image: mariadb:10.5
+    container_name: "${APP_NAME}_database"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
@@ -16,9 +17,8 @@ services:
 
   wordpress:
     build: ./docker/wordpress
+    container_name: "${APP_NAME}_wordpress"
     restart: unless-stopped
-    links:
-      - database
     depends_on:
       - database
     env_file: .env
@@ -28,15 +28,11 @@ services:
       - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
-      # Cron
-      - ./config/crontabs:/etc/crontabs
-      - ./logs/cron:/var/log/cron
 
   nginx:
     build: ./docker/nginx
+    container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
-    links:
-      - wordpress
     depends_on:
       - database
       - wordpress
@@ -51,7 +47,18 @@ services:
 
   redis:
     image: redis:6.2-alpine
+    container_name: "${APP_NAME}_redis"
     restart: unless-stopped
+    
+  cron:
+    build: ./docker/cron
+    container_name: "${APP_NAME}_cron"
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/crontabs:/etc/crontabs
+      - ./backups:/srv/wordpress/backups
 
 #volumes:
   #wordpress_core:

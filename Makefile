@@ -70,11 +70,6 @@ pma-up:
 pma-down:
 	docker-compose -f docker-compose.phpmyadmin.yml down -v
 
-# Init backups cron
-.PHONY: backup-init
-backup-init:
-	sudo bash sh/backup/backup-init.sh
-
 # Full docker cleanup
 .PHONY: docker-clean
 docker-clean:
