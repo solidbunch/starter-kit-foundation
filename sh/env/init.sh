@@ -4,10 +4,9 @@
 set -e
 
 # Script path
-SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
+SCRIPT_PATH=./sh/env/
 
 # Project root directory
-cd $(dirname "$(readlink -f "$0")")/../../ || exit 1
 PROJECT_ROOT_DIR=$PWD
 
 # Colors
