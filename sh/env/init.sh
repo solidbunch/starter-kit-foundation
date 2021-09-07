@@ -3,12 +3,6 @@
 # Stop when error
 set -e
 
-# Script path
-SCRIPT_PATH=./sh/env/
-
-# Project root directory
-PROJECT_ROOT_DIR=$PWD
-
 # Colors
 source ./sh/utils/colors
 
