@@ -67,7 +67,12 @@ node_modules
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/wp-core
+/wp-core/wp-content/
+/wp-core/wp-admin/
+/wp-core/wp-includes/
+/wp-core/*.php
+/wp-core/readme.html
+/wp-core/license.txt
 
 
 #===================================#
