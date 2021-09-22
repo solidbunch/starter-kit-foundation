@@ -8,7 +8,9 @@ ME=$( basename "$0" )
 
 # Check is basic auth enable
 if [ ! "$APP_BA" ] || [ "$APP_BA" != "enable" ]; then
-    echo "$ME: [Info] wp-login Basic Auth is disabled in .env file"; exit;
+  if [ ! "$APP_BA_WP_LOGIN" ] || [ "$APP_BA_WP_LOGIN" != "enable" ]; then
+      echo "$ME: [Info] wp-login Basic Auth is disabled in .env file"; exit;
+  fi
 fi
 
 mkdir -p /etc/nginx/auth/
