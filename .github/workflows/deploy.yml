@@ -19,5 +19,5 @@ jobs:
       # Add Known Hosts
       - run: ssh-keyscan -H ${{ secrets.DEMO_HOST }} >> "$HOME/.ssh/known_hosts"
       # Deploy
-      - run: rsync -e "ssh -i $HOME/.ssh/demo_deploy_key" --archive --compress --delete . ${{ DEMO_SSH_USER }}@demo.starter-kit.io:public_html/demo_deploy/
+      - run: rsync -e "ssh -i $HOME/.ssh/demo_deploy_key" --archive --compress --delete . ${{ secrets.DEMO_SSH_USER }}@demo.starter-kit.io:public_html/demo_deploy/
       
