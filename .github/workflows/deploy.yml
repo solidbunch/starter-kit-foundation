@@ -1,3 +1,11 @@
+# Github Deploy to Production action
+# Add secrets to your repository:
+# - DEPLOY_KEY
+# - SSH_HOST
+# - SSH_IP
+# - SSH_USER
+# - PROJECT_DIR
+
 name: Deploy
 
 on:
