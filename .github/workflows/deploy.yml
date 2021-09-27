@@ -16,4 +16,4 @@ jobs:
       - run: echo "${{SECRETS.DEMO_DEPLOY_KEY}}" > "$HOME/.ssh/demo_deploy_key"
       - run: chmod 600 "$HOME/.ssh/demo_deploy_key"
       # Deploy
-      - run: rsync -e "ssh -i $HOME/.ssh/demo_deploy_key -o StrictHostKeyChecking=no" --archive --compress --delete . demo@demo.starter-kit.io:/public_html/demo_deploy/
+      - run: rsync -e "ssh -i $HOME/.ssh/demo_deploy_key -o StrictHostKeyChecking=no" --archive --compress --delete . demo@demo.starter-kit.io:public_html/demo_deploy/
