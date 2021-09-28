@@ -1,0 +1,28 @@
+# Github Deploy to Production action
+# Add secrets to your repository:
+# - DEPLOY_KEY
+# - SSH_HOST
+# - SSH_USER
+# - PROJECT_DIR
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    steps:
+      # Setup key
+      - run: set -eu
+      - run: mkdir -p "$HOME/.ssh"
+      - run: echo "${{ secrets.DEPLOY_KEY }}" > "$HOME/.ssh/deploy_key"
+      - run: chmod 600 "$HOME/.ssh/deploy_key"
+      # Add Known Hosts
+      - run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> "$HOME/.ssh/known_hosts"
+      # Deploy
+      - run: ssh -i $HOME/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.PROJECT_DIR }}; git checkout master; git pull; make up-prod"
