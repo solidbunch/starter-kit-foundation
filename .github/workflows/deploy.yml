@@ -10,7 +10,7 @@ name: Deploy
 on:
   push:
     branches:
-      - feature/deploy
+      - master
 
 jobs:
   deploy:
@@ -25,4 +25,4 @@ jobs:
       # Add Known Hosts
       - run: ssh-keyscan -H ${{ secrets.SSH_HOST }} >> "$HOME/.ssh/known_hosts"
       # Deploy
-      - run: ssh -i $HOME/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.PROJECT_DIR }}; git checkout feature/deploy; git pull; make up-prod"
+      - run: ssh -i $HOME/.ssh/deploy_key ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ${{ secrets.PROJECT_DIR }}; git checkout master; git pull; make up-prod"
