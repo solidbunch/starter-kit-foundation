@@ -79,6 +79,7 @@ node_modules
 #          Content Files            #
 #===================================#
 /wp-content/*
+!/wp-content/index.php
 !/wp-content/mu-plugins/
 !/wp-content/plugins/
 !/wp-content/themes/
