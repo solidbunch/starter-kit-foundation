@@ -6,6 +6,9 @@
 
 FROM php:7.4-fpm-alpine
 
+ARG WWW_DATA_GID
+ARG WWW_DATA_UID
+
 ## Combine all official WordPress image layers into one
 # persistent dependencies
 RUN set -eux; \
@@ -22,6 +25,11 @@ RUN set -eux; \
 # Need envsubst for operate with env variables in config files
         gettext \
 	; \
+
+# Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
+    deluser www-data; \
+    addgroup -g $WWW_DATA_GID www-data; \
+    adduser -u $WWW_DATA_UID -D -S -G www-data www-data; \
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
     set -ex; \
 	\
