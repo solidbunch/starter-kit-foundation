@@ -16,7 +16,13 @@ services:
       - ./db-data:/var/lib/mysql
   
   wordpress:
-    build: ./docker/wordpress
+    build:
+      context: ./docker/wordpress
+      dockerfile: Dockerfile
+      args:
+        # Transferring current system User ID into container. Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
+        WWW_DATA_GID: ${WWW_DATA_GID:?Add User Group ID}
+        WWW_DATA_UID: ${WWW_DATA_UID:?Add User ID}
     container_name: "${APP_NAME}_wordpress"
     restart: unless-stopped
     depends_on:
