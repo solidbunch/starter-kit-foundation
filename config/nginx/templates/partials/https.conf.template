@@ -42,7 +42,8 @@ server {
     include /etc/nginx/conf.d/partials/logs.conf;
 
     # Check and include Basic Auth config (15-setup-basic-auth.sh)
-    include /etc/nginx/conf.d/partials/basic_auth_${APP_BA}.conf;
+    include /etc/nginx/conf.d/partials/ba_${APP_BA}.conf;
+    include /etc/nginx/conf.d/partials/ba_wp_login_${APP_BA_WP_LOGIN}.conf;
 
     include /etc/nginx/conf.d/partials/wordpress.conf;
 

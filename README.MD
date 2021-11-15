@@ -1,7 +1,7 @@
 <!--suppress HtmlDeprecatedAttribute -->
 <p align="center">
 
-  <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo1.png" height="100">
+  <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo.png" height="100">
 
 </p>
 

@@ -1,10 +1,10 @@
-#################################################################################
-##                                                                              #
-##                       GIT IGNORE FOR WORDPRESS SITES                         #
-##    ------------------------------                                            #
+#####################################################################################
+##                                                                                  #
+##                       GIT IGNORE FOR WORDPRESS SITES                             #
+##    ------------------------------                                                #
 ##    Adapted https://github.com/github/gitignore/blob/master/WordPress.gitignore   #
-##                                                                              #
-#################################################################################
+##                                                                                  #
+#####################################################################################
 
 ## OS and Utility Stuff ##
 
@@ -67,13 +67,19 @@ node_modules
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/wp-core
+/wp-core/wp-content/
+/wp-core/wp-admin/
+/wp-core/wp-includes/
+/wp-core/*.php
+/wp-core/readme.html
+/wp-core/license.txt
 
 
 #===================================#
 #          Content Files            #
 #===================================#
 /wp-content/*
+!/wp-content/index.php
 !/wp-content/mu-plugins/
 !/wp-content/plugins/
 !/wp-content/themes/
