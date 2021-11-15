@@ -3,13 +3,6 @@
 # Stop when error
 set -e
 
-# Script path
-SCRIPT_PATH=$(dirname "$(readlink -f "$0")")
-
-# Project root directory
-cd $(dirname "$(readlink -f "$0")")/../../ || exit 1
-PROJECT_ROOT_DIR=$PWD
-
 # Colors
 source ./sh/utils/colors
 

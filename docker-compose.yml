@@ -2,7 +2,7 @@ version: "3.9"
 
 
 services:
-
+  
   database:
     image: mariadb:10.5
     container_name: "${APP_NAME}_database"
@@ -14,21 +14,28 @@ services:
     #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
     volumes:
       - ./db-data:/var/lib/mysql
-
+  
   wordpress:
-    build: ./docker/wordpress
+    build:
+      context: ./docker/wordpress
+      dockerfile: Dockerfile
+      args:
+        # Transferring current system User ID into container. Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
+        WWW_DATA_GID: ${WWW_DATA_GID:?Add User Group ID}
+        WWW_DATA_UID: ${WWW_DATA_UID:?Add User ID}
     container_name: "${APP_NAME}_wordpress"
     restart: unless-stopped
     depends_on:
       - database
     env_file: .env
     volumes:
-      - ./wp-core:/var/www/html # wordpress root folder for development only
-      #- wordpress_core:/var/www/html # wordpress root folder volume for production
-      - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
+      # Web root folder
+      - ./wp-core:/var/www/html
+      # WordPress wp-content folder
+      - ./wp-content:/var/www/html/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
-
+  
   nginx:
     build: ./docker/nginx
     container_name: "${APP_NAME}_nginx"
@@ -41,15 +48,16 @@ services:
       - ./config/nginx/templates:/etc/nginx/templates
       - ./config/nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
-      - ./wp-core:/var/www/html # wordpress root folder for development only
-      #- wordpress_core:/var/www/html # wordpress root folder volume for production
-      - ./wp-content:/var/www/html/wp-content # all needed wp-content folders, uploads should be in .gitignore
-
+      # Web root folder
+      - ./wp-core:/var/www/html
+      # WordPress wp-content folder
+      - ./wp-content:/var/www/html/wp-content
+  
   redis:
     image: redis:6.2-alpine
     container_name: "${APP_NAME}_redis"
     restart: unless-stopped
-    
+  
   cron:
     build: ./docker/cron
     container_name: "${APP_NAME}_cron"
@@ -59,6 +67,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/crontabs:/etc/crontabs
       - ./backups:/srv/wordpress/backups
-
-#volumes:
-  #wordpress_core:

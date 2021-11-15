@@ -9,6 +9,12 @@ ENV_INIT=bash sh/env/init.sh
 secret:
 	bash sh/env/secret-gen.sh
 
+# docker-compose build with root .env file concatenation
+.PHONY: build
+build:
+	$(ENV_INIT) $(t)
+	docker-compose build $(s)
+
 # Regular docker-compose up with root .env file concatenation
 .PHONY: up
 up:
