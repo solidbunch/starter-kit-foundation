@@ -124,24 +124,9 @@ RUN set -eux; \
 	tar -xzf wordpress.tar.gz -C /usr/src/; \
 	rm wordpress.tar.gz; \
 	\
-# https://wordpress.org/support/article/htaccess/
-## Removed .htaccess, we are using nginx
-	#[ ! -e /usr/src/wordpress/.htaccess ]; \
-	#{ \
-	#	echo '# BEGIN WordPress'; \
-	#	echo ''; \
-	#	echo 'RewriteEngine On'; \
-	#	echo 'RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]'; \
-	#	echo 'RewriteBase /'; \
-	#	echo 'RewriteRule ^index\.php$ - [L]'; \
-	#	echo 'RewriteCond %{REQUEST_FILENAME} !-f'; \
-	#	echo 'RewriteCond %{REQUEST_FILENAME} !-d'; \
-	#	echo 'RewriteRule . /index.php [L]'; \
-	#	echo ''; \
-	#	echo '# END WordPress'; \
-	#} > /usr/src/wordpress/.htaccess; \
-	\
 	chown -R www-data:www-data /usr/src/wordpress; \
+#
+# ToDo remove this (we already have all folders in repo)
 # pre-create wp-content (and single-level children) for folks who want to bind-mount themes, etc so permissions are pre-created properly instead of root:root
 # wp-content/cache: https://github.com/docker-library/wordpress/issues/534#issuecomment-705733507
 	mkdir wp-content; \
@@ -151,9 +136,6 @@ RUN set -eux; \
 	done; \
 	chown -R www-data:www-data wp-content; \
 	chmod -R 777 wp-content
-
-## We do not need this volume
-#VOLUME /var/www/html
 
 COPY ./config/ssmtp.conf.template /etc/ssmtp/
 COPY ./config/revaliases.template /etc/ssmtp/
