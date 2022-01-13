@@ -1,7 +1,7 @@
 ##
 ## Copy of official WordPress image https://hub.docker.com/_/wordpress
 ##
-## Added phpredis extension and some improvements.
+## Added some improvements.
 ##
 
 FROM php:7.4-fpm-alpine
@@ -83,15 +83,6 @@ RUN set -eux; \
 	err="$(php --version 3>&1 1>&2 2>&3)"; \
 	[ -z "$err" ]; \
     \
-## Add Redis ext
-## ToDo add phpRedis version to .env $PHPREDIS_VERSION
-    docker-php-source extract; \
-    curl -L -o /tmp/redis.tar.gz https://github.com/phpredis/phpredis/archive/5.3.4.tar.gz; \
-    tar xfz /tmp/redis.tar.gz; \
-    mv phpredis-5.3.4 /usr/src/php/ext/redis; \
-    docker-php-ext-install redis; \
-    docker-php-source delete; \
-##
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
     \
