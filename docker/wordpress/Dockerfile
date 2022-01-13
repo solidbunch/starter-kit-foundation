@@ -81,7 +81,7 @@ RUN set -eux; \
 	! { ldd "$extDir"/*.so | grep 'not found'; }; \
 # check for output like "PHP Warning:  PHP Startup: Unable to load dynamic library 'foo' (tried: ...)
 	err="$(php --version 3>&1 1>&2 2>&3)"; \
-	[ -z "$err" ]
+	[ -z "$err" ]; \
     \
 ## Add Redis ext
 ## ToDo add phpRedis version to .env $PHPREDIS_VERSION
