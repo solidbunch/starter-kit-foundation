@@ -41,10 +41,6 @@
     <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.20-00a652">
   </a>
 
-  <a href="https://hub.docker.com/_/redis">
-    <img alt="Redis" src="https://img.shields.io/badge/Redis-6.2-d82c20">
-  </a>
-
   <a href="https://hub.docker.com/_/phpmyadmin">
     <img alt="phpMyAdmin" src="https://img.shields.io/badge/phpMyAdmin-5.1-f99d0f">
   </a>

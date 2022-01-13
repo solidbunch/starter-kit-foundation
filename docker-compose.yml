@@ -53,11 +53,6 @@ services:
       # WordPress wp-content folder
       - ./wp-content:/var/www/html/wp-content
   
-  redis:
-    image: redis:6.2-alpine
-    container_name: "${APP_NAME}_redis"
-    restart: unless-stopped
-  
   cron:
     build: ./docker/cron
     container_name: "${APP_NAME}_cron"

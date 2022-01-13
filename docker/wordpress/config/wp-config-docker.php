@@ -163,16 +163,6 @@ define( 'WP_MAX_MEMORY_LIMIT', getenv_docker( 'WP_MAX_MEMORY_LIMIT', '512M' ) );
  */
 define( 'DISABLE_WP_CRON', !!getenv_docker( 'WP_DISABLE_WP_CRON', true ) );
 
-/**
- * Redis options
- *
- * Need for Redis Object Cache plugin
- */
-define( 'WP_REDIS_HOST', getenv_docker( 'WP_REDIS_HOST', '' ) );
-define( 'WP_REDIS_PORT', getenv_docker( 'WP_REDIS_PORT', '' ) );
-define( 'WP_REDIS_PREFIX', getenv_docker( 'WP_REDIS_PREFIX', '' ) );
-define( 'WP_REDIS_MAXTTL', getenv_docker( 'WP_REDIS_MAXTTL', '' ) );
-
 
 /* Add any custom values between this line and the "stop editing" line. */
 
