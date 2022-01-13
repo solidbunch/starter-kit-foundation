@@ -51,8 +51,7 @@
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+
    and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
-2. To run few instances on port 80 need [Nginx-proxy](https://hub.docker.com/r/jwilder/nginx-proxy) (optional), or you can
-   use [Traefik](https://traefik.io/) (optional)
+2. To run few instances on port 80 you can use [Traefik](https://traefik.io/) (optional)
 
 ## How to use
 
@@ -110,54 +109,6 @@ You can add secret variables names there without secret data, just for structure
 
 :warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
-### Launch in proxy mode
-A proxy mode is useful when you are launching multiply web applications on port 80.
-
-1. Start the nginx-proxy container
-
-<details>
-  <summary>Nginx-proxy docker-compose.yml file</summary>
-
-```
-version: '3.9'
-services:
-  nginx-proxy:
-    image: jwilder/nginx-proxy:alpine
-    container_name: nginx-proxy
-    environment:
-      DISABLE_ACCESS_LOGS: 1
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./logs:/var/log/nginx
-    restart: always
-
-networks:
-  default:
-    external:
-      name: nginx-proxy
-
-```
-</details>
-
-[Docker hub Nginx-proxy details](https://hub.docker.com/r/jwilder/nginx-proxy)
-
-2. [Install](#installation) and use the Makefile command to run the proxy mode:
-
-``` bash 
-make [t=<environment_type>] upp
-```
-
-**Examples:**
-
-```bash
-make upp
-make t=stage upp
-make t=prod upp
-```
-
 ### Production Launch with HTTPS
 
 1. Put your certificate files in `./config/nginx/ssl/` with names <your-app-domain.com>.crt and <your-app-domain.com>.key
@@ -174,7 +125,6 @@ It will up special file `docker-compose.prod.yml` with 80 and your port (most li
 - `make secret`
 - `make [t=<environment_type>] [s=<command>] up`
 - `make [t=<environment_type>] [s=<command>] upd`
-- `make [t=<environment_type>] [s=<command>] upp` - `make t=stage s=--build upp`
 - `make [s=<command>] up-prod` - production launch with http > https redirect
 - `make down` - `docker-compose down -v`
 - `make start` - `docker-compose start`
@@ -272,5 +222,5 @@ To activate backups:
 
 3. If you have more than one database (maybe custom databases), check `mysqldump` command parameters in `./docker/cron/start-backup.sh`
 
-Backups will appear in the `./backups` folder, logs in docker cron container logs
+Backups will appear in the `./backups` folder, logs in the docker cron container logs
 
