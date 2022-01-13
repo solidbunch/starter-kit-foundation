@@ -34,11 +34,11 @@
   </a>
 
   <a href="https://hub.docker.com/_/wordpress">
-    <img alt="WordPress" src="https://img.shields.io/badge/WordPress-5.8-lightgrey">
+    <img alt="WordPress" src="https://img.shields.io/badge/WordPress-5.8.3-lightgrey">
   </a>
 
   <a href="https://hub.docker.com/_/nginx">
-    <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.20-00a652">
+    <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.21-00a652">
   </a>
 
   <a href="https://hub.docker.com/_/phpmyadmin">
