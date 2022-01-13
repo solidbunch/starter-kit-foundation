@@ -127,8 +127,8 @@ RUN set -eux; \
 ##
     set -eux; \
     ## ToDo WordPress version to .env
-	version='5.8'; \
-	sha1='6476e69305ba557694424b04b9dea7352d988110'; \
+	version='5.8.3'; \
+	sha1='3be7ed4dc6f46fe98271b974c88153640e95ad49'; \
 	\
 	curl -o wordpress.tar.gz -fL "https://wordpress.org/wordpress-$version.tar.gz"; \
 	echo "$sha1 *wordpress.tar.gz" | sha1sum -c -; \
