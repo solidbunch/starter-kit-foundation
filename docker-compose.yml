@@ -44,6 +44,9 @@ services:
       - database
       - wordpress
     env_file: .env
+    ports:
+      - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
+      - "${APP_HTTPS_PORT}:${APP_HTTPS_PORT}"
     volumes:
       - ./config/nginx/templates:/etc/nginx/templates
       - ./config/nginx/ssl:/etc/nginx/ssl:ro
