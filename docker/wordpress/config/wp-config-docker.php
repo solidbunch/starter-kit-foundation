@@ -113,10 +113,17 @@ $table_prefix = getenv_docker('MYSQL_DB_PREFIX', 'wp_');
  * Can be use with port http://example.com:8080
  *
  */
+$app_protocol = getenv_docker( 'APP_PROTOCOL', '' );
 
-$app_port = getenv_docker( 'APP_PORT', '' );
+$app_domain = getenv_docker( 'APP_DOMAIN', '' );
 
-$app_url = getenv_docker( 'APP_PROTOCOL', '' ) . '://' . getenv_docker( 'APP_DOMAIN', '' );
+if ( $app_protocol === 'https') {
+	$app_port = getenv_docker( 'APP_HTTPS_PORT', '' );
+} else {
+	$app_port = getenv_docker( 'APP_HTTP_PORT', '' );
+}
+
+$app_url = $app_protocol . '://' . $app_domain;
 
 if ( !empty($app_port) && $app_port != 80 && $app_port != 443 ) {
    $app_url .= ':' . $app_port;

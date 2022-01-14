@@ -118,7 +118,7 @@ You can add secret variables names there without secret data, just for structure
 ```bash
 make up-prod
 ```
-It will up special file `docker-compose.prod.yml` with 80 and your port (most likely 443). The configuration file `/config/nginx/templates/partials/https.conf.template`  will also be used instead of `/config/nginx/templates/partials/http.conf.template`
+The configuration file `/config/nginx/templates/partials/https.conf.template`  will be used instead of `/config/nginx/templates/partials/http.conf.template`
 
 ### Makefile commands
 

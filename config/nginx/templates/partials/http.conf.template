@@ -5,8 +5,8 @@
 
 # http://www > http://non-www redirect
 server {
-    listen ${APP_PORT};
-    listen [::]:${APP_PORT};
+    listen ${APP_HTTP_PORT};
+    listen [::]:${APP_HTTP_PORT};
     server_name www.${APP_DOMAIN};
 
     include /etc/nginx/conf.d/partials/logs.conf;
@@ -15,8 +15,8 @@ server {
 }
 
 server {
-    listen ${APP_PORT};
-    listen [::]:${APP_PORT};
+    listen ${APP_HTTP_PORT};
+    listen [::]:${APP_HTTP_PORT};
     server_name ${APP_DOMAIN};
 
     root /var/www/html;

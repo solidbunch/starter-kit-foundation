@@ -38,7 +38,7 @@ up-stage:
 .PHONY: up-prod
 up-prod:
 	$(ENV_INIT) prod
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build $(s)
+	docker-compose up -d --build $(s)
 ######## Special modes ########
 
 
