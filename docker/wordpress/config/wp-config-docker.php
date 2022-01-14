@@ -113,10 +113,17 @@ $table_prefix = getenv_docker('MYSQL_DB_PREFIX', 'wp_');
  * Can be use with port http://example.com:8080
  *
  */
+$app_protocol = getenv_docker( 'APP_PROTOCOL', '' );
 
-$app_port = getenv_docker( 'APP_PORT', '' );
+$app_domain = getenv_docker( 'APP_DOMAIN', '' );
 
-$app_url = getenv_docker( 'APP_PROTOCOL', '' ) . '://' . getenv_docker( 'APP_DOMAIN', '' );
+if ( $app_protocol === 'https') {
+	$app_port = getenv_docker( 'APP_HTTPS_PORT', '' );
+} else {
+	$app_port = getenv_docker( 'APP_HTTP_PORT', '' );
+}
+
+$app_url = $app_protocol . '://' . $app_domain;
 
 if ( !empty($app_port) && $app_port != 80 && $app_port != 443 ) {
    $app_url .= ':' . $app_port;
@@ -162,16 +169,6 @@ define( 'WP_MAX_MEMORY_LIMIT', getenv_docker( 'WP_MAX_MEMORY_LIMIT', '512M' ) );
  * Look to ./config/crontabs snd ./logs/cron
  */
 define( 'DISABLE_WP_CRON', !!getenv_docker( 'WP_DISABLE_WP_CRON', true ) );
-
-/**
- * Redis options
- *
- * Need for Redis Object Cache plugin
- */
-define( 'WP_REDIS_HOST', getenv_docker( 'WP_REDIS_HOST', '' ) );
-define( 'WP_REDIS_PORT', getenv_docker( 'WP_REDIS_PORT', '' ) );
-define( 'WP_REDIS_PREFIX', getenv_docker( 'WP_REDIS_PREFIX', '' ) );
-define( 'WP_REDIS_MAXTTL', getenv_docker( 'WP_REDIS_MAXTTL', '' ) );
 
 
 /* Add any custom values between this line and the "stop editing" line. */
