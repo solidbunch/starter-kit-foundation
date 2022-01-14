@@ -1,7 +1,7 @@
 ##
 ## Copy of official WordPress image https://hub.docker.com/_/wordpress
 ##
-## Added phpredis extension and some improvements.
+## Added some improvements.
 ##
 
 FROM php:7.4-fpm-alpine
@@ -39,12 +39,14 @@ RUN set -eux; \
 		imagemagick-dev \
 		libjpeg-turbo-dev \
 		libpng-dev \
+		libwebp-dev \
 		libzip-dev \
 	; \
 	\
 	docker-php-ext-configure gd \
 		--with-freetype \
 		--with-jpeg \
+		--with-webp \
 	; \
 	docker-php-ext-install -j "$(nproc)" \
 		bcmath \
@@ -55,28 +57,32 @@ RUN set -eux; \
 	; \
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
-	pecl install imagick-3.5.0; \
+	pecl install imagick-3.6.0; \
 	docker-php-ext-enable imagick; \
 	rm -r /tmp/pear; \
 	\
+# some misbehaving extensions end up outputting to stdout 🙈 (https://github.com/docker-library/wordpress/issues/669#issuecomment-993945967)
+	out="$(php -r 'exit(0);')"; \
+	[ -z "$out" ]; \
+	err="$(php -r 'exit(0);' 3>&1 1>&2 2>&3)"; \
+	[ -z "$err" ]; \
+	\
+	extDir="$(php -r 'echo ini_get("extension_dir");')"; \
+	[ -d "$extDir" ]; \
 	runDeps="$( \
-		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local/lib/php/extensions \
+		scanelf --needed --nobanner --format '%n#p' --recursive "$extDir" \
 			| tr ',' '\n' \
 			| sort -u \
 			| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
 	)"; \
 	apk add --no-network --virtual .wordpress-phpexts-rundeps $runDeps; \
 	apk del --no-network .build-deps; \
+	\
+	! { ldd "$extDir"/*.so | grep 'not found'; }; \
+# check for output like "PHP Warning:  PHP Startup: Unable to load dynamic library 'foo' (tried: ...)
+	err="$(php --version 3>&1 1>&2 2>&3)"; \
+	[ -z "$err" ]; \
     \
-## Add Redis ext
-## ToDo add phpRedis version to .env $PHPREDIS_VERSION
-    docker-php-source extract; \
-    curl -L -o /tmp/redis.tar.gz https://github.com/phpredis/phpredis/archive/5.3.4.tar.gz; \
-    tar xfz /tmp/redis.tar.gz; \
-    mv phpredis-5.3.4 /usr/src/php/ext/redis; \
-    docker-php-ext-install redis; \
-    docker-php-source delete; \
-##
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
     \
@@ -112,8 +118,8 @@ RUN set -eux; \
 ##
     set -eux; \
     ## ToDo WordPress version to .env
-	version='5.8'; \
-	sha1='6476e69305ba557694424b04b9dea7352d988110'; \
+	version='5.8.3'; \
+	sha1='3be7ed4dc6f46fe98271b974c88153640e95ad49'; \
 	\
 	curl -o wordpress.tar.gz -fL "https://wordpress.org/wordpress-$version.tar.gz"; \
 	echo "$sha1 *wordpress.tar.gz" | sha1sum -c -; \
@@ -122,24 +128,9 @@ RUN set -eux; \
 	tar -xzf wordpress.tar.gz -C /usr/src/; \
 	rm wordpress.tar.gz; \
 	\
-# https://wordpress.org/support/article/htaccess/
-## Removed .htaccess, we are using nginx
-	#[ ! -e /usr/src/wordpress/.htaccess ]; \
-	#{ \
-	#	echo '# BEGIN WordPress'; \
-	#	echo ''; \
-	#	echo 'RewriteEngine On'; \
-	#	echo 'RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]'; \
-	#	echo 'RewriteBase /'; \
-	#	echo 'RewriteRule ^index\.php$ - [L]'; \
-	#	echo 'RewriteCond %{REQUEST_FILENAME} !-f'; \
-	#	echo 'RewriteCond %{REQUEST_FILENAME} !-d'; \
-	#	echo 'RewriteRule . /index.php [L]'; \
-	#	echo ''; \
-	#	echo '# END WordPress'; \
-	#} > /usr/src/wordpress/.htaccess; \
-	\
 	chown -R www-data:www-data /usr/src/wordpress; \
+#
+# ToDo remove this (we already have all folders in repo)
 # pre-create wp-content (and single-level children) for folks who want to bind-mount themes, etc so permissions are pre-created properly instead of root:root
 # wp-content/cache: https://github.com/docker-library/wordpress/issues/534#issuecomment-705733507
 	mkdir wp-content; \
@@ -149,9 +140,6 @@ RUN set -eux; \
 	done; \
 	chown -R www-data:www-data wp-content; \
 	chmod -R 777 wp-content
-
-## We do not need this volume
-#VOLUME /var/www/html
 
 COPY ./config/ssmtp.conf.template /etc/ssmtp/
 COPY ./config/revaliases.template /etc/ssmtp/
