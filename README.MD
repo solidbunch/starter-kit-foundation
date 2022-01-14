@@ -50,8 +50,8 @@
 ## Requirements
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+
-   and [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
-2. To run few instances on port 80 you can use [Traefik](https://traefik.io/) (optional)
+2. [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
+
 
 ## How to use
 
