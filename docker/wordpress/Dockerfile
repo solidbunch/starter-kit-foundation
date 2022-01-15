@@ -118,8 +118,15 @@ RUN set -eux; \
 ##
 ## set custom PHP.ini settings
 	{ \
-	    # File uploads
+		# Resource Limits
+		echo 'max_execution_time = 30'; \
+		# Memory limits works across WP_MEMORY_LIMIT and WP_MAX_MEMORY_LIMIT constants that comes from .env file
+		# echo 'memory_limit = 128M'; \
+		# Data Handling
+		echo 'post_max_size = 8M'; \
+		# File uploads
 		echo 'upload_max_filesize = 6M'; \
+		echo 'max_file_uploads = 20'; \
 	} > /usr/local/etc/php/conf.d/custom-php.ini; \
 ##
     set -eux; \
