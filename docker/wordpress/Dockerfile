@@ -25,7 +25,6 @@ RUN set -eux; \
 # Need envsubst for operate with env variables in config files
         gettext \
 	; \
-
 # Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
     deluser www-data; \
     addgroup -g $WWW_DATA_GID www-data; \
