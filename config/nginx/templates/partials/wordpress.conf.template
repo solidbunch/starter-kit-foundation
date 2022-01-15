@@ -16,3 +16,8 @@
 
         #include /etc/nginx/conf.d/partials/php.conf;
     #}
+
+    # Deny all php scripts in uploads folder
+    location ~* (.*/wp-content/uploads)/(.+\.php)$ {
+        return 403;
+    }
