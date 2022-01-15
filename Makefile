@@ -1,7 +1,7 @@
 .SILENT:
 # Default values
 t?=
-ENV_INIT=bash sh/env/init.sh
+INIT_SH=bash sh/init.sh
 
 # Go!
 # Generate .env.secret file
@@ -12,32 +12,32 @@ secret:
 # docker-compose build with root .env file concatenation
 .PHONY: build
 build:
-	$(ENV_INIT) $(t)
+	$(INIT_SH) $(t)
 	docker-compose build $(s)
 
 # Regular docker-compose up with root .env file concatenation
 .PHONY: up
 up:
-	$(ENV_INIT) $(t)
+	$(INIT_SH) $(t)
 	docker-compose up -d --build $(s)
 
 # docker-compose up with root .env file concatenation without `-d`
 .PHONY: upd
 upd:
-	$(ENV_INIT) $(t)
+	$(INIT_SH) $(t)
 	docker-compose up --build $(s)
 
 ######## Special modes ########
 # Root .env file concatenation and docker-compose up. Stage mode
 .PHONY: up-stage
 up-stage:
-	$(ENV_INIT) stage
+	$(INIT_SH) stage
 	docker-compose up -d --build $(s)
 
 # Root .env file concatenation and docker-compose up with http > https redirect options. Production mode
 .PHONY: up-prod
 up-prod:
-	$(ENV_INIT) prod
+	$(INIT_SH) prod
 	docker-compose up -d --build $(s)
 ######## Special modes ########
 

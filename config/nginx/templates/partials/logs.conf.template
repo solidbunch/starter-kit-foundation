@@ -1,5 +1,5 @@
 # Do not edit .conf file, it will override by script.
-# Edit .template file to change settings
+# Edit .conf.template file to change settings
 
     error_log  /var/log/nginx/error.log;
     #access_log /var/log/nginx/access.log;
