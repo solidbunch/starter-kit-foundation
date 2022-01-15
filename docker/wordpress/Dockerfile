@@ -25,7 +25,6 @@ RUN set -eux; \
 # Need envsubst for operate with env variables in config files
         gettext \
 	; \
-
 # Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
     deluser www-data; \
     addgroup -g $WWW_DATA_GID www-data; \
@@ -115,6 +114,19 @@ RUN set -eux; \
 		#echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
 		echo 'sendmail_path = /usr/sbin/sendmail -t'; \
 	} > /usr/local/etc/php/conf.d/sendmail.ini; \
+##
+## set custom PHP.ini settings
+	{ \
+		# Resource Limits
+		echo 'max_execution_time = 30'; \
+		# Memory limits works across WP_MEMORY_LIMIT and WP_MAX_MEMORY_LIMIT constants that comes from .env file
+		# echo 'memory_limit = 128M'; \
+		# Data Handling
+		echo 'post_max_size = 8M'; \
+		# File uploads
+		echo 'upload_max_filesize = 6M'; \
+		echo 'max_file_uploads = 20'; \
+	} > /usr/local/etc/php/conf.d/custom-php.ini; \
 ##
     set -eux; \
     ## ToDo WordPress version to .env

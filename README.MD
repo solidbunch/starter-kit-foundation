@@ -82,7 +82,7 @@ make secret
 
 <a name="footnote_fhs"></a>[1]: We recommend to use `/srv` folder instead `/var/www`. Create `/srv/apps` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
-### Launch
+### Launch 🚀
 
 1. Build the root `.env` file and run docker-compose:
 
@@ -102,12 +102,12 @@ make t=prod up
 
 Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
 
-After the installation, you can add your custom secrets to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
+After the installation, you can add your custom secrets 🔑 to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
 
 You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with the real password when you run `make secret` (`bash sh/env/secret-gen.sh`).
 
 
-:warning: **WARNING Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
+⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ### Production Launch with HTTPS
 
@@ -199,7 +199,7 @@ make pma-up
 3. Open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
 
 
-:warning: **WARNING Do not use phpMyadmin on public (production or open stage), it's not secure!**
+⚠️  **WARNING 📣 Do not use phpMyadmin on public (production or open stage), it's not secure!** 
 
 
 To stop the phpMyadmin container run command:
@@ -224,3 +224,6 @@ To activate backups:
 
 Backups will appear in the `./backups` folder, logs in the docker cron container logs
 
+## Contributing
+
+Contributions are welcome from everyone. Developing with ❤️.

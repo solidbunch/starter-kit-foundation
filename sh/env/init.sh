@@ -1,11 +1,5 @@
 #!/bin/bash
 
-# Stop when error
-set -e
-
-# Colors
-source ./sh/utils/colors
-
 # Default values
 ENVIRONMENT_TYPE=dev
 
