@@ -3,6 +3,7 @@ version: "3.9"
 services:
   phpmyadmin:
     image: phpmyadmin:5.1-apache
+    container_name: "${APP_NAME}_phpmyadmin"
     restart: unless-stopped
     ports:
       - ${PMA_EXT_PORT}:80
