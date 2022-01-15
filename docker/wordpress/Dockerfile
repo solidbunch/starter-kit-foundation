@@ -116,6 +116,12 @@ RUN set -eux; \
 		echo 'sendmail_path = /usr/sbin/sendmail -t'; \
 	} > /usr/local/etc/php/conf.d/sendmail.ini; \
 ##
+## set custom PHP.ini settings
+	{ \
+	    # File uploads
+		echo 'upload_max_filesize = 6M'; \
+	} > /usr/local/etc/php/conf.d/custom-php.ini; \
+##
     set -eux; \
     ## ToDo WordPress version to .env
 	version='5.8.3'; \
