@@ -2,11 +2,9 @@
 ##                                                                                  #
 ##                       GIT IGNORE FOR WORDPRESS SITES                             #
 ##    ------------------------------                                                #
-##    Adapted https://github.com/github/gitignore/blob/master/WordPress.gitignore   #
+##     Based https://github.com/github/gitignore/blob/master/WordPress.gitignore    #
 ##                                                                                  #
 #####################################################################################
-
-## OS and Utility Stuff ##
 
 #==================#
 #     OS Files     #
@@ -26,6 +24,7 @@ ehthumbs.db
 #     IDE Files     #
 #===================#
 .idea
+.vscode
 *.sublime-project
 *.sublime-workspace
 *.komodoproject
@@ -55,66 +54,40 @@ access_log
 /config/nginx/ssl/*.crt
 
 
-## Vendor, Libs and Content ##
-
 #===================================#
 #       Vendor and npm Files        #
 #===================================#
 node_modules
-/wp-content/themes/*/vendor
+vendor
+composer.lock
+package-lock.json
+mix-manifest.json
 
 
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/wp-core/wp-content/
-/wp-core/wp-admin/
-/wp-core/wp-includes/
-/wp-core/*.php
-/wp-core/readme.html
-/wp-core/license.txt
+/app/wp-core/*
+!/app/wp-core/favicon.ico
+!/app/wp-core/robots.txt
 
 
 #===================================#
 #          Content Files            #
 #===================================#
-/wp-content/*
-!/wp-content/index.php
-!/wp-content/mu-plugins/
-!/wp-content/plugins/
-!/wp-content/themes/
-!/wp-content/uploads/
-/wp-content/uploads/*
-#languages should be exluded too
+/app/wp-content/*
+!/app/wp-content/index.php
 
 
 #===================================#
 #          Database Files           #
 #===================================#
 /db-data
+*.sql
+
 
 #===================================#
 #          Backup Files           #
 #===================================#
 /backups
-
-#======================================#
-#      Default Themes and Plugins      #
-#======================================#
-/wp-content/themes/twenty*/
-/wp-content/plugins/hello.php
-
-#=============================================================#
-#       Compiled code. It should not always be tracked.       #
-#=============================================================#
-#/web/app/themes/*/dist
-
-
-## Use these to get more specific ##
-
-#===========================#
-#      Specific Plugins     #
-#===========================#
-/wp-content/themes/*/build/browser-sync.config.js
-/config/nginx/default.conf
 
