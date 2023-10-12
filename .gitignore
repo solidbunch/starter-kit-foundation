@@ -1,11 +1,3 @@
-#####################################################################################
-##                                                                                  #
-##                       GIT IGNORE FOR WORDPRESS SITES                             #
-##    ------------------------------                                                #
-##     Based https://github.com/github/gitignore/blob/master/WordPress.gitignore    #
-##                                                                                  #
-#####################################################################################
-
 #==================#
 #     OS Files     #
 #==================#
@@ -67,9 +59,11 @@ mix-manifest.json
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/app/wp-core/*
-!/app/wp-core/favicon.ico
-!/app/wp-core/robots.txt
+/app/wp-core/wp-*
+/app/wp-core/index.php
+/app/wp-core/xmlrpc.php
+/app/wp-core/license.txt
+/app/wp-core/readme.html
 
 
 #===================================#
