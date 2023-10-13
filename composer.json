@@ -71,9 +71,15 @@
       "composer update --no-dev --no-interaction --optimize-autoloader",
       "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer update --no-dev --no-interaction --optimize-autoloader"
     ],
+    "post-install-cmd":[
+      "@post-script"
+    ],
     "post-update-cmd":[
-      "rm -r app/wp-core/wp-content",
-      "cp -r app/web/* app/wp-core"
+      "@post-script"
+    ],
+    "post-script": [
+      "rm -rf app/wp-core/wp-content",
+      "cp -r app/web/* app/wp-core || true"
     ]
   }
 }
