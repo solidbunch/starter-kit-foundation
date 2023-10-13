@@ -4,7 +4,7 @@
 ## Added some improvements.
 ##
 
-FROM php:7.4-fpm-alpine
+FROM php:8.1-fpm-alpine3.17
 
 ARG WWW_DATA_GID
 ARG WWW_DATA_UID
@@ -130,8 +130,8 @@ RUN set -eux; \
 ##
     set -eux; \
     ## ToDo WordPress version to .env
-	version='5.8.3'; \
-	sha1='3be7ed4dc6f46fe98271b974c88153640e95ad49'; \
+	version='6.2.1'; \
+	sha1='802914e642da79b1910bdffaee16665a499bc867'; \
 	\
 	curl -o wordpress.tar.gz -fL "https://wordpress.org/wordpress-$version.tar.gz"; \
 	echo "$sha1 *wordpress.tar.gz" | sha1sum -c -; \
@@ -152,6 +152,8 @@ RUN set -eux; \
 	done; \
 	chown -R www-data:www-data wp-content; \
 	chmod -R 777 wp-content
+
+RUN docker-php-ext-install sockets
 
 COPY ./config/ssmtp.conf.template /etc/ssmtp/
 COPY ./config/revaliases.template /etc/ssmtp/
