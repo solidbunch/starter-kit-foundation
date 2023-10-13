@@ -4,14 +4,16 @@ version: "3.9"
 services:
   
   database:
-    image: mariadb:10.5
+    image: mariadb:10.11
     container_name: "${APP_NAME}_database"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
-    #ports:
-    #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
+    ports:
+      - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
+    # Uncomment this to reset root password and run inside container mysql> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
+    #command: --skip-grant-tables
     volumes:
       - ./db-data:/var/lib/mysql
   
@@ -30,9 +32,9 @@ services:
     env_file: .env
     volumes:
       # Web root folder
-      - ./wp-core:/var/www/html
+      - ./app/wp-core:/var/www/html
       # WordPress wp-content folder
-      - ./wp-content:/var/www/html/wp-content
+      - ./app/wp-content:/var/www/html/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
   
@@ -47,14 +49,19 @@ services:
     ports:
       - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
       - "${APP_HTTPS_PORT}:${APP_HTTPS_PORT}"
+    networks:
+      default:
+        # Add alias for nginx container to connect from other containers (node watcher for example)
+        aliases:
+          - "${APP_DOMAIN}"
     volumes:
       - ./config/nginx/templates:/etc/nginx/templates
       - ./config/nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
       # Web root folder
-      - ./wp-core:/var/www/html
+      - ./app/wp-core:/var/www/html
       # WordPress wp-content folder
-      - ./wp-content:/var/www/html/wp-content
+      - ./app/wp-content:/var/www/html/wp-content
   
   cron:
     build: ./docker/cron
@@ -65,3 +72,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config/crontabs:/etc/crontabs
       - ./backups:/srv/wordpress/backups
+
+networks:
+  project_network:
+    driver: bridge

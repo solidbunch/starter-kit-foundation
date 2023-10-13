@@ -59,12 +59,7 @@ mix-manifest.json
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/app/wp-core/wp-*
-/app/wp-core/index.php
-/app/wp-core/xmlrpc.php
-/app/wp-core/license.txt
-/app/wp-core/readme.html
-
+/app/wp-core
 
 #===================================#
 #          Content Files            #

@@ -1,0 +1,79 @@
+{
+  "name": "solidbunch/starter-kit-foundation",
+  "description": "WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://wpackagist.org"
+    },
+    {
+      "type": "package",
+      "package": {
+        "name": "solidbunch/wordpress",
+        "type": "wordpress-core",
+        "version": "6.3.2",
+        "dist": {
+          "type": "zip",
+          "url": "https://wordpress.org/wordpress-6.3.2.zip"
+        },
+        "require": {
+          "johnpbloch/wordpress-core-installer": "2.*"
+        }
+      }
+    },
+
+    {
+      "type": "git",
+      "url": "git@github.com:solidbunch/starter-kit-theme.git"
+    }
+  ],
+  "require": {
+    "php": ">=8.1",
+    "solidbunch/wordpress": "6.3.*",
+    "composer/installers": "2.2.*",
+    "wpackagist-plugin/svg-support": "2.5.5"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "wpackagist-plugin/rewrite-rules-inspector": "1.3.1",
+    "wpackagist-plugin/query-monitor": "^3.13.1"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true,
+    "discard-changes": true,
+    "allow-plugins": {
+      "composer/installers": true,
+      "johnpbloch/wordpress-core-installer": true
+    }
+  },
+  "extra": {
+    "installer-paths": {
+      "app/wp-content/mu-plugins/{$name}": [
+        "type:wordpress-muplugin"
+      ],
+      "app/wp-content/plugins/{$name}": [
+        "type:wordpress-plugin"
+      ],
+      "app/wp-content/themes/{$name}": [
+        "type:wordpress-theme"
+      ]
+    },
+    "wordpress-install-dir": "app/wp-core"
+  },
+  "scripts": {
+    "update-dev": [
+      "composer update",
+      "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer update"
+    ],
+    "update-prod": [
+      "composer update --no-dev --no-interaction --optimize-autoloader",
+      "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer update --no-dev --no-interaction --optimize-autoloader"
+    ],
+    "post-update-cmd":[
+      "rm -r app/wp-core/wp-content",
+      "cp -r app/web/* app/wp-core"
+    ]
+  }
+}

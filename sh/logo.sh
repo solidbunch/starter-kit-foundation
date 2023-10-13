@@ -6,6 +6,8 @@ set -e
 # Colors
 source ./sh/utils/colors
 
+# Show Logo
+# https://patorjk.com/software/taag/#p=display&f=Alligator2&t=Starter%20Kit
 echo '
    ::::::::  :::::::::::     :::     :::::::::  ::::::::::: :::::::::: :::::::::
   :+:    :+:     :+:       :+: :+:   :+:    :+:     :+:     :+:        :+:    :+:
@@ -23,5 +25,3 @@ echo '
                                               _|_  _      ._   _|  _. _|_ o  _  ._
                                                |  (_) |_| | | (_| (_|  |_ | (_) | |
 '
-
-source sh/env/init.sh "$1"
