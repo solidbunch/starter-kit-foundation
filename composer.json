@@ -1,6 +1,28 @@
 {
   "name": "solidbunch/starter-kit-foundation",
   "description": "WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration",
+  "type": "project",
+  "license": "MIT",
+  "homepage": "https://starter-kit.io",
+  "authors": [
+    {
+      "name": "SolidBunch Team",
+      "email": "contact@solidbunch.com",
+      "homepage": "https://solidbunch.com"
+    },
+    {
+      "name": "Yurii Pavlov"
+    },
+    {
+      "name": "Nikita Bolotov"
+    }
+  ],
+  "keywords": [
+    "wordpress", "starter", "boilerplate"
+  ],
+  "support": {
+    "issues": "https://github.com/solidbunch/starter-kit-foundation/issues"
+  },
   "repositories": [
     {
       "type": "composer",
@@ -31,6 +53,7 @@
     "php": ">=8.1",
     "solidbunch/wordpress": "6.3.*",
     "composer/installers": "2.2.*",
+    "solidbunch/starter-kit-theme": "dev-update/structure",
     "wpackagist-plugin/svg-support": "2.5.5"
   },
   "require-dev": {
