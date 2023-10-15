@@ -54,7 +54,7 @@
     "solidbunch/wordpress": "6.3.*",
     "composer/installers": "2.2.*",
     "solidbunch/starter-kit-theme": "dev-update/structure",
-    "wpackagist-plugin/svg-support": "2.5.5"
+    "wpackagist-plugin/svg-support": "2.5.*"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",

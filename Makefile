@@ -1,79 +1,101 @@
+#!/usr/bin/make
 .SILENT:
+
+SHELL = /bin/sh
+
+# Share current user and group ID with container
+CURRENT_UID := $(shell id -u)
+CURRENT_GID := $(shell id -g)
+
+export CURRENT_UID
+export CURRENT_GID
+
 # Default values
-t?=
-INIT_SH=bash sh/init.sh
+LOGO_SH=bash ./sh/logo.sh
+
+# https://stackoverflow.com/questions/6273608/how-to-pass-argument-to-makefile-from-command-line/6273809#6273809
+# $(MAKECMDGOALS) is the list of targets passed to make
+PARAMS = $(filter-out $@,$(MAKECMDGOALS))
 
 # Go!
+# Install project. Generate secrets, run composer and npm dependencies install
+install:
+	$(LOGO_SH)
+	bash ./sh/env/secret-gen.sh
+	bash ./sh/env/init.sh $(PARAMS)
+	bash ./sh/install.sh $(PARAMS)
+
 # Generate .env.secret file
-.PHONY: secret
 secret:
-	bash sh/env/secret-gen.sh
+	$(LOGO_SH)
+	bash ./sh/env/secret-gen.sh
 
-# docker-compose build with root .env file concatenation
-.PHONY: build
-build:
-	$(INIT_SH) $(t)
-	docker-compose build $(s)
+# Run composer install dev mode
+composer:
+	$(LOGO_SH)
+	docker compose -f docker-compose.build.yml run --rm composer-container composer update-dev
 
-# Regular docker-compose up with root .env file concatenation
-.PHONY: up
+# Run npm install dev mode
+npm:
+	$(LOGO_SH)
+	docker compose -f docker-compose.build.yml run --rm node-container npm run install-dev
+
+# Run mix watch with browserSync
+watch:
+	docker compose -f docker-compose.build.yml run --service-ports --rm node-container npm run watch
+
+# Regular docker compose up with root .env file concatenation
 up:
-	$(INIT_SH) $(t)
-	docker-compose up -d --build $(s)
+	$(LOGO_SH)
+	docker compose up -d --build
 
-# docker-compose up with root .env file concatenation without `-d`
-.PHONY: upd
+# docker compose up with root .env file concatenation without `-d`
 upd:
-	$(INIT_SH) $(t)
-	docker-compose up --build $(s)
+	$(LOGO_SH)
+	docker compose up --build $(s)
 
-######## Special modes ########
-# Root .env file concatenation and docker-compose up. Stage mode
-.PHONY: up-stage
-up-stage:
-	$(INIT_SH) stage
-	docker-compose up -d --build $(s)
-
-# Root .env file concatenation and docker-compose up with http > https redirect options. Production mode
-.PHONY: up-prod
-up-prod:
-	$(INIT_SH) prod
-	docker-compose up -d --build $(s)
-######## Special modes ########
-
-
-# Just docker-compose down
-.PHONY: down
+# Just docker compose down
 down:
-	docker-compose down -v
+	docker compose down -v
 
-.PHONY: start
-start:
-	docker-compose start
+restart:
+	docker compose restart
 
-.PHONY: stop
-stop:
-	docker-compose stop
+recreate:
+	docker compose up -d --build --force-recreate
 
-.PHONY: pause
-pause:
-	docker-compose pause
+# Run database import script with first argument as file name and second as database name
+import:
+	bash ./sh/import_database.sh $(PARAMS)
 
-# Run phpMyadmin docker container
-.PHONY: pma-up
-pma-up:
-	docker-compose -f docker-compose.phpmyadmin.yml up -d --build $(s)
+# Run database export script with first argument as file name and second as database name
+export:
+	bash ./sh/export_database.sh $(PARAMS)
 
-# phpMyadmin down
-.PHONY: pma-down
-pma-down:
-	docker-compose -f docker-compose.phpmyadmin.yml down -v
+# Run database replacements script with first argument as search string and second as replace string
+replace:
+	docker compose -f docker-compose.build.yml run --rm wp-cli-container bash -c "bash /shell/database_replacements.sh $(PARAMS)"
+
+# Run phpMyAdmin docker container
+pma:
+	docker compose -f docker-compose.build.yml run --service-ports --rm phpmyadmin
+
+logs:
+	docker compose logs -f
+
+wlog:
+	grc tail -f logs/wordpress/debug.log
 
 # Full docker cleanup
-.PHONY: docker-clean
 docker-clean:
 	docker container prune
 	docker image prune -a
 	docker volume prune
 	docker network prune
 	docker system prune
+
+# This is a hack to allow passing arguments to the make command
+# % is a wildcard. If no rule is matched (for arguments), this goal will be run
+%:
+# Do nothing
+	@:
