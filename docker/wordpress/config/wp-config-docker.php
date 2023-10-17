@@ -156,6 +156,11 @@ define('WP_DEBUG_DISPLAY', !!getenv_docker('WP_DEBUG_DISPLAY', ''));
 define('WP_DEBUG_LOG', getenv_docker('WP_DEBUG_LOG', ''));
 
 /**
+ * Additional log file for information messages
+ */
+define('APP_INFO_LOG', getenv_docker('APP_INFO_LOG', ''));
+
+/**
  * The development mode configured on a site defines the kind of development work that the site is being used for.
  */
 define('WP_DEVELOPMENT_MODE', getenv_docker('WP_DEVELOPMENT_MODE', ''));

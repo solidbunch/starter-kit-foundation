@@ -86,6 +86,9 @@ logs:
 wlog:
 	grc tail -f logs/wordpress/debug.log
 
+ilog:
+	grc tail -f logs/wordpress/info.log
+
 # Full docker cleanup
 docker-clean:
 	docker container prune
