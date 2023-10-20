@@ -2,7 +2,7 @@ version: "3.9"
 
 
 services:
-  
+
   database:
     image: mariadb:10.11
     container_name: "${APP_NAME}_database"
@@ -16,7 +16,7 @@ services:
     #command: --skip-grant-tables
     volumes:
       - ./db-data:/var/lib/mysql
-  
+
   wordpress:
     build:
       context: ./docker/wordpress
@@ -37,7 +37,7 @@ services:
       - ./app/wp-content:/var/www/html/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
-  
+
   nginx:
     build: ./docker/nginx
     container_name: "${APP_NAME}_nginx"
@@ -62,7 +62,7 @@ services:
       - ./app/wp-core:/var/www/html
       # WordPress wp-content folder
       - ./app/wp-content:/var/www/html/wp-content
-  
+
   cron:
     build: ./docker/cron
     container_name: "${APP_NAME}_cron"

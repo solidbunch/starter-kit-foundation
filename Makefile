@@ -47,11 +47,13 @@ watch:
 # Regular docker compose up with root .env file concatenation
 up:
 	$(LOGO_SH)
+	bash ./sh/env/init.sh $(PARAMS)
 	docker compose up -d --build
 
 # docker compose up with root .env file concatenation without `-d`
 upd:
 	$(LOGO_SH)
+	bash ./sh/env/init.sh $(PARAMS)
 	docker compose up --build $(s)
 
 # Just docker compose down
@@ -59,9 +61,11 @@ down:
 	docker compose down -v
 
 restart:
+	bash ./sh/env/init.sh $(PARAMS)
 	docker compose restart
 
 recreate:
+	bash ./sh/env/init.sh $(PARAMS)
 	docker compose up -d --build --force-recreate
 
 # Run database import script with first argument as file name and second as database name
