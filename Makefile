@@ -38,11 +38,12 @@ composer:
 # Run npm install dev mode
 npm:
 	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run --rm node-container npm run install-dev
+	bash ./sh/install-npm.sh $(PARAMS)
 
 # Run mix watch with browserSync
 watch:
-	docker compose -f docker-compose.build.yml run --service-ports --rm node-container npm run watch
+	$(LOGO_SH)
+	bash ./sh/npm-watch.sh $(PARAMS)
 
 # Regular docker compose up with root .env file concatenation
 up:

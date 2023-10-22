@@ -1,6 +1,6 @@
 #
 # Run from original node image
-FROM node:18-alpine3.17
+FROM node:18-alpine3.18
 
 # Define the ARG variable with a default value
 ARG CURRENT_GID=1000

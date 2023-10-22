@@ -14,10 +14,10 @@ services:
     restart: "no"
     env_file: .env
     command: [ "composer", "install" ]
-    working_dir: /app
+    working_dir: /workspace
     #user: "${CURRENT_UID}:${CURRENT_GID}"
     volumes:
-      - ./:/app
+      - ./:/workspace
       # User added in Dockerfile
       - ~/.ssh:/home/user/.ssh
 
@@ -32,13 +32,13 @@ services:
     restart: "no"
     env_file: .env
     command: [ "npm", "install" ]
-    working_dir: /app
+    working_dir: /workspace
     #user: "${CURRENT_UID}:${CURRENT_GID}"
     ports:
       - "3000:3000"
       - "3001:3001"
     volumes:
-      - ./app:/app
+      - ./:/workspace
 
   wp-cli-container:
     image: wordpress:cli-2.8-php8.1
