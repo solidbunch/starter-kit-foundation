@@ -189,7 +189,7 @@ define('AUTOMATIC_UPDATER_DISABLED', !!getenv_docker('AUTOMATIC_UPDATER_DISABLED
 /**
  * Set the default theme to the built-in project-theme
  */
-define('WP_DEFAULT_THEME', getenv_docker('WP_DEFAULT_THEME', 'twentytwentythree'));
+define('WP_DEFAULT_THEME', getenv_docker('WP_DEFAULT_THEME', ''));
 
 
 /* Add any custom values between this line and the "stop editing" line. */
