@@ -11,26 +11,50 @@ source ./.env
 # Get environment type ENVIRONMENT_TYPE var from args
 # Default values
 ENVIRONMENT_TYPE=dev
+MODE=all
+DATABASE_CONTAINER="database"
 
 # Parse environment type args
 if [ "$1" ]; then
-    ENVIRONMENT_TYPE="$1"
+  ENVIRONMENT_TYPE="$1"
 fi
 
-echo "${WP_DEFAULT_THEME}"
-echo "${WP_ENVIRONMENT_TYPE}"
+# Parse mode args
+if [ "$2" ]; then
+  MODE="$2"
+fi
 
-docker compose -f docker-compose.build.yml run --rm composer-container composer update-"${ENVIRONMENT_TYPE}"
-docker compose -f docker-compose.build.yml run --rm node-container npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
+echo -e "${CYAN}[Info]${NOCOLOR} Installing project with WP_DEFAULT_THEME '${WP_DEFAULT_THEME}' and ENVIRONMENT_TYPE '${ENVIRONMENT_TYPE}' ";
 
-# run all containers
-# run wp cli wordpress install database
+if [[ "$MODE" == "all" || "$MODE" == "composer" ]]; then
+  docker compose -f docker-compose.build.yml run --rm composer-container composer update-"${ENVIRONMENT_TYPE}"
+fi
 
-wp core install --url=$WP_HOME \
-  --title=$APP_NAME \
-  --admin_user=$WP_ADMIN_USER \
-  --admin_email=$WP_ADMIN_EMAIL \
-  --admin_password=$WP_ADMIN_PASSWORD
+if [[ "$MODE" == "all" || "$MODE" == "npm" ]]; then
+  docker compose -f docker-compose.build.yml run --rm node-container npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
+fi
 
+if [ "$MODE" != "all" ]; then
+  exit 0
+fi
 
-wp core verify-checksums
+# Build and run docker images
+docker compose up -d --build
+
+# Wait 20 times per 5 sec
+echo -e "Waiting till database in container '${DATABASE_CONTAINER}' will be ready."
+for i in {1..20}
+do
+    echo -e "Waiting 5 sec ${i} time "
+    sleep 5
+    if (docker compose exec ${DATABASE_CONTAINER} mysqladmin ping > /dev/null 2>&1); then
+      break
+    fi
+    if [ "$i" = 20 ]; then
+        echo -e "${LIGHTRED}[Error]${NOCOLOR} Database container '${DATABASE_CONTAINER}' is down"; exit 1;
+    fi
+done
+
+# Run wp cli wordpress install database
+# Should be last command in installation
+docker compose -f docker-compose.build.yml run --rm wp-cli-container bash /shell/wp-cli/core-install.sh 2> /dev/null

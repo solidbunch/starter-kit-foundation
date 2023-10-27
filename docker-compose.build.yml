@@ -19,7 +19,7 @@ services:
     volumes:
       - ./:/workspace
       # User added in Dockerfile
-      - ~/.ssh:/home/user/.ssh
+      - ~/.ssh:/home/user/.ssh:ro
 
   node-container:
     build:
@@ -41,7 +41,7 @@ services:
       - ./:/workspace
 
   wp-cli-container:
-    image: wordpress:cli-2.8-php8.1
+    image: wordpress:cli-2.9-php8.1
     container_name: "${APP_NAME}_wp-cli"
     command: ["wp", "shell"]
     user: ${CURRENT_UID}:${CURRENT_GID}
