@@ -12,7 +12,8 @@ source ./.env
 # Default values
 ENVIRONMENT_TYPE=dev
 MODE=all
-DATABASE_CONTAINER="database"
+# Take database hostname from .env file
+DATABASE_CONTAINER="$MYSQL_HOST"
 
 # Parse environment type args
 if [ "$1" ]; then
