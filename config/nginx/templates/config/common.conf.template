@@ -1,0 +1,92 @@
+# Do not edit .conf file, it will override by script.
+# Edit .conf.template file to change settings
+
+# Common config with all rules
+
+    # Follow all errors to WordPress index.php
+    #error_page 404 403 = @wordpress_error_page;
+    #location @wordpress_error_page {
+    #    rewrite ^.*$ /index.php last;
+    #}
+
+    # Use custom error page in content root folder
+    error_page 404 /404.html;
+
+    # And follow 403 errors to 404 for security reasons
+    error_page 403 =404 /404.html;
+
+    # Nginx logs
+    include /etc/nginx/conf.d/config/partials/logs.conf;
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Special directives for wp-admin area
+    # If you have media upload error:
+    # "Post-processing of the image failed likely because the server is busy or does not have enough resources. Uploading a smaller image may help. Suggested maximum size is 2500 pixels".
+    # Uncomment this rule. Generally, we are not recommend to upload large files. In most cases this is not necessary. Think twice
+    #location ~ ^/wp-admin/.*\.php$ {
+        #client_max_body_size 6M;
+        #include /etc/nginx/conf.d/config/partials/php.conf;
+    #}
+
+    # Process only main index.php, and wp-admin/*.php,
+    # and  other php root files, excerpt wp-*.php and xmlrpc.php,
+    #location ~ ^/(index\.php|(?!wp-)(?!xmlrpc).*\.php|wp-admin/.*\.php)$ {
+    location ~ ^/(index\.php|wp-admin/.*\.php)$ {
+        include /etc/nginx/conf.d/config/partials/php.conf;
+    }
+
+    # Check and include Basic Auth config (15-setup-basic-auth.sh)
+    include /etc/nginx/conf.d/config/partials/ba_${APP_BA}.conf;
+    location ~ ^/wp-login.php$ {
+        include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
+        include /etc/nginx/conf.d/config/partials/php.conf;
+    }
+
+    # Robots.txt
+    location ~ ^/robots.txt {
+        expires off;
+    }
+
+    # Deny all php scripts in uploads folder
+    location ~* (.*/wp-content/uploads)/(.+\.php)$ {
+        return 404;
+    }
+
+    # Deny access to webpack.mix.js
+    location ~* /webpack\.mix\.js$ {
+        return 404;
+    }
+
+    # Close main theme style.css file for security reasons
+    location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/style\.css$ {
+        return 404;
+    }
+
+    # Process only allowed static files
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif)$ {
+        expires max;
+        log_not_found off;
+    }
+
+    # Deny access to WordPress readme.html file
+    location ~ ^/readme.html {
+        return 404;
+    }
+
+    # Process html
+    location ~* \.(htm|html)$ {
+        expires max;
+    }
+
+    # Deny access to all other files
+    location ~* \.(.*)$ {
+        return 404;
+    }
+
+    # Deny access to folders
+    location ~ ^/(wp-content|wp-includes)/ {
+        return 404;
+    }
