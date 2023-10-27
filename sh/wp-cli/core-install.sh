@@ -31,6 +31,8 @@ wp core install \
   --admin_password="$WP_ADMIN_PASSWORD" \
   --admin_email="$WP_ADMIN_EMAIL"
 
+wp rewrite structure '/%postname%/' --hard
+
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: $WP_ADMIN_USER"
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin password: $WP_ADMIN_PASSWORD"
 echo -e "${LIGHTYELLOW}[Warning]${NOCOLOR} Store your password in safe place"

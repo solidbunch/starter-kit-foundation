@@ -9,11 +9,10 @@ server {
     listen [::]:${APP_HTTP_PORT};
     server_name www.${APP_DOMAIN};
 
-    include /etc/nginx/conf.d/partials/logs.conf;
-
     return 301 $scheme://${APP_DOMAIN}$request_uri;
 }
 
+# Main directive
 server {
     listen ${APP_HTTP_PORT};
     listen [::]:${APP_HTTP_PORT};
@@ -22,15 +21,5 @@ server {
     root /var/www/html;
     index index.php;
 
-    include /etc/nginx/conf.d/partials/logs.conf;
-
-    # Check and include Basic Auth config (15-setup-basic-auth.sh)
-    include /etc/nginx/conf.d/partials/ba_${APP_BA}.conf;
-    include /etc/nginx/conf.d/partials/ba_wp_login_${APP_BA_WP_LOGIN}.conf;
-
-    include /etc/nginx/conf.d/partials/wordpress.conf;
-
-    include /etc/nginx/conf.d/partials/php.conf;
-
-    include /etc/nginx/conf.d/partials/static.conf;
+    include /etc/nginx/conf.d/config/common.conf;
 }
