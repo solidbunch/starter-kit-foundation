@@ -33,12 +33,12 @@ secret:
 # Run composer install dev mode
 composer:
 	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run --rm composer-container composer update-dev
+	bash ./sh/install.sh dev composer
 
 # Run npm install dev mode
 npm:
 	$(LOGO_SH)
-	bash ./sh/install-npm.sh $(PARAMS)
+	bash ./sh/install.sh dev npm
 
 # Run mix watch with browserSync
 watch:
@@ -84,6 +84,10 @@ replace:
 # Run phpMyAdmin docker container
 pma:
 	docker compose -f docker-compose.build.yml run --service-ports --rm phpmyadmin
+
+# run WP-CLI container for custom commands
+wp:
+	docker compose -f docker-compose.build.yml run --rm wp-cli-container bash 2> /dev/null
 
 logs:
 	docker compose logs -f
