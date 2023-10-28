@@ -12,7 +12,7 @@ ARG WWW_DATA_UID
 ## Combine all official WordPress image layers into one
 # persistent dependencies
 RUN set -eux; \
-	apk add --no-cache \
+  apk add --no-cache \
 # in theory, docker-entrypoint.sh is POSIX-compliant, but priority is a working, consistent image
 		bash \
 # Ghostscript is required for rendering PDF previews
@@ -126,39 +126,19 @@ RUN set -eux; \
 		# File uploads
 		echo 'upload_max_filesize = 6M'; \
 		echo 'max_file_uploads = 20'; \
-	} > /usr/local/etc/php/conf.d/custom-php.ini; \
-##
-    set -eux; \
-    ## ToDo WordPress version to .env
-	version='6.2.1'; \
-	sha1='802914e642da79b1910bdffaee16665a499bc867'; \
-	\
-	curl -o wordpress.tar.gz -fL "https://wordpress.org/wordpress-$version.tar.gz"; \
-	echo "$sha1 *wordpress.tar.gz" | sha1sum -c -; \
-	\
-# upstream tarballs include ./wordpress/ so this gives us /usr/src/wordpress
-	tar -xzf wordpress.tar.gz -C /usr/src/; \
-	rm wordpress.tar.gz; \
-	\
-	chown -R www-data:www-data /usr/src/wordpress; \
-#
-# ToDo remove this (we already have all folders in repo)
-# pre-create wp-content (and single-level children) for folks who want to bind-mount themes, etc so permissions are pre-created properly instead of root:root
-# wp-content/cache: https://github.com/docker-library/wordpress/issues/534#issuecomment-705733507
-	mkdir wp-content; \
-	for dir in /usr/src/wordpress/wp-content/*/ cache; do \
-		dir="$(basename "${dir%/}")"; \
-		mkdir "wp-content/$dir"; \
-	done; \
-	chown -R www-data:www-data wp-content; \
-	chmod -R 777 wp-content
+	} > /usr/local/etc/php/conf.d/custom-php.ini
 
 RUN docker-php-ext-install sockets
 
+## WordPress logs folder make writable
+RUN mkdir -p /var/log/wordpress
+RUN chown www-data:www-data /var/log/wordpress
+
+# Copy ssmtp config into container
 COPY ./config/ssmtp.conf.template /etc/ssmtp/
 COPY ./config/revaliases.template /etc/ssmtp/
 
-COPY --chown=www-data:www-data ./config/wp-config-docker.php /usr/src/wordpress/
+#COPY --chown=www-data:www-data ./config/wp-config-docker.php /var/www/html
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
