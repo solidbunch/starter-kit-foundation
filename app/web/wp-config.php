@@ -86,15 +86,14 @@ define('DB_COLLATE', getenv_docker('WP_DB_COLLATE', ''));
  *
  * @since 2.6.0
  */
-define('AUTH_KEY', getenv_docker('WP_AUTH_KEY', '33c8e3558915785bbe166b6e4af1b0a5a5d485d9'));
-define('SECURE_AUTH_KEY', getenv_docker('WP_SECURE_AUTH_KEY', '6f0b7cb9b6e3249dd6e4d3581acdc9d4c52819f8'));
-define('LOGGED_IN_KEY', getenv_docker('WP_LOGGED_IN_KEY', '242c58e13d1e49a82452d99a8bef4f64718e0a50'));
-define('NONCE_KEY', getenv_docker('WP_NONCE_KEY', '10457e68a1e36f23897fc76583e109c5ba6f9df8'));
-define('AUTH_SALT', getenv_docker('WP_AUTH_SALT', 'b09a766f816ddc5e5c9de9af89a0839342c2d575'));
-define('SECURE_AUTH_SALT', getenv_docker('WP_SECURE_AUTH_SALT', '997f7653d978ed052e25bf31eec32f0bbbd323ff'));
-define('LOGGED_IN_SALT', getenv_docker('WP_LOGGED_IN_SALT', 'b58a0c36279288cdde9705db1e8d873e358f4af2'));
-define('NONCE_SALT', getenv_docker('WP_NONCE_SALT', 'dd1852c56db944d8c3465d0dea9e95e96a14a544'));
-// (See also https://wordpress.stackexchange.com/a/152905/199287)
+define('AUTH_KEY', getenv_docker('WP_AUTH_KEY', ''));
+define('SECURE_AUTH_KEY', getenv_docker('WP_SECURE_AUTH_KEY', ''));
+define('LOGGED_IN_KEY', getenv_docker('WP_LOGGED_IN_KEY', ''));
+define('NONCE_KEY', getenv_docker('WP_NONCE_KEY', ''));
+define('AUTH_SALT', getenv_docker('WP_AUTH_SALT', ''));
+define('SECURE_AUTH_SALT', getenv_docker('WP_SECURE_AUTH_SALT', ''));
+define('LOGGED_IN_SALT', getenv_docker('WP_LOGGED_IN_SALT', ''));
+define('NONCE_SALT', getenv_docker('WP_NONCE_SALT', ''));
 
 /**#@-*/
 
