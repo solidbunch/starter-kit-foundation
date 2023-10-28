@@ -2,15 +2,23 @@
 ## Copy of official WordPress image https://hub.docker.com/_/wordpress
 ##
 ## Added some improvements.
+## Combined all image layers into one
 ##
 
 FROM php:8.1-fpm-alpine3.17
 
+##################################
+# Arguments from docker-compose  #
+##################################
 ARG WWW_DATA_GID
 ARG WWW_DATA_UID
 
-## Combine all official WordPress image layers into one
-# persistent dependencies
+ARG XDEBUG_ENABLE
+
+#
+##################################
+#     Persistent dependencies    #
+##################################
 RUN set -eux; \
     apk add --no-cache \
 # in theory, docker-entrypoint.sh is POSIX-compliant, but priority is a working, consistent image
@@ -25,11 +33,19 @@ RUN set -eux; \
 # Need envsubst for operate with env variables in config files
       gettext \
   ; \
+#
+##################################
+#     Recreate www-data user     #
+##################################
 # Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
     deluser www-data; \
     addgroup -g $WWW_DATA_GID www-data; \
     adduser -u $WWW_DATA_UID -D -S -G www-data www-data; \
   \
+#
+##################################
+#     install PHP extensions     #
+##################################
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
     set -ex; \
     \
@@ -56,6 +72,13 @@ RUN set -eux; \
       mysqli \
       zip \
     ; \
+# Install Xdebug if XDEBUG_ENABLE is set to 1 \
+# Install Xdebug see https://xdebug.org/docs/install
+    if [ "$XDEBUG_ENABLE" = "1" ]; then \
+      pecl install xdebug-3.1.4; \
+      docker-php-ext-enable xdebug; \
+    fi; \
+#
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
     pecl install imagick-3.6.0; \
@@ -84,7 +107,13 @@ RUN set -eux; \
     err="$(php --version 3>&1 1>&2 2>&3)"; \
     [ -z "$err" ]; \
     \
-# set recommended PHP.ini settings
+#
+# Clear /tmp
+    rm -rf /tmp/*; \
+#
+##################################
+#      Set PHP.ini settings      #
+##################################
 # see https://secure.php.net/manual/en/opcache.installation.php
     \
     set -eux; \
@@ -129,14 +158,26 @@ RUN set -eux; \
       echo 'max_file_uploads = 20'; \
     } > /usr/local/etc/php/conf.d/custom-php.ini
 
-## WordPress logs folder make writable
-RUN mkdir -p /var/log/wordpress
-RUN chown www-data:www-data /var/log/wordpress
+##################################
+#     WordPress logs folder      #
+##################################
+RUN mkdir -p /var/log/wordpress; \
+    chown www-data:www-data /var/log/wordpress
 
-# Copy ssmtp config into container
+##################################
+#    Prepare ssmtp conf files    #
+##################################
 COPY ./config/ssmtp.conf.template /etc/ssmtp/
 COPY ./config/revaliases.template /etc/ssmtp/
 
+##################################
+#       Copy xdebug.ini          #
+##################################
+COPY ./xdebug/xdebug.ini /usr/local/etc/php/conf.d/
+
+##################################
+#   Prepare and run entrypoint   #
+##################################
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

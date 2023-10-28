@@ -29,6 +29,7 @@ ehthumbs.db
 *.log
 error_log
 access_log
+logs/**/*.out
 .sass-cache
 *.css.map
 *.js.map
