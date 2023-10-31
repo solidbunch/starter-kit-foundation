@@ -1,9 +1,4 @@
 <!--suppress HtmlDeprecatedAttribute -->
-<p align="center">
-
-  <img alt="Starter Kit Foundation" src="https://starter-kit.io/images/logo.png" height="100">
-
-</p>
 
 <p align="center">
 
@@ -102,7 +97,7 @@ make t=prod up
 
 Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
 
-After the installation, you can add your custom secrets 🔑 to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data. 
+After the installation, you can add your custom secrets 🔑 to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data.
 
 You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with the real password when you run `make secret` (`bash sh/env/secret-gen.sh`).
 
@@ -137,13 +132,13 @@ The configuration file `/config/nginx/templates/partials/https.conf.template`  w
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
 
 ```
-backups/                  # Daily and weekly WordPress media and database backups 
+backups/                  # Daily and weekly WordPress media and database backups
 config/                   # Global config files
 db-data/                  # Database docker mounted volume
 docker/                   # Docker images (Dockerfiles) and additional scripts
 logs/                     # System and wordpress logs
 sh/                       # Bash scripts
-├── env/                  # Operations with environment files 
+├── env/                  # Operations with environment files
 └── utils/                # Additional bash utils
 wp-content/               # Docker mounted volume, WordPress wp-content folder
 ├── mu-plugins/           # Must use plugins
@@ -160,7 +155,7 @@ Do not edit files in the wp-core folder, it builds automatically.
 ## Sending emails
 
 Docker containers do not have a custom SMTP server. We use an SMTP relay service. You can set up an SMTP server
-like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like. 
+like Gmail, AWS, Sendinblue, Mailgun, etc, or use another server you like.
 
 Just edit sSMTP config block in your `.env.secret` file.
 
@@ -181,7 +176,7 @@ ports:
 2. Edit the `.env.main` file, find `SSH_TUNNEL_EXT_PORT` - make sure that the port is unique. If you are using multiple instances, change the port value.
 
 
-3. Open your database management app and configure SSH tunnel, database connection 
+3. Open your database management app and configure SSH tunnel, database connection
 
 
 ### phpMyadmin options
@@ -199,7 +194,7 @@ make pma-up
 3. Open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
 
 
-⚠️  **WARNING 📣 Do not use phpMyadmin on public (production or open stage), it's not secure!** 
+⚠️  **WARNING 📣 Do not use phpMyadmin on public (production or open stage), it's not secure!**
 
 
 To stop the phpMyadmin container run command:
