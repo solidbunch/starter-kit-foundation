@@ -41,7 +41,7 @@
           "url": "https://wordpress.org/wordpress-6.3.2.zip"
         },
         "require": {
-          "johnpbloch/wordpress-core-installer": "2.*"
+          "johnpbloch/wordpress-core-installer": "2.0"
         }
       }
     },
@@ -52,15 +52,15 @@
   ],
   "require": {
     "php": ">=8.1",
-    "solidbunch/wordpress": "6.3.*",
-    "composer/installers": "2.2.*",
+    "solidbunch/wordpress": "6.3.2",
+    "composer/installers": "2.2.0",
     "solidbunch/starter-kit-theme": "dev-develop",
-    "wpackagist-plugin/svg-support": "2.5.*"
+    "wpackagist-plugin/svg-support": "2.5.5"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
     "wpackagist-plugin/rewrite-rules-inspector": "1.3.1",
-    "wpackagist-plugin/query-monitor": "^3.13.1"
+    "wpackagist-plugin/query-monitor": "3.14.1"
   },
   "config": {
     "optimize-autoloader": true,
@@ -87,9 +87,15 @@
     "wordpress-install-dir": "app/wp-core"
   },
   "scripts": {
+    "update-local": [
+      "@install-dev"
+    ],
     "update-dev": [
       "composer update",
       "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer update"
+    ],
+    "update-stage": [
+      "@update-prod"
     ],
     "update-prod": [
       "composer update --no-dev --no-interaction --optimize-autoloader",
