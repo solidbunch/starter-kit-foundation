@@ -10,10 +10,10 @@
     #}
 
     # Use custom error page in content root folder
-    error_page 404 /404.html;
+    #error_page 404 /404.html;
 
     # And follow 403 errors to 404 for security reasons
-    error_page 403 =404 /404.html;
+    #error_page 403 =404 /404.html;
 
     # Nginx logs
     include /etc/nginx/conf.d/config/partials/logs.conf;
@@ -76,8 +76,8 @@
         return 404;
     }
 
-    # Process html
-    location ~* \.(htm|html)$ {
+    # Process only root folder html
+    location ~ ^/([^/]+)\.(html?|htm)$ {
         expires max;
     }
 
