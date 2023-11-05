@@ -48,7 +48,7 @@ for i in {1..20}
 do
     echo -e "Waiting 5 sec ${i} time "
     sleep 5
-    if (docker compose exec ${DATABASE_CONTAINER} mysqladmin ping > /dev/null 2>&1); then
+    if (docker compose exec "${DATABASE_CONTAINER}" mysqladmin ping > /dev/null 2>&1); then
       break
     fi
     if [ "$i" = 20 ]; then

@@ -1,6 +1,6 @@
 #
 # Run from original composer image
-FROM composer:2.5
+FROM composer:2.6
 
 # Define the ARG variable with a default value
 ARG CURRENT_GID=1000

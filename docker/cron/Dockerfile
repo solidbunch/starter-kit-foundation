@@ -2,7 +2,7 @@
 # https://github.com/renskiy/cron-docker-image
 # Thanks to renskiy
 
-FROM alpine:3.17
+FROM alpine:3.18
 
 RUN set -ex \
 # Install bash
