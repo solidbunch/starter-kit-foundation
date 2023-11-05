@@ -1,7 +1,7 @@
+# Starter Kit foundation
 <!--suppress HtmlDeprecatedAttribute -->
 
 <p align="center">
-
   <a href="LICENSE.md">
     <img alt="GitHub" src="https://img.shields.io/github/license/solidbunch/starter-kit-foundation">
   </a>
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<strong>Starter Kit Foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.</strong>
+<strong>Starter Kit foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.</strong>
 
 </p>
 
@@ -21,19 +21,31 @@
 <p align="center">
 
   <a href="https://hub.docker.com/_/php">
-    <img alt="PHP" src="https://img.shields.io/badge/PHP%20fpm-7.4-8892bf">
+    <img alt="PHP" src="https://img.shields.io/badge/PHP%20fpm-8.1-8892bf">
   </a>
 
   <a href="https://hub.docker.com/_/mariadb">
-    <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-10.5-c0765a">
+    <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-10.11-c0765a">
   </a>
 
   <a href="https://hub.docker.com/_/wordpress">
-    <img alt="WordPress" src="https://img.shields.io/badge/WordPress-5.8.3-lightgrey">
+    <img alt="WordPress" src="https://img.shields.io/badge/WordPress-6.3-lightgrey">
   </a>
 
   <a href="https://hub.docker.com/_/nginx">
-    <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.21-00a652">
+    <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.25-00a652">
+  </a>
+
+  <a href="https://hub.docker.com/_/composer">
+    <img alt="Composer" src="https://img.shields.io/badge/Composer-2.6-885630">
+  </a>
+
+  <a href="https://hub.docker.com/_/node">
+    <img alt="Node" src="https://img.shields.io/badge/Node-18-8cc94c">
+  </a>
+
+  <a href="https://hub.docker.com/_/wordpress">
+    <img alt="WP CLI" src="https://img.shields.io/badge/WPcli-2.9-222222">
   </a>
 
   <a href="https://hub.docker.com/_/phpmyadmin">
@@ -44,8 +56,8 @@
 
 ## Requirements
 
-1. [Docker Engine](https://docs.docker.com/engine/install/) v20.10+
-2. [Docker Compose](https://docs.docker.com/compose/install/) v1.29+
+1. [Docker Engine](https://docs.docker.com/engine/install/) v24+
+2. [Docker Compose](https://docs.docker.com/compose/install/) v2.21+
 
 
 ## How to use
@@ -58,31 +70,41 @@
 mkdir you-project.com && cd you-project.com
 ```
 
-2. Install Starter Kit Foundation:
+2. Clone Starter Kit foundation:
 
 ```bash
 git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm -rf .git
 ```
 
-3. Generate secrets env file:
+3. Update environment variables in the `./config/environment/.env.main` file. Change `APP_NAME`, etc.
+
+
+4. Update `./config/environment/.env.main|.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app. Change `APP_DOMAIN`, and other variables
+
+
+3. Run installation process:
 
 ```bash
-make secret
+make install [environment_type] [mode]
 ```
+Where **environment_type** - any type that exist in ./config/environment/.env.type.*. `dev` is the default. **mode** - `composer` or `npm` installation mode. Empty by default runs full installation. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, buld containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to .env.type files.
 
-4. Update environment variables in the `./config/environment/.env.main` file. Change your App name, etc.
+Also, you can run `make install dev composer` or `make install dev npm` to run just composer install or npm install
 
+To use productions environment run:
 
-5. Update `./config/environment/.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. Change App domain variable to yours. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app.
+```bash
+make install prod
+```
 
 <a name="footnote_fhs"></a>[1]: We recommend to use `/srv` folder instead `/var/www`. Create `/srv/apps` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
-### Launch 🚀
+### Usage 🚀
 
-1. Build the root `.env` file and run docker-compose:
+The project is ready to use immediately after installation, but you can stop, recreate, launch the containers in different environments.
 
 ```bash
-make [t=<environment_type>] up
+make up [environment_type]
 ```
 
 Where `environment_type` - any type that exist in `./config/environment/.env.type.*`. `dev` is the default.
@@ -91,15 +113,15 @@ Where `environment_type` - any type that exist in `./config/environment/.env.typ
 
 ```bash
 make up
-make t=stage up
-make t=prod up
+make up stage
+make up prod
 ```
 
 Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
 
 After the installation, you can add your custom secrets 🔑 to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data.
 
-You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generatethispass` with the real password when you run `make secret` (`bash sh/env/secret-gen.sh`).
+You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generate_this_pass` with the real password when you run `make install` or `make secret` (`bash sh/env/secret-gen.sh`).
 
 
 ⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
@@ -107,26 +129,24 @@ You can add secret variables names there without secret data, just for structure
 ### Production Launch with HTTPS
 
 1. Put your certificate files in `./config/nginx/ssl/` with names <your-app-domain.com>.crt and <your-app-domain.com>.key
-2. Change var APP_PROTOCOL=https in your .env.type.[environment_type]
+2. Change var `APP_PROTOCOL=https` in your `.env.type.[environment_type]`
 3. Start containers with http > https redirect:
 
 ```bash
-make up-prod
+make up prod
 ```
-The configuration file `/config/nginx/templates/partials/https.conf.template`  will be used instead of `/config/nginx/templates/partials/http.conf.template`
+The configuration file `/config/nginx/templates/config/https.conf.template`  will be used instead of `/config/nginx/templates/config/http.conf.template`
 
 ### Makefile commands
 
+- `make install [environment_type] [mode]`
 - `make secret`
-- `make [t=<environment_type>] [s=<command>] up`
-- `make [t=<environment_type>] [s=<command>] upd`
-- `make [s=<command>] up-prod` - production launch with http > https redirect
-- `make down` - `docker-compose down -v`
-- `make start` - `docker-compose start`
-- `make stop` - `docker-compose stop`
-- `make pause` - `docker-compose pause`
-- `make pma-up`
-- `make pma-down`
+- `make up [environment_type]` - `docker compose up -d --build`
+- `make upd [environment_type]` - `docker compose up --build`
+- `make down` - `docker compose down -v`
+- `make restart` - `docker compose restart`
+- `make recreate` - `docker compose up -d --build --force-recreate`
+- `make pma`
 
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.

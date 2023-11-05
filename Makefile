@@ -1,6 +1,10 @@
 #!/usr/bin/make
 .SILENT:
 
+include ./sh/utils/colors
+
+include .env
+
 SHELL = /bin/sh
 
 # Share current user and group ID with container
@@ -19,6 +23,8 @@ PARAMS = $(filter-out $@,$(MAKECMDGOALS))
 
 # Go!
 # Install project. Generate secrets, run composer and npm dependencies install
+# `make install dev composer` - will run only composer update
+# `make install dev npm` - will run only npm install and run dev mode
 install:
 	$(LOGO_SH)
 	bash ./sh/env/secret-gen.sh
@@ -29,16 +35,6 @@ install:
 secret:
 	$(LOGO_SH)
 	bash ./sh/env/secret-gen.sh
-
-# Run composer install dev mode
-composer:
-	$(LOGO_SH)
-	bash ./sh/install.sh dev composer
-
-# Run npm install dev mode
-npm:
-	$(LOGO_SH)
-	bash ./sh/install.sh dev npm
 
 # Run mix watch with browserSync
 watch:
@@ -55,7 +51,7 @@ up:
 upd:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up --build $(s)
+	docker compose up --build
 
 # Just docker compose down
 down:
@@ -68,6 +64,11 @@ restart:
 recreate:
 	bash ./sh/env/init.sh $(PARAMS)
 	docker compose up -d --build --force-recreate
+
+# Run bash inside container
+run:
+	$(LOGO_SH)
+	docker compose -f docker-compose.build.yml run -it --rm $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
 
 # Run database import script with first argument as file name and second as database name
 import:
