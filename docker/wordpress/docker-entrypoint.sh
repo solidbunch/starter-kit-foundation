@@ -7,9 +7,9 @@
 
 set -Eeuo pipefail
 
-# Replace env variables with values in sSMTP config
-envsubst < /etc/ssmtp/ssmtp.conf.template > /etc/ssmtp/ssmtp.conf
-envsubst < /etc/ssmtp/revaliases.template > /etc/ssmtp/revaliases
+# Replace env variables with values in sSMTP config using gettext app
+envsubst < /etc/ssmtp/templates/ssmtp.conf.template > /etc/ssmtp/ssmtp.conf
+envsubst < /etc/ssmtp/templates/revaliases.template > /etc/ssmtp/revaliases
 echo "sSMTP config ready"
 
 ## exec php-fpm (added as parameter in Dockerfile CMD ["php-fpm"])
