@@ -37,6 +37,10 @@ services:
       - ./app/wp-content:/var/www/html/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
+      # SSMTP config
+      - ./config/ssmtp:/etc/ssmtp/templates:ro
+      # Xdebug config
+      - ./config/xdebug/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
 
   nginx:
     build: ./docker/nginx
@@ -55,13 +59,15 @@ services:
         aliases:
           - "${APP_DOMAIN}"
     volumes:
-      - ./config/nginx/templates:/etc/nginx/templates
-      - ./config/nginx/ssl:/etc/nginx/ssl:ro
-      - ./logs/nginx:/var/log/nginx
       # Web root folder
       - ./app/wp-core:/var/www/html
       # WordPress wp-content folder
       - ./app/wp-content:/var/www/html/wp-content
+      # Nginx config
+      - ./config/nginx/templates:/etc/nginx/templates:ro
+      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      # Logs
+      - ./logs/nginx:/var/log/nginx
 
   cron:
     build: ./docker/cron

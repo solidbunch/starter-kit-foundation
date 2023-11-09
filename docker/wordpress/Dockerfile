@@ -165,17 +165,6 @@ RUN mkdir -p /var/log/wordpress; \
     chown www-data:www-data /var/log/wordpress
 
 ##################################
-#    Prepare ssmtp conf files    #
-##################################
-COPY ./config/ssmtp.conf.template /etc/ssmtp/
-COPY ./config/revaliases.template /etc/ssmtp/
-
-##################################
-#       Copy xdebug.ini          #
-##################################
-COPY ./xdebug/xdebug.ini /usr/local/etc/php/conf.d/
-
-##################################
 #   Prepare and run entrypoint   #
 ##################################
 COPY docker-entrypoint.sh /usr/local/bin/
