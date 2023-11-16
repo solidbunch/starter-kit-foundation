@@ -65,11 +65,6 @@ recreate:
 	bash ./sh/env/init.sh $(PARAMS)
 	docker compose up -d --build --force-recreate
 
-# Run bash inside container
-run:
-	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run -it --rm $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
-
 # Run database import script with first argument as file name and second as database name
 import:
 	bash ./sh/import_database.sh $(PARAMS)
@@ -98,6 +93,11 @@ wlog:
 
 ilog:
 	grc tail -f logs/wordpress/info.log
+
+# Run container and bash inside container
+run:
+	$(LOGO_SH)
+	docker compose -f docker-compose.build.yml run -it --rm $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
 
 # Full docker cleanup
 docker-clean:
