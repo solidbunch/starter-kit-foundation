@@ -65,8 +65,8 @@
         return 404;
     }
 
-    # Process only allowed static files
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif)$ {
+    # Process all allowed static files including images, fonts, media, documents, etc.
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif|bmp|tiff|mp3|mp4|ogg|wav|webm|pdf|doc|docx|ppt|pptx|xls|xlsx|zip|rar|7z|woff|woff2|ttf|otf|eot)$ {
         expires max;
         log_not_found off;
     }
