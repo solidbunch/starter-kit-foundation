@@ -99,6 +99,10 @@ run:
 	$(LOGO_SH)
 	docker compose -f docker-compose.build.yml run -it --rm $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
 
+lint:
+	docker compose -f docker-compose.build.yml run -it --rm composer-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"
+	docker compose -f docker-compose.build.yml run -it --rm node-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && npm run lint"
+
 # Full docker cleanup
 docker-clean:
 	docker container prune
