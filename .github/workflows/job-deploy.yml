@@ -14,6 +14,9 @@ on:
       DEPLOY_PATH_DESTINATION:
         required: true
         type: string
+      WP_DEFAULT_THEME:
+        required: true
+        type: string
       DEPLOYMENT_NAME:
         required: true
         type: string
