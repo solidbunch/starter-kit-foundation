@@ -137,10 +137,14 @@ jobs:
             --exclude "db-data/" \
             --exclude "logs/*" \
             --exclude "iasc/" \
+            --exclude ".env" \
+            --exclude ".env.*override" \
+            --exclude ".env.*secret" \
+            --exclude "config/nginx/ssl/*.key" \
+            --exclude "config/nginx/ssl/*.crt" \
             --exclude "wp-content/cache" \
             --exclude "wp-content/languages" \
             --exclude "wp-content/uploads" \
-            --exclude "wp-config.php" \
             ./ ${{ inputs.SSH_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
-          ssh ${{ inputs.SSH_ALIAS }} "cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && bash sh/env/secret-gen.sh && bash sh/env/init.sh prod && docker compose up -d --build --force-recreate"
+          ssh ${{ inputs.SSH_ALIAS }} "cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && bash sh/env/secret-gen.sh && bash sh/env/init.sh dev && docker compose up -d --build --force-recreate"
 
