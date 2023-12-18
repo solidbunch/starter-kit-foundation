@@ -35,10 +35,10 @@
       "package": {
         "name": "solidbunch/wordpress",
         "type": "wordpress-core",
-        "version": "6.4.1",
+        "version": "6.4.2",
         "dist": {
           "type": "zip",
-          "url": "https://wordpress.org/wordpress-6.4.1.zip"
+          "url": "https://wordpress.org/wordpress-6.4.2.zip"
         },
         "require": {
           "johnpbloch/wordpress-core-installer": "2.0"
@@ -52,7 +52,7 @@
   ],
   "require": {
     "php": ">=8.1",
-    "solidbunch/wordpress": "6.4.1",
+    "solidbunch/wordpress": "6.4.2",
     "composer/installers": "2.2.0",
     "solidbunch/starter-kit-theme": "dev-develop",
     "wpackagist-plugin/svg-support": "2.5.5"
@@ -88,7 +88,7 @@
   },
   "scripts": {
     "update-local": [
-      "@install-dev"
+      "@update-dev"
     ],
     "update-dev": [
       "composer update",

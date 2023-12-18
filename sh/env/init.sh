@@ -8,7 +8,7 @@ source ./sh/utils/colors
 
 # Get environment type ENVIRONMENT_TYPE var from args
 # Default values
-ENVIRONMENT_TYPE=dev
+ENVIRONMENT_TYPE=local
 
 # Parse environment type args
 if [ "$1" ]; then

@@ -79,7 +79,7 @@ git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm
 3. Update environment variables in the `./config/environment/.env.main` file. Change `APP_NAME`, etc.
 
 
-4. Update `./config/environment/.env.main|.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for development, staging, and production. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app. Change `APP_DOMAIN`, and other variables
+4. Update `./config/environment/.env.main|.env.type.local|.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for local, development, staging, and production. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app. Change `APP_DOMAIN`, and other variables
 
 
 3. Run installation process:
@@ -87,9 +87,9 @@ git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm
 ```bash
 make install [environment_type] [mode]
 ```
-Where **environment_type** - any type that exist in ./config/environment/.env.type.*. `dev` is the default. **mode** - `composer` or `npm` installation mode. Empty by default runs full installation. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, buld containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to .env.type files.
+Where **environment_type** - any type that exist in ./config/environment/.env.type.*. `local` is the default. **mode** - `composer` or `npm` installation mode. Empty by default runs full installation. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, buld containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to .env.type files.
 
-Also, you can run `make install dev composer` or `make install dev npm` to run just composer install or npm install
+Also, you can run `make install local composer` or `make install local npm` to run just composer install or npm install
 
 To use productions environment run:
 
@@ -107,7 +107,7 @@ The project is ready to use immediately after installation, but you can stop, re
 make up [environment_type]
 ```
 
-Where `environment_type` - any type that exist in `./config/environment/.env.type.*`. `dev` is the default.
+Where `environment_type` - any type that exist in `./config/environment/.env.type.*`. `local` is the default.
 
 **Examples:**
 

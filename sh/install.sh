@@ -10,7 +10,7 @@ source ./.env
 
 # Get environment type ENVIRONMENT_TYPE var from args
 # Default values
-ENVIRONMENT_TYPE=dev
+ENVIRONMENT_TYPE=local
 MODE=all
 # Take database hostname from .env file
 DATABASE_CONTAINER="$MYSQL_HOST"
