@@ -107,6 +107,9 @@ lint:
 terraform:
 	terraform -chdir=iasc/terraform $(PARAMS)
 
+ansible:
+	ansible-playbook iasc/ansible/prepare-servers.yml $(PARAMS)
+
 # Full docker cleanup
 docker-clean:
 	docker container prune
