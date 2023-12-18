@@ -91,8 +91,8 @@ jobs:
 
       - name: Install npm Dependencies
         run: |
-          npm run install-dev --prefix wp/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }}
-          rm -rf wp/wp-content/themes/starter-kit-theme/node_modules
+          npm run install-dev --prefix app/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }}
+          rm -rf app/wp-content/themes/starter-kit-theme/node_modules
 
       - name: Save Node Built cache
         uses: actions/cache@v3
