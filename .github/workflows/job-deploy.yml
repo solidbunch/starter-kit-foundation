@@ -19,7 +19,7 @@ on:
         type: string
 
 jobs:
-  build-composer:
+  prepare:
     runs-on: ubuntu-22.04
 
     steps:
@@ -32,6 +32,31 @@ jobs:
           echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
           chmod 400 ~/.ssh/id_rsa
           echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+
+      - name: Prepare .env
+        run: |
+          cp ./config/environment/.env.main .env
+          echo >> .env
+          cat ./config/environment/.env.type.dev >> .env
+
+      - name: Save Prepared Built cache
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: prepared-build-cache-${{ github.run_number }}
+
+
+  build-composer:
+    runs-on: ubuntu-22.04
+
+    needs: [prepare]
+
+    steps:
+      - name: Use Prepared Built cache
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: prepared-build-cache-${{ github.run_number }}
 
       - name: Install Composer Dependencies
         run: |
@@ -46,7 +71,7 @@ jobs:
   build-node:
     runs-on: ubuntu-22.04
 
-    needs: [build-composer]
+    needs: [ prepare, build-composer ]
 
     steps:
       - name: Use Composer Built cache
@@ -74,7 +99,7 @@ jobs:
   deploy:
     runs-on: ubuntu-22.04
 
-    needs: [ build-composer, build-node ]
+    needs: [ prepare, build-composer, build-node ]
 
     steps:
       - name: Use Node Built cache
@@ -95,21 +120,23 @@ jobs:
           echo "Deploying to ${{ inputs.DEPLOY_PATH_DESTINATION }}"
           ssh ${{ inputs.SSH_ALIAS }} mkdir -p ${{ inputs.DEPLOY_PATH_DESTINATION }}
           rsync -og \
-          --chmod=Dug=rwx,Fug=rw \
-          --checksum \
-          --recursive \
-          --verbose \
-          --compress \
-          --links \
-          --delete-after \
-          --exclude ".git*" \
-          --exclude "*/node_modules/" \
-          --exclude "backups/" \
-          --exclude "db-data/" \
-          --exclude "logs/*" \
-          --exclude "iasc/" \
-          --exclude "wp-content/cache" \
-          --exclude "wp-content/languages" \
-          --exclude "wp-content/uploads" \
-          --exclude "wp-config.php" \
-          ./ ${{ inputs.SSH_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
+            --chmod=Dug=rwx,Fug=rw \
+            --checksum \
+            --recursive \
+            --verbose \
+            --compress \
+            --links \
+            --delete-after \
+            --exclude ".git*" \
+            --exclude "*/node_modules/" \
+            --exclude "backups/" \
+            --exclude "db-data/" \
+            --exclude "logs/*" \
+            --exclude "iasc/" \
+            --exclude "wp-content/cache" \
+            --exclude "wp-content/languages" \
+            --exclude "wp-content/uploads" \
+            --exclude "wp-config.php" \
+            ./ ${{ inputs.SSH_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
+          ssh ${{ inputs.SSH_ALIAS }} "cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && bash sh/env/secret-gen.sh && bash sh/env/init.sh prod && docker compose up -d --build --force-recreate"
+
