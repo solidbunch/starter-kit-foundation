@@ -1,0 +1,115 @@
+name: job-deploy
+
+on:
+  workflow_call:
+    secrets:
+      SSH_KEY:
+        required: true
+      SSH_CONFIG:
+        required: true
+    inputs:
+      SSH_ALIAS:
+        required: true
+        type: string
+      DEPLOY_PATH_DESTINATION:
+        required: true
+        type: string
+      DEPLOYMENT_NAME:
+        required: true
+        type: string
+
+jobs:
+  build-composer:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh/
+          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+
+      - name: Install Composer Dependencies
+        run: |
+          composer update-dev
+
+      - name: Save Composer Built cache
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: composer-build-cache-${{ github.run_number }}
+
+  build-node:
+    runs-on: ubuntu-22.04
+
+    needs: [build-composer]
+
+    steps:
+      - name: Use Composer Built cache
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: composer-build-cache-${{ github.run_number }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install npm Dependencies
+        run: |
+          npm run install-dev --prefix wp/wp-content/themes/starter-kit-theme
+          rm -rf wp/wp-content/themes/starter-kit-theme/node_modules
+
+      - name: Save Node Built cache
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: composer-node-build-cache-${{ github.run_number }}
+
+  deploy:
+    runs-on: ubuntu-22.04
+
+    needs: [ build-composer, build-node ]
+
+    steps:
+      - name: Use Node Built cache
+        uses: actions/cache@v3
+        with:
+          path: .
+          key: composer-node-build-cache-${{ github.run_number }}
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh/
+          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+
+      - name: Deploy via SSH
+        run: |
+          echo "Deploying to ${{ inputs.DEPLOY_PATH_DESTINATION }}"
+          ssh ${{ inputs.SSH_ALIAS }} mkdir -p ${{ inputs.DEPLOY_PATH_DESTINATION }}
+          rsync -og \
+          --chmod=Dug=rwx,Fug=rw \
+          --checksum \
+          --recursive \
+          --verbose \
+          --compress \
+          --links \
+          --delete-after \
+          --exclude ".git*" \
+          --exclude "*/node_modules/" \
+          --exclude "backups/" \
+          --exclude "db-data/" \
+          --exclude "logs/*" \
+          --exclude "iasc/" \
+          --exclude "wp-content/cache" \
+          --exclude "wp-content/languages" \
+          --exclude "wp-content/uploads" \
+          --exclude "wp-config.php" \
+          ./ ${{ inputs.SSH_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
