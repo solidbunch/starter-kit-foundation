@@ -19,7 +19,7 @@ fi
 # Cross platform password generator. Creating Alpine container, running pass gen, removing container
 echo -e "${CYAN}[Info]${NOCOLOR} Generating Secrets..."
 
-docker run --name pass-gen-container -v "./sh:/shell:ro" -it alpine:latest sh /shell/env/pass_gen.sh
+docker run --name pass-gen-container -v "./sh:/shell:ro" alpine:latest sh /shell/env/pass_gen.sh
 docker cp pass-gen-container:/.env.secret ./config/environment/.env.secret
 docker rm -f pass-gen-container > /dev/null 2>&1
 
