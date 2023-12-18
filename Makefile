@@ -66,11 +66,11 @@ recreate:
 	docker compose up -d --build --force-recreate
 
 # Run database import script with first argument as file name and second as database name
-import:
+db-import:
 	bash ./sh/import_database.sh $(PARAMS)
 
 # Run database export script with first argument as file name and second as database name
-export:
+db-export:
 	bash ./sh/export_database.sh $(PARAMS)
 
 # Run database replacements script with first argument as search string and second as replace string
@@ -85,7 +85,7 @@ pma:
 wp:
 	docker compose -f docker-compose.build.yml run --rm wp-cli-container bash 2> /dev/null
 
-logs:
+log:
 	docker compose logs -f
 
 wlog:
@@ -102,6 +102,10 @@ run:
 lint:
 	docker compose -f docker-compose.build.yml run -it --rm composer-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"
 	docker compose -f docker-compose.build.yml run -it --rm node-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && npm run lint"
+
+# IasC
+terraform:
+	terraform -chdir=iasc/terraform $(PARAMS)
 
 # Full docker cleanup
 docker-clean:
