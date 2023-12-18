@@ -60,7 +60,8 @@ jobs:
 
       - name: Install Composer Dependencies
         run: |
-          composer update-dev
+          composer update
+          cd app/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }} && composer update
 
       - name: Save Composer Built cache
         uses: actions/cache@v3
@@ -87,7 +88,7 @@ jobs:
 
       - name: Install npm Dependencies
         run: |
-          npm run install-dev --prefix wp/wp-content/themes/starter-kit-theme
+          npm run install-dev --prefix wp/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }}
           rm -rf wp/wp-content/themes/starter-kit-theme/node_modules
 
       - name: Save Node Built cache
