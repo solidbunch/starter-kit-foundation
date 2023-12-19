@@ -6,12 +6,8 @@ FROM composer:2.6
 ARG CURRENT_GID=1000
 ARG CURRENT_UID=1000
 
-# Get current user UID and GID from params
-ARG CURRENT_GID
-ARG CURRENT_UID
-
 # Create the current user and home directory
-RUN addgroup -S user -g 1000 \
+RUN addgroup -S user -g $CURRENT_GID \
     && adduser -S -G user -u $CURRENT_UID user
 
 USER user

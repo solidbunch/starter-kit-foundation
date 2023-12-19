@@ -7,14 +7,13 @@ services:
       context: ./docker/composer
       dockerfile: Dockerfile
       args:
-        CURRENT_GID: ${CURRENT_GID:?Add User Group ID}
-        CURRENT_UID: ${CURRENT_UID:?Add User ID}
+        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     container_name: "${APP_NAME}_composer"
     restart: "no"
     env_file: .env
     command: [ "composer", "install" ]
     working_dir: /workspace
-    #user: "${CURRENT_UID}:${CURRENT_GID}"
     volumes:
       - ./:/workspace
       # User added in Dockerfile
@@ -25,14 +24,13 @@ services:
       context: ./docker/node
       dockerfile: Dockerfile
       args:
-        CURRENT_GID: ${CURRENT_GID:?Add User Group ID}
-        CURRENT_UID: ${CURRENT_UID:?Add User ID}
+        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     container_name: "${APP_NAME}_node"
     restart: "no"
     env_file: .env
     command: [ "npm", "install" ]
     working_dir: /workspace
-    #user: "${CURRENT_UID}:${CURRENT_GID}"
     ports:
       - "3000:3000"
       - "3001:3001"
@@ -43,7 +41,7 @@ services:
     image: wordpress:cli-2.9-php8.1
     container_name: "${APP_NAME}_wp-cli"
     command: ["wp", "shell"]
-    user: ${CURRENT_UID}:${CURRENT_GID}
+    user: "${CURRENT_UID:-$DEFAULT_UID}:${CURRENT_GID:-$DEFAULT_GID}"
     restart: "no"
     working_dir: /var/www/html
     env_file: .env

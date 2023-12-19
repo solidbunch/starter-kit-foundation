@@ -21,10 +21,10 @@ services:
       context: ./docker/wordpress
       dockerfile: Dockerfile
       args:
-        # Transferring current system User ID into container. Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
-        WWW_DATA_GID: ${WWW_DATA_GID:?Add User Group ID}
-        WWW_DATA_UID: ${WWW_DATA_UID:?Add User ID}
-        XDEBUG_ENABLE: ${XDEBUG_ENABLE:?Enable Xdebug}
+        # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
+        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+        XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
     container_name: "${APP_NAME}_wordpress"
     restart: unless-stopped
     depends_on:
@@ -70,7 +70,12 @@ services:
       - ./logs/nginx:/var/log/nginx
 
   cron:
-    build: ./docker/cron
+    build:
+      context: ./docker/cron
+      dockerfile: Dockerfile
+      args:
+        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
     env_file: .env

@@ -11,6 +11,15 @@ SHELL = /bin/sh
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
 
+# Check if CURRENT_UID and CURRENT_GID are less than 1000 (Fix Mac users ID)
+ifeq ($(shell expr $(CURRENT_UID) \< 1000), 1)
+CURRENT_UID := 1000
+endif
+
+ifeq ($(shell expr $(CURRENT_GID) \< 1000), 1)
+CURRENT_GID := 1000
+endif
+
 export CURRENT_UID
 export CURRENT_GID
 
