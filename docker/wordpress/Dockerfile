@@ -10,10 +10,11 @@ FROM php:8.1-fpm-alpine3.17
 ##################################
 # Arguments from docker-compose  #
 ##################################
-ARG WWW_DATA_GID
-ARG WWW_DATA_UID
+# Define the ARG variable with a default value
+ARG CURRENT_GID=1000
+ARG CURRENT_UID=1000
 
-ARG XDEBUG_ENABLE
+ARG XDEBUG_ENABLE=0
 
 #
 ##################################
@@ -37,10 +38,10 @@ RUN set -eux; \
 ##################################
 #     Recreate www-data user     #
 ##################################
-# Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
+# Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
     deluser www-data; \
-    addgroup -g $WWW_DATA_GID www-data; \
-    adduser -u $WWW_DATA_UID -D -S -G www-data www-data; \
+    addgroup -g $CURRENT_GID www-data; \
+    adduser -u $CURRENT_UID -D -S -G www-data www-data; \
   \
 #
 ##################################
