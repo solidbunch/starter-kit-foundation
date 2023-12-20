@@ -20,6 +20,9 @@ on:
       DEPLOYMENT_NAME:
         required: true
         type: string
+      TYPE:
+        required: true
+        type: string
 
 jobs:
   prepare:
@@ -63,6 +66,8 @@ jobs:
 
       - name: Install Composer Dependencies
         run: |
+          source ./.env
+          echo "Default theme: ${WP_DEFAULT_THEME}"
           composer update
           cd app/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }} && composer update
 
