@@ -19,6 +19,7 @@
           - curl
           - gnupg-agent
           - software-properties-common
+          - make
 
     - name: Add Docker’s official GPG key
       apt_key:
