@@ -1,0 +1,85 @@
+- name: Install Docker with docker compose plugin on Ubuntu Server
+  hosts:
+    - development
+    - production
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+          - make
+
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Set up the stable repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name: docker-ce
+        state: latest
+
+    - name: Add current user to the docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Output Docker version
+      debug:
+        var: docker_version.stdout
+
+    - name: Verify Docker Compose plugin installation
+      command: docker compose version
+      register: compose_version
+      changed_when: false
+
+    - name: Output Docker Compose plugin version
+      debug:
+        var: compose_version.stdout
+
+    - name: Ensure ansible_user owns the deploy folder
+      file:
+        path: /srv
+        owner: "{{ ansible_user }}"
+        state: directory
+        recurse: yes
+
+    - name: Update hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update PS1 to show full hostname
+      replace:
+        path: /home/{{ ansible_user }}/.bashrc
+        regexp: '\\u@\\h'
+        replace: '\\u@\\H'
+        backup: yes
