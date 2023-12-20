@@ -81,7 +81,6 @@ services:
     env_file: .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config/crontabs:/etc/crontabs
       - ./backups:/srv/wordpress/backups
 
 networks:
