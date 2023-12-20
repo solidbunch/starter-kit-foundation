@@ -18,7 +18,7 @@
 # Let's run!
 
 # WordPress cron run by system cron
-*/10 * * * * docker exec ${APP_NAME}_wordpress flock -n /var/log/wordpress/wp-cron.lck php /var/www/html/wp-cron.php >> /var/log/cron.log 2>&1
+*/10 * * * * docker exec -u www-data ${APP_NAME}_wordpress flock -n /var/log/wordpress/wp-cron.lck php /var/www/html/wp-cron.php >> /var/log/cron.log
 
 
 # Backup database and media
