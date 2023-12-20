@@ -17,3 +17,4 @@ jobs:
       DEPLOY_PATH_DESTINATION: /srv/develop.starter-kit.io
       WP_DEFAULT_THEME: starter-kit-theme
       DEPLOYMENT_NAME: "StarterKit push to develop"
+      TYPE: dev
