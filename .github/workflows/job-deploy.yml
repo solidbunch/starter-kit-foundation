@@ -14,13 +14,10 @@ on:
       DEPLOY_PATH_DESTINATION:
         required: true
         type: string
-      WP_DEFAULT_THEME:
-        required: true
-        type: string
       DEPLOYMENT_NAME:
         required: true
         type: string
-      TYPE:
+      ENVIRONMENT_TYPE:
         required: true
         type: string
 
@@ -36,7 +33,7 @@ jobs:
         run: |
           cp ./config/environment/.env.main .env
           echo >> .env
-          cat ./config/environment/.env.type.dev >> .env
+          cat ./config/environment/.env.type.${{ inputs.ENVIRONMENT_TYPE }} >> .env
 
       - name: Save Prepared Built cache
         uses: actions/cache@v3
@@ -67,9 +64,7 @@ jobs:
       - name: Install Composer Dependencies
         run: |
           source ./.env
-          echo "Default theme: ${WP_DEFAULT_THEME}"
-          composer update
-          cd app/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }} && composer update
+          WP_DEFAULT_THEME=${WP_DEFAULT_THEME} composer update-${{ inputs.ENVIRONMENT_TYPE }}
 
       - name: Save Composer Built cache
         uses: actions/cache@v3
@@ -96,8 +91,9 @@ jobs:
 
       - name: Install npm Dependencies
         run: |
-          npm run install-dev --prefix app/wp-content/themes/${{ inputs.WP_DEFAULT_THEME }}
-          rm -rf app/wp-content/themes/starter-kit-theme/node_modules
+          source ./.env
+          npm run install-${{ inputs.ENVIRONMENT_TYPE }} --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
+          rm -rf ./app/wp-content/themes/"${WP_DEFAULT_THEME}"/node_modules
 
       - name: Save Node Built cache
         uses: actions/cache@v3
@@ -151,5 +147,8 @@ jobs:
             --exclude "wp-content/languages" \
             --exclude "wp-content/uploads" \
             ./ ${{ inputs.SSH_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
-          ssh ${{ inputs.SSH_ALIAS }} "cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && bash sh/env/secret-gen.sh && bash sh/env/init.sh dev && docker compose up -d --build --force-recreate"
+          ssh ${{ inputs.SSH_ALIAS }} " \
+            cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && \
+            make secret && \
+            make recreate ${{ inputs.ENVIRONMENT_TYPE }}"
 
