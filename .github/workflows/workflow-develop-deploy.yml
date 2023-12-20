@@ -15,6 +15,5 @@ jobs:
     with:
       SSH_ALIAS: ssh_alias
       DEPLOY_PATH_DESTINATION: /srv/develop.starter-kit.io
-      WP_DEFAULT_THEME: starter-kit-theme
       DEPLOYMENT_NAME: "StarterKit push to develop"
-      TYPE: dev
+      ENVIRONMENT_TYPE: dev
