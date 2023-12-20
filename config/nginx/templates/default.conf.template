@@ -3,4 +3,6 @@
 #
 # Bootstrap project nginx config file
 
-include /etc/nginx/conf.d/partials/${APP_PROTOCOL}.conf;
+server_names_hash_bucket_size 128;
+
+include /etc/nginx/conf.d/config/${APP_PROTOCOL}.conf;

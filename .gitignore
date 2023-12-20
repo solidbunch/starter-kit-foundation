@@ -1,13 +1,3 @@
-#####################################################################################
-##                                                                                  #
-##                       GIT IGNORE FOR WORDPRESS SITES                             #
-##    ------------------------------                                                #
-##    Adapted https://github.com/github/gitignore/blob/master/WordPress.gitignore   #
-##                                                                                  #
-#####################################################################################
-
-## OS and Utility Stuff ##
-
 #==================#
 #     OS Files     #
 #==================#
@@ -26,6 +16,7 @@ ehthumbs.db
 #     IDE Files     #
 #===================#
 .idea
+.vscode
 *.sublime-project
 *.sublime-workspace
 *.komodoproject
@@ -38,6 +29,7 @@ ehthumbs.db
 *.log
 error_log
 access_log
+logs/**/*.out
 .sass-cache
 *.css.map
 *.js.map
@@ -53,68 +45,63 @@ access_log
 .env.*secret
 /config/nginx/ssl/*.key
 /config/nginx/ssl/*.crt
+.terraform
+*.tfstate
+*.tfstate.*
+*.lock.hcl
+secret.auto.tfvars
+secret.auto.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+iasc/public_keys
 
+# Include override files you do wish to add to version control using negated pattern
+# !example_override.tf
 
-## Vendor, Libs and Content ##
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+# example: *tfplan*
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
 
 #===================================#
 #       Vendor and npm Files        #
 #===================================#
 node_modules
-/wp-content/themes/*/vendor
+vendor
+# If we are using custom dependency we should run composer update everywhere
+# to update to last changes without lock file
+composer.lock
+# Same for npm, if we need to use last version of custom package, we shoul ignore lock
+#package-lock.json
+#mix-manifest.json
 
 
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/wp-core/wp-content/
-/wp-core/wp-admin/
-/wp-core/wp-includes/
-/wp-core/*.php
-/wp-core/readme.html
-/wp-core/license.txt
-
+/app/wp-core
 
 #===================================#
 #          Content Files            #
 #===================================#
-/wp-content/*
-!/wp-content/index.php
-!/wp-content/mu-plugins/
-!/wp-content/plugins/
-!/wp-content/themes/
-!/wp-content/uploads/
-/wp-content/uploads/*
-#languages should be exluded too
+/app/wp-content/*
+!/app/wp-content/index.php
 
 
 #===================================#
 #          Database Files           #
 #===================================#
 /db-data
+*.sql
+
 
 #===================================#
 #          Backup Files           #
 #===================================#
 /backups
-
-#======================================#
-#      Default Themes and Plugins      #
-#======================================#
-/wp-content/themes/twenty*/
-/wp-content/plugins/hello.php
-
-#=============================================================#
-#       Compiled code. It should not always be tracked.       #
-#=============================================================#
-#/web/app/themes/*/dist
-
-
-## Use these to get more specific ##
-
-#===========================#
-#      Specific Plugins     #
-#===========================#
-/wp-content/themes/*/build/browser-sync.config.js
-/config/nginx/default.conf
 

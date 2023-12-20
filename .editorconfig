@@ -1,0 +1,24 @@
+# EditorConfig helps keep your project formatting consistent.
+# See https://EditorConfig.org
+#
+# PHP PSR-12 Extended Coding Style Guide
+# https://www.php-fig.org/psr/psr-12/
+#
+# Use WordPress JavaScript Coding Standards with some changes in .eslintrc.json
+# https://developer.wordpress.org/coding-standards/wordpress-coding-standards/javascript/
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.php]
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false

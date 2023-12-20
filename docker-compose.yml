@@ -1,28 +1,30 @@
 version: "3.9"
 
-
 services:
-  
+
   database:
-    image: mariadb:10.5
+    image: mariadb:10.11
     container_name: "${APP_NAME}_database"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
-    #ports:
-    #  - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
+    ports:
+      - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
+    # Uncomment this to reset root password and run inside container mysql> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
+    #command: --skip-grant-tables
     volumes:
       - ./db-data:/var/lib/mysql
-  
+
   wordpress:
     build:
       context: ./docker/wordpress
       dockerfile: Dockerfile
       args:
-        # Transferring current system User ID into container. Fix www-data UID from 82 to ${WWW_DATA_UID} (Permission denied error)
-        WWW_DATA_GID: ${WWW_DATA_GID:?Add User Group ID}
-        WWW_DATA_UID: ${WWW_DATA_UID:?Add User ID}
+        # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
+        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+        XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
     container_name: "${APP_NAME}_wordpress"
     restart: unless-stopped
     depends_on:
@@ -30,12 +32,16 @@ services:
     env_file: .env
     volumes:
       # Web root folder
-      - ./wp-core:/var/www/html
+      - ./app/wp-core:/var/www/html
       # WordPress wp-content folder
-      - ./wp-content:/var/www/html/wp-content
+      - ./app/wp-content:/var/www/html/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
-  
+      # SSMTP config
+      - ./config/ssmtp:/etc/ssmtp/templates:ro
+      # Xdebug config
+      - ./config/xdebug/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+
   nginx:
     build: ./docker/nginx
     container_name: "${APP_NAME}_nginx"
@@ -47,21 +53,36 @@ services:
     ports:
       - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
       - "${APP_HTTPS_PORT}:${APP_HTTPS_PORT}"
+    networks:
+      default:
+        # Add alias for nginx container to connect from other containers (node watcher for example)
+        aliases:
+          - "${APP_DOMAIN}"
     volumes:
-      - ./config/nginx/templates:/etc/nginx/templates
-      - ./config/nginx/ssl:/etc/nginx/ssl:ro
-      - ./logs/nginx:/var/log/nginx
       # Web root folder
-      - ./wp-core:/var/www/html
+      - ./app/wp-core:/var/www/html
       # WordPress wp-content folder
-      - ./wp-content:/var/www/html/wp-content
-  
+      - ./app/wp-content:/var/www/html/wp-content
+      # Nginx config
+      - ./config/nginx/templates:/etc/nginx/templates:ro
+      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      # Logs
+      - ./logs/nginx:/var/log/nginx
+
   cron:
-    build: ./docker/cron
+    build:
+      context: ./docker/cron
+      dockerfile: Dockerfile
+      args:
+        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
     env_file: .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./config/crontabs:/etc/crontabs
       - ./backups:/srv/wordpress/backups
+
+networks:
+  project_network:
+    driver: bridge

@@ -65,7 +65,10 @@ docker exec "$DATABASE_CONTAINER" \
 
 
 # Make uploads folder archive
-docker exec "$WORDPRESS_CONTAINER" tar -cf - -C /var/www/html/wp-content/ uploads > "$BACKUPS_DIR"/"$MODE"/"$MODE"-$(date +%Y-%m-%d).tar
+docker exec "$WORDPRESS_CONTAINER" \
+  tar -cf - -C /var/www/html/wp-content/ uploads languages > "$BACKUPS_DIR/$MODE/$MODE-$(date +%Y-%m-%d).tar"
+
+
 
 cd "$BACKUPS_DIR"/"$MODE"/
 
