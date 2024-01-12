@@ -33,15 +33,12 @@
     {
       "type": "package",
       "package": {
-        "name": "solidbunch/wordpress",
-        "type": "wordpress-core",
+        "name": "solidbunch/wordpress-core",
+        "type": "laravel-library",
         "version": "6.4.2",
         "dist": {
           "type": "zip",
           "url": "https://wordpress.org/wordpress-6.4.2.zip"
-        },
-        "require": {
-          "johnpbloch/wordpress-core-installer": "2.0"
         }
       }
     },
@@ -52,7 +49,7 @@
   ],
   "require": {
     "php": ">=8.1",
-    "solidbunch/wordpress": "6.4.2",
+    "solidbunch/wordpress-core": "6.4.2",
     "composer/installers": "2.2.0",
     "solidbunch/starter-kit-theme": "dev-develop",
     "wpackagist-plugin/svg-support": "2.5.5"
@@ -68,12 +65,14 @@
     "sort-packages": true,
     "discard-changes": true,
     "allow-plugins": {
-      "composer/installers": true,
-      "johnpbloch/wordpress-core-installer": true
+      "composer/installers": true
     }
   },
   "extra": {
     "installer-paths": {
+      "app/wp-core/": [
+        "solidbunch/wordpress-core"
+      ],
       "app/wp-content/mu-plugins/{$name}": [
         "type:wordpress-muplugin"
       ],
@@ -83,8 +82,7 @@
       "app/wp-content/themes/{$name}": [
         "type:wordpress-theme"
       ]
-    },
-    "wordpress-install-dir": "app/wp-core"
+    }
   },
   "scripts": {
     "update-local": [

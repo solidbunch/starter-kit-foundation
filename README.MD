@@ -87,7 +87,7 @@ git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm
 ```bash
 make install [environment_type] [mode]
 ```
-Where **environment_type** - any type that exist in ./config/environment/.env.type.*. `local` is the default. **mode** - `composer` or `npm` installation mode. Empty by default runs full installation. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, buld containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to .env.type files.
+Where **environment_type** - any type that exist in ./config/environment/.env.type.*. `local` is the default. **mode** - `composer` or `npm` installation mode. Empty by default runs full installation. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, build containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to .env.type files.
 
 Also, you can run `make install local composer` or `make install local npm` to run just composer install or npm install
 
