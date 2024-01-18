@@ -28,11 +28,11 @@ fi
 echo -e "${CYAN}[Info]${NOCOLOR} Installing project with WP_DEFAULT_THEME '${WP_DEFAULT_THEME}' and ENVIRONMENT_TYPE '${ENVIRONMENT_TYPE}' ";
 
 if [[ "$MODE" == "all" || "$MODE" == "composer" ]]; then
-  docker compose -f docker-compose.build.yml run --rm composer-container composer update-"${ENVIRONMENT_TYPE}"
+  docker compose -f docker-compose.build.yml run --rm --build composer-container composer update-"${ENVIRONMENT_TYPE}"
 fi
 
 if [[ "$MODE" == "all" || "$MODE" == "npm" ]]; then
-  docker compose -f docker-compose.build.yml run --rm node-container npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
+  docker compose -f docker-compose.build.yml run --rm --build node-container npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
 fi
 
 if [ "$MODE" != "all" ]; then
@@ -58,4 +58,4 @@ done
 
 # Run wp cli wordpress install database
 # Should be last command in installation
-docker compose -f docker-compose.build.yml run --rm wp-cli-container bash /shell/wp-cli/core-install.sh 2> /dev/null
+docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash /shell/wp-cli/core-install.sh 2> /dev/null
