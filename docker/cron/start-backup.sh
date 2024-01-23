@@ -4,11 +4,11 @@
 set -e
 
 # Check package availability
-command -v gzip >/dev/null 2>&1 || { echo "[Error] Please install gzip"; exit 1; }
+command -v gzip >/dev/null 2>&1 || { echo "[Cron][Error] Please install gzip"; exit 1; }
 
 # Check app name
 if [ ! "$APP_NAME" ]; then
-    echo "[Fail] APP_NAME not found in .env"; exit 1;
+    echo "[Cron][Fail] APP_NAME not found in .env"; exit 1;
 fi
 
 # Default values
@@ -30,7 +30,7 @@ fi
 
 # Check is backup enable
 if [ ! "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" == 0 ]; then
-    echo "[Fail] Backup is disabled in .env file"; exit 1;
+    echo "[Cron][Fail] Backup is disabled in .env file"; exit 1;
 fi
 
 # Create backups directory (if not exist)
@@ -45,7 +45,7 @@ do
     fi
     sleep 3
     if [ "$i" = 3 ]; then
-        echo "[Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
+        echo "[Cron][Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
     fi
 done
 
@@ -82,4 +82,4 @@ gzip -f "$MODE"-$(date +%Y-%m-%d).tar
 # Check old files to delete
 find "$BACKUPS_DIR"/"$MODE"/"$MODE"-* -mtime +$MODE_TIMER -delete
 
-echo "[Success] [$MODE] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"
+echo "[Cron][Success] [$MODE] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"

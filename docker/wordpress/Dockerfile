@@ -70,6 +70,7 @@ RUN set -eux; \
       bcmath \
       exif \
       gd \
+      intl \
       mysqli \
       zip \
     ; \
@@ -125,7 +126,7 @@ RUN set -eux; \
       echo 'opcache.max_accelerated_files=4000'; \
       echo 'opcache.revalidate_freq=2'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini; \
-# https://wordpress.org/support/article/editing-wp-config-php/#configure-error-logging
+# https://wordpress.org/documentation/article/editing-wp-config-php/#configure-error-logging
     { \
   # https://www.php.net/manual/en/errorfunc.constants.php
   # https://github.com/docker-library/wordpress/issues/420#issuecomment-517839670
