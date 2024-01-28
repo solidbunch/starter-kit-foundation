@@ -13,11 +13,11 @@ CURRENT_GID := $(shell id -g)
 
 # Check if CURRENT_UID and CURRENT_GID are less than 1000 (Fix Mac users ID)
 ifeq ($(shell expr $(CURRENT_UID) \< 1000), 1)
-CURRENT_UID := 1000
+	CURRENT_UID := 1000
 endif
 
 ifeq ($(shell expr $(CURRENT_GID) \< 1000), 1)
-CURRENT_GID := 1000
+	CURRENT_GID := 1000
 endif
 
 export CURRENT_UID
@@ -94,19 +94,13 @@ pma:
 wp:
 	docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash 2> /dev/null
 
-log:
+logs:
 	docker compose logs -f
-
-wlog:
-	grc tail -f logs/wordpress/debug.log
-
-ilog:
-	grc tail -f logs/wordpress/info.log
 
 # Run container and bash inside container
 run:
 	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run -it --rm --build $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
+	docker compose -f docker-compose.yml -f docker-compose.build.yml run -it --rm --build $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
 
 lint:
 	docker compose -f docker-compose.build.yml run -it --rm --build composer-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"

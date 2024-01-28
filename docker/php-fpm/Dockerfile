@@ -1,8 +1,5 @@
 ##
-## Copy of official WordPress image https://hub.docker.com/_/wordpress
-##
-## Added some improvements.
-## Combined all image layers into one
+## Based on official WordPress image https://hub.docker.com/_/wordpress
 ##
 
 FROM php:8.1-fpm-alpine3.17
@@ -16,7 +13,12 @@ ARG CURRENT_UID=1000
 
 ARG XDEBUG_ENABLE=0
 
-#
+##################################
+#   Adding Composer and WP-CLI   #
+##################################
+COPY --from=composer:2.6 /usr/bin/composer /usr/local/bin/composer
+COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
+
 ##################################
 #     Persistent dependencies    #
 ##################################
@@ -83,7 +85,7 @@ RUN set -eux; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
-    pecl install imagick-3.6.0; \
+    pecl install imagick-3.7.0; \
     docker-php-ext-enable imagick; \
     rm -r /tmp/pear; \
     \

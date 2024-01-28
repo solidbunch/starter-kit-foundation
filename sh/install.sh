@@ -10,8 +10,8 @@ source ./.env
 
 # Get environment type ENVIRONMENT_TYPE var from args
 # Default values
-ENVIRONMENT_TYPE=local
-MODE=all
+ENVIRONMENT_TYPE="$APP_DEFAULT_ENV_TYPE"
+
 # Take database hostname from .env file
 DATABASE_CONTAINER="$MYSQL_HOST"
 
@@ -20,24 +20,10 @@ if [ "$1" ]; then
   ENVIRONMENT_TYPE="$1"
 fi
 
-# Parse mode args
-if [ "$2" ]; then
-  MODE="$2"
-fi
-
 echo -e "${CYAN}[Info]${NOCOLOR} Installing project with WP_DEFAULT_THEME '${WP_DEFAULT_THEME}' and ENVIRONMENT_TYPE '${ENVIRONMENT_TYPE}' ";
 
-if [[ "$MODE" == "all" || "$MODE" == "composer" ]]; then
-  docker compose -f docker-compose.build.yml run --rm --build composer-container composer update-"${ENVIRONMENT_TYPE}"
-fi
-
-if [[ "$MODE" == "all" || "$MODE" == "npm" ]]; then
-  docker compose -f docker-compose.build.yml run --rm --build node-container npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
-fi
-
-if [ "$MODE" != "all" ]; then
-  exit 0
-fi
+docker compose -f docker-compose.build.yml run --rm --build composer-container composer update-"${ENVIRONMENT_TYPE}"
+docker compose -f docker-compose.build.yml run --rm --build node npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
 
 # Build and run docker images
 docker compose up -d --build
@@ -48,7 +34,7 @@ for i in {1..20}
 do
     echo -e "Waiting 5 sec ${i} time "
     sleep 5
-    if (docker compose exec "${DATABASE_CONTAINER}" mysqladmin ping > /dev/null 2>&1); then
+    if (docker compose exec "${DATABASE_CONTAINER}" mariadb-admin ping > /dev/null 2>&1); then
       break
     fi
     if [ "$i" = 20 ]; then
