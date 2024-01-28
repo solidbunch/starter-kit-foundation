@@ -12,14 +12,14 @@ if [ ! "$APP_NAME" ]; then
 fi
 
 # Default values
-DATABASE_CONTAINER="${APP_NAME}_database"
-WORDPRESS_CONTAINER="${APP_NAME}_wordpress"
+DATABASE_CONTAINER="${APP_NAME}_mariadbd"
+WORDPRESS_CONTAINER="${APP_NAME}_php-fpm"
 MODE="daily"
 MODE_TIMER=6
 BACKUPS_DIR=/srv/wordpress/backups
 
 # Parse args
-if [ "$1" ] && ([ "$1" == "daily" ] || [ "$1" == "weekly" ]); then
+if [ "$1" ] && { [ "$1" == "daily" ] || [ "$1" == "weekly" ]; }; then
     MODE="$1"
 fi
 

@@ -5,7 +5,6 @@ services:
   composer-container:
     build:
       context: ./docker/composer
-      dockerfile: Dockerfile
       args:
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
@@ -19,10 +18,9 @@ services:
       # User added in Dockerfile
       - ~/.ssh:/home/user/.ssh:ro
 
-  node-container:
+  node:
     build:
       context: ./docker/node
-      dockerfile: Dockerfile
       args:
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}

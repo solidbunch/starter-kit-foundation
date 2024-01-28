@@ -2,9 +2,9 @@ version: "3.9"
 
 services:
 
-  database:
-    image: mariadb:10.11
-    container_name: "${APP_NAME}_database"
+  mariadbd:
+    build: ./docker/mariadbd
+    container_name: "${APP_NAME}_mariadbd"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
@@ -16,19 +16,18 @@ services:
     volumes:
       - ./db-data:/var/lib/mysql
 
-  wordpress:
+  php-fpm:
     build:
-      context: ./docker/wordpress
-      dockerfile: Dockerfile
+      context: ./docker/php-fpm
       args:
         # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
         XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
-    container_name: "${APP_NAME}_wordpress"
+    container_name: "${APP_NAME}_php-fpm"
     restart: unless-stopped
     depends_on:
-      - database
+      - mariadbd
     env_file: .env
     volumes:
       # Web root folder
@@ -47,8 +46,8 @@ services:
     container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
     depends_on:
-      - database
-      - wordpress
+      - mariadbd
+      - php-fpm
     env_file: .env
     ports:
       - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
