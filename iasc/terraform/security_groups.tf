@@ -32,7 +32,7 @@ resource "aws_security_group" "allow_http_s" {
 }
 
 resource "aws_security_group" "allow_ssh" {
-  name        = "Allow SSH"
+    name        = "Allow SSH"
   description = "Allow SSH inbound traffic"
 
   ingress {
