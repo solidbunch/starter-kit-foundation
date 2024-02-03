@@ -4,6 +4,7 @@ services:
 
   mariadbd:
     build: ./docker/mariadbd
+    image: "${APP_NAME}_mariadbd_img"
     container_name: "${APP_NAME}_mariadbd"
     restart: unless-stopped
     env_file: .env
@@ -16,24 +17,26 @@ services:
     volumes:
       - ./db-data:/var/lib/mysql
 
-  php-fpm:
+  php:
     build:
-      context: ./docker/php-fpm
+      context: ./docker/php
       args:
         # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
         XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
-    container_name: "${APP_NAME}_php-fpm"
+    image: "${APP_NAME}_php_img"
+    container_name: "${APP_NAME}_php"
     restart: unless-stopped
     depends_on:
       - mariadbd
+    working_dir: /srv/web
     env_file: .env
     volumes:
       # Web root folder
-      - ./app/wp-core:/var/www/html
+      - ./web/wp-core:/srv/web
       # WordPress wp-content folder
-      - ./app/wp-content:/var/www/html/wp-content
+      - ./web/wp-content:/srv/web/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
       # SSMTP config
@@ -43,11 +46,13 @@ services:
 
   nginx:
     build: ./docker/nginx
+    image: "${APP_NAME}_nginx_img"
     container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
     depends_on:
       - mariadbd
-      - php-fpm
+      - php
+    working_dir: /srv/web
     env_file: .env
     ports:
       - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
@@ -59,9 +64,9 @@ services:
           - "${APP_DOMAIN}"
     volumes:
       # Web root folder
-      - ./app/wp-core:/var/www/html
+      - ./web/wp-core:/srv/web
       # WordPress wp-content folder
-      - ./app/wp-content:/var/www/html/wp-content
+      - ./web/wp-content:/srv/web/wp-content
       # Nginx config
       - ./config/nginx/templates:/etc/nginx/templates:ro
       - ./config/nginx/ssl:/etc/nginx/ssl:ro
@@ -75,12 +80,16 @@ services:
       args:
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+    image: "${APP_NAME}_cron_img"
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
+    depends_on:
+      - mariadbd
+      - php
     env_file: .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./backups:/srv/wordpress/backups
+      - ./backups:/srv/backups
 
 networks:
   project_network:

@@ -10,6 +10,3 @@ ARG CURRENT_UID=1000
 RUN deluser --remove-home node \
     && addgroup -S node -g $CURRENT_GID \
     && adduser -S -G node -u $CURRENT_UID node
-
-USER node
-

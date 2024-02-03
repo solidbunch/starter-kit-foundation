@@ -8,25 +8,36 @@ source ./sh/utils/colors
 
 source ./.env
 
-# Get environment type ENVIRONMENT_TYPE var from args
-# Default values
-ENVIRONMENT_TYPE="$APP_DEFAULT_ENV_TYPE"
-
 # Take database hostname from .env file
 DATABASE_CONTAINER="$MYSQL_HOST"
 
-# Parse environment type args
-if [ "$1" ]; then
-  ENVIRONMENT_TYPE="$1"
+echo -e "${CYAN}[Info]${NOCOLOR} Installing project with \
+WP_DEFAULT_THEME ${LIGHTYELLOW}'${WP_DEFAULT_THEME}'${NOCOLOR}, \
+WP_ENVIRONMENT_TYPE ${LIGHTYELLOW}'${WP_ENVIRONMENT_TYPE}'${NOCOLOR}, \
+and APP_BUILD_MODE ${LIGHTYELLOW}'${APP_BUILD_MODE}'${NOCOLOR}";
+
+read -rp "Are you sure? (y/n): " choice
+if [[ ! $choice =~ ^[Yy]$ ]]; then
+  echo "Not confirmed. Exiting."
+  exit 0
 fi
 
-echo -e "${CYAN}[Info]${NOCOLOR} Installing project with WP_DEFAULT_THEME '${WP_DEFAULT_THEME}' and ENVIRONMENT_TYPE '${ENVIRONMENT_TYPE}' ";
 
-docker compose -f docker-compose.build.yml run --rm --build composer-container composer update-"${ENVIRONMENT_TYPE}"
-docker compose -f docker-compose.build.yml run --rm --build node npm run install-"${ENVIRONMENT_TYPE}" --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
+# Build main docker images
+docker compose build
 
-# Build and run docker images
-docker compose up -d --build
+# Build service docker images
+docker compose -f docker-compose.build.yml build
+
+# Run composer scripts
+docker compose -f docker-compose.build.yml run --rm --build php-extra composer update-"${APP_BUILD_MODE}"
+docker compose -f docker-compose.build.yml run --rm --build php-extra bash -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer install-${APP_BUILD_MODE}"
+
+# Run node scripts
+docker compose -f docker-compose.build.yml run --rm --build node npm run install-"${APP_BUILD_MODE}" --prefix ./wp-content/themes/"${WP_DEFAULT_THEME}"
+
+# Run main project docker containers
+docker compose up -d
 
 # Wait 20 times per 5 sec
 echo -e "Waiting till database in container '${DATABASE_CONTAINER}' will be ready."

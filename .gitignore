@@ -45,28 +45,25 @@ logs/**/*.out
 .env.*secret
 /config/nginx/ssl/*.key
 /config/nginx/ssl/*.crt
-.terraform
+iasc/public_keys
+
+#=============================#
+#          Terraform          #
+#=============================#
+**/.terraform/*
 *.tfstate
 *.tfstate.*
-*.lock.hcl
-secret.auto.tfvars
-secret.auto.tfvars.json
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-iasc/public_keys
-
-# Include override files you do wish to add to version control using negated pattern
-# !example_override.tf
-
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-# example: *tfplan*
-
-# Ignore CLI configuration files
 .terraformrc
 terraform.rc
-
+*.lock.hcl
 
 #===================================#
 #       Vendor and npm Files        #
@@ -84,13 +81,13 @@ composer.lock
 #===================================#
 #       WordPress Core Files        #
 #===================================#
-/app/wp-core
+/web/wp-core
 
 #===================================#
 #          Content Files            #
 #===================================#
-/app/wp-content/*
-!/app/wp-content/index.php
+/web/wp-content/*
+!/web/wp-content/index.php
 
 
 #===================================#

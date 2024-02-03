@@ -30,7 +30,7 @@ server {
     listen [::]:${APP_HTTPS_PORT} ssl http2;
     server_name ${APP_DOMAIN};
 
-    root /var/www/html;
+    root /srv/web;
     index index.php;
 
     include /etc/nginx/conf.d/config/partials/ssl.conf;
