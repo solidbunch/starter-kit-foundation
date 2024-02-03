@@ -1,7 +1,7 @@
 # Create an EC2 instances
 resource "aws_instance" "develop-server" {
-  ami                    = "ami-06dd92ecc74fdfb36" # Ubuntu Server 22.04 LTS (HVM), SSD Volume Type
-  instance_type          = "t2.small"
+  ami                    = "ami-0fc02b454efabb390" # Ubuntu Server 22.04 LTS (HVM) 64-bit (Arm), SSD Volume Type
+  instance_type          = "t4g.micro"
   vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
   key_name               = aws_key_pair.deploy.key_name
 
@@ -11,14 +11,14 @@ resource "aws_instance" "develop-server" {
   }
 
   root_block_device {
-    volume_type = "gp3"  # General Purpose SSD
-    volume_size = 10     # Size in GB
+    volume_type = "gp2"  # General Purpose SSD
+    volume_size = 8      # Size in GB
   }
 }
 
-resource "aws_instance" "production-server" {
-  ami                    = "ami-06dd92ecc74fdfb36" # Ubuntu Server 22.04 LTS (HVM), SSD Volume Type
-  instance_type          = "t2.small"
+/*resource "aws_instance" "production-server" {
+  ami                    = "ami-0fc02b454efabb390" # Ubuntu Server 22.04 LTS (HVM) 64-bit (Arm), SSD Volume Type
+  instance_type          = "t4g.micro"
   vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
   key_name               = aws_key_pair.deploy.key_name
 
@@ -28,15 +28,15 @@ resource "aws_instance" "production-server" {
   }
 
   root_block_device {
-    volume_type = "gp3"  # General Purpose SSD
-    volume_size = 10     # Size in GB
+    volume_type = "gp2"  # General Purpose SSD
+    volume_size = 8      # Size in GB
   }
-}
+}*/
 
 output "develop_ip_addr" {
   value = aws_instance.develop-server.public_ip
 }
 
-output "prod_ip_addr" {
+/*output "prod_ip_addr" {
   value = aws_instance.production-server.public_ip
-}
+}*/
