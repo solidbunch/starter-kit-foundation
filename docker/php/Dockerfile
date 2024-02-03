@@ -14,9 +14,8 @@ ARG CURRENT_UID=1000
 ARG XDEBUG_ENABLE=0
 
 ##################################
-#   Adding Composer and WP-CLI   #
+#   Adding WP-CLI   #
 ##################################
-COPY --from=composer:2.6 /usr/bin/composer /usr/local/bin/composer
 COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
 
 ##################################

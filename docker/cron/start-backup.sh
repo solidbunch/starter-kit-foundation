@@ -16,7 +16,7 @@ DATABASE_CONTAINER="${APP_NAME}_mariadbd"
 WORDPRESS_CONTAINER="${APP_NAME}_php-fpm"
 MODE="daily"
 MODE_TIMER=6
-BACKUPS_DIR=/srv/wordpress/backups
+BACKUPS_DIR=/srv/backups
 
 # Parse args
 if [ "$1" ] && { [ "$1" == "daily" ] || [ "$1" == "weekly" ]; }; then
@@ -40,7 +40,7 @@ mkdir -p "$BACKUPS_DIR"/"$MODE"
 # Wait 3 times
 for i in {1..3}
 do
-    if (docker exec "$DATABASE_CONTAINER" mysqladmin -u "$MYSQL_ROOT_USER" --password="${MYSQL_ROOT_PASSWORD}" ping > /dev/null 2>&1); then
+    if (docker exec "$DATABASE_CONTAINER" mariadb-admin -u "$MYSQL_ROOT_USER" --password="${MYSQL_ROOT_PASSWORD}" ping > /dev/null 2>&1); then
         break
     fi
     sleep 3
@@ -66,7 +66,7 @@ docker exec "$DATABASE_CONTAINER" \
 
 # Make uploads folder archive
 docker exec "$WORDPRESS_CONTAINER" \
-  tar -cf - -C /var/www/html/wp-content/ uploads languages > "$BACKUPS_DIR/$MODE/$MODE-$(date +%Y-%m-%d).tar"
+  tar -cf - -C /srv/web/wp-content/ uploads languages > "$BACKUPS_DIR/$MODE/$MODE-$(date +%Y-%m-%d).tar"
 
 
 

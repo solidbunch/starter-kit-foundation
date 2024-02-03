@@ -45,6 +45,10 @@ secret:
 	$(LOGO_SH)
 	bash ./sh/env/secret-gen.sh
 
+build:
+	docker compose -f docker-compose.yml build
+	docker compose -f docker-compose.build.yml build
+
 # Run mix watch with browserSync
 watch:
 	$(LOGO_SH)
@@ -94,7 +98,7 @@ pma:
 wp:
 	docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash 2> /dev/null
 
-logs:
+log:
 	docker compose logs -f
 
 # Run container and bash inside container
@@ -111,7 +115,7 @@ terraform:
 	terraform -chdir=iasc/terraform $(PARAMS)
 
 ansible:
-	ansible-playbook iasc/ansible/prepare-servers.yml $(PARAMS)
+	ansible-playbook -i iasc/ansible/inventory.ini iasc/ansible/prepare-servers.yml $(PARAMS)
 
 # Full docker cleanup
 docker-clean:
