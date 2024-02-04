@@ -30,7 +30,10 @@ docker compose build
 docker compose -f docker-compose.build.yml build
 
 # Run composer scripts
+# Use composer update for update to last changes without lock file if we are using custom dependency. For example custom theme or plugin with 'dev-branch-name' version
 docker compose -f docker-compose.build.yml run --rm --build php-extra composer update-"${APP_BUILD_MODE}"
+
+# Use composer install for install from lock file for regular cases
 docker compose -f docker-compose.build.yml run --rm --build php-extra bash -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer install-${APP_BUILD_MODE}"
 
 # Run node scripts
