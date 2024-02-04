@@ -94,21 +94,22 @@ replace:
 pma:
 	docker compose -f docker-compose.build.yml run --service-ports --rm --build phpmyadmin
 
-# run WP-CLI container for custom commands
-wp:
-	docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash 2> /dev/null
-
 log:
 	docker compose logs -f
 
 # Run container and bash inside container
 run:
 	$(LOGO_SH)
-	docker compose -f docker-compose.yml -f docker-compose.build.yml run -it --rm --build $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
+	docker compose -f docker-compose.yml -f docker-compose.build.yml run -it --rm --build $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh"
+
+# Exec bash inside running container
+exec:
+	$(LOGO_SH)
+	docker compose exec -it $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh"
 
 lint:
-	docker compose -f docker-compose.build.yml run -it --rm --build composer-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"
-	docker compose -f docker-compose.build.yml run -it --rm --build node-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && npm run lint"
+	docker compose -f docker-compose.build.yml run -it --rm --build php-composer sh -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"
+	docker compose -f docker-compose.build.yml run -it --rm --build node sh -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint"
 
 # IasC
 terraform:

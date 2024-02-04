@@ -31,10 +31,10 @@ docker compose -f docker-compose.build.yml build
 
 # Run composer scripts
 # Use composer update for update to last changes without lock file if we are using custom dependency. For example custom theme or plugin with 'dev-branch-name' version
-docker compose -f docker-compose.build.yml run --rm --build php-extra composer update-"${APP_BUILD_MODE}"
+docker compose -f docker-compose.build.yml run --rm --build php-composer composer update-"${APP_BUILD_MODE}"
 
 # Use composer install for install from lock file for regular cases
-docker compose -f docker-compose.build.yml run --rm --build php-extra bash -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer install-${APP_BUILD_MODE}"
+docker compose -f docker-compose.build.yml run --rm --build php-composer bash -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer install-${APP_BUILD_MODE}"
 
 # Run node scripts
 docker compose -f docker-compose.build.yml run --rm --build node npm run install-"${APP_BUILD_MODE}" --prefix ./wp-content/themes/"${WP_DEFAULT_THEME}"
@@ -58,4 +58,4 @@ done
 
 # Run wp cli wordpress install database
 # Should be last command in installation
-docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash /shell/wp-cli/core-install.sh 2> /dev/null
+docker compose exec php bash /shell/wp-cli/core-install.sh 2> /dev/null

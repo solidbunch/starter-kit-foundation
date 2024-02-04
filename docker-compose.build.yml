@@ -2,23 +2,24 @@ version: "3.9"
 
 services:
 
-  php-extra:
+  php-composer:
     build:
-      context: ./docker/php-extra
+      context: ./docker/php-composer
       args:
         APP_NAME: ${APP_NAME}
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     image: "${APP_NAME}_php_extra_img"
     container_name: "${APP_NAME}_php_extra"
-    user: "${CURRENT_UID:-$DEFAULT_UID}:${CURRENT_GID:-$DEFAULT_GID}"
+    user: www-data
     restart: "no"
     env_file: .env
-    command: [ "sh" ]
     working_dir: /srv
     volumes:
       # Project files with same path
       - ./:/srv
+      # SSMTP config
+      - ./config/ssmtp:/etc/ssmtp/templates:ro
       # User added in Dockerfile
       - ~/.ssh:/home/www-data/.ssh:ro
 
@@ -30,10 +31,9 @@ services:
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     image: "${APP_NAME}_node_img"
     container_name: "${APP_NAME}_node"
-    user: "${CURRENT_UID:-$DEFAULT_UID}:${CURRENT_GID:-$DEFAULT_GID}"
+    user: node
     restart: "no"
     env_file: .env
-    command: [ "npm", "install" ]
     working_dir: /srv/web
     ports:
       - "3000:3000"
@@ -43,21 +43,6 @@ services:
       - ./web/wp-core:/srv/web
       # WordPress wp-content folder
       - ./web/wp-content:/srv/web/wp-content
-
-  wp-cli-container:
-    image: wordpress:cli-2.9-php8.1
-    container_name: "${APP_NAME}_wp-cli"
-    command: ["wp", "shell"]
-    user: "${CURRENT_UID:-$DEFAULT_UID}:${CURRENT_GID:-$DEFAULT_GID}"
-    restart: "no"
-    working_dir: /srv/web
-    env_file: .env
-    volumes:
-      - ./web/wp-core:/srv/web
-      - ./web/wp-content:/srv/web/wp-content
-      # Share shell scripts
-      - ./sh:/shell:ro
-
 
   phpmyadmin:
     image: phpmyadmin:5.2-apache

@@ -27,6 +27,7 @@ services:
         XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
     image: "${APP_NAME}_php_img"
     container_name: "${APP_NAME}_php"
+    user: www-data
     restart: unless-stopped
     depends_on:
       - mariadbd
@@ -43,6 +44,8 @@ services:
       - ./config/ssmtp:/etc/ssmtp/templates:ro
       # Xdebug config
       - ./config/xdebug/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+      # Share shell scripts
+      - ./sh:/shell:ro
 
   nginx:
     build: ./docker/nginx

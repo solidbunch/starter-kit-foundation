@@ -173,5 +173,11 @@ RUN mkdir -p /var/log/wordpress; \
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+##################################
+#   Prepare ssmtp config folder  #
+##################################
+RUN mkdir -p /etc/ssmtp/templates; \
+    chown -R www-data:www-data /etc/ssmtp
+
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
