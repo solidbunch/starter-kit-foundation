@@ -28,7 +28,7 @@ fi
 echo "Exporting local database to '${OUTPUT_FILE}'. It can take more than a few minutes. Please wait."
 
 # Export data to sql file
-docker compose exec "${DATABASE_CONTAINER}" bash -c "mysqldump -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} > /tmp/${OUTPUT_FILE}"
+docker compose exec "${DATABASE_CONTAINER}" bash -c "mariadb-dump -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} > /tmp/${OUTPUT_FILE}"
 
 # Copy dump from container
 docker compose cp "${DATABASE_CONTAINER}":/tmp/"${OUTPUT_FILE}" "${OUTPUT_FILE}"

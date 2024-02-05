@@ -88,7 +88,7 @@ db-export:
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
-	docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash -c "bash /shell/database_replacements.sh $(PARAMS)"
+	docker compose run --rm --build php bash -c "bash /shell/database_replacements.sh $(PARAMS)"
 
 # Run phpMyAdmin docker container
 pma:

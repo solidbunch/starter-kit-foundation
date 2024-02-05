@@ -58,4 +58,4 @@ done
 
 # Run wp cli wordpress install database
 # Should be last command in installation
-docker compose exec php bash /shell/wp-cli/core-install.sh 2> /dev/null
+docker compose exec php bash /shell/wp-cli/core-install.sh

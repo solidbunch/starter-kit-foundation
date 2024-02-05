@@ -41,14 +41,11 @@ docker compose cp "${DUMP_FILE}" "${DATABASE_CONTAINER}":/tmp/"${DUMP_FILE}"
 
 # ToDo Create database if not exists
 #echo "Creating database '${MYSQL_DATABASE}' if not exists"
-#docker compose exec "${DATABASE_CONTAINER}" mysql -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
+#docker compose exec "${DATABASE_CONTAINER}" mariadb -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
 #wp-cli db create
 
-# Install pv if not installed
-docker compose exec "${DATABASE_CONTAINER}" bash -c "command -v pv >/dev/null 2>&1 || { apt-get update >/dev/null 2>&1 || apt-get install -y pv; }"
-
 # Import data from sql file with pv
-docker compose exec "${DATABASE_CONTAINER}" bash -c "pv /tmp/${DUMP_FILE} | mysql -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE}"
+docker compose exec "${DATABASE_CONTAINER}" bash -c "pv /tmp/${DUMP_FILE} | mariadb -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE}"
 
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Database import done"
 
