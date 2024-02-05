@@ -235,7 +235,7 @@ To activate backups:
 2. Check crontab file in `./config/crontabs` - change cronjob time if it needs.
 
 
-3. If you have more than one database (maybe custom databases), check `mysqldump` command parameters in `./docker/cron/start-backup.sh`
+3. If you have more than one database (maybe custom databases), check `mariadb-dump` command parameters in `./docker/cron/start-backup.sh`
 
 Backups will appear in the `./backups` folder, logs in the docker cron container logs
 

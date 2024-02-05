@@ -12,7 +12,7 @@ services:
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     ports:
       - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
-    # Uncomment this to reset root password and run inside container mysql> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
+    # Uncomment this to reset root password and run inside container mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
     #command: --skip-grant-tables
     volumes:
       - ./db-data:/var/lib/mysql

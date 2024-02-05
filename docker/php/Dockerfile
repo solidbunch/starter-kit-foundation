@@ -18,13 +18,18 @@ ARG XDEBUG_ENABLE=0
 ##################################
 COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
 
+# install wp-cli dependencies
+RUN apk add --no-cache \
+# bash is needed for 'wp shell': https://github.com/wp-cli/shell-command/blob/b8dafcc2a2eba5732fdee70be077675a302848e9/src/WP_CLI/REPL.php#L104
+    bash \
+    less \
+    mysql-client
+
 ##################################
 #     Persistent dependencies    #
 ##################################
 RUN set -eux; \
     apk add --no-cache \
-# in theory, docker-entrypoint.sh is POSIX-compliant, but priority is a working, consistent image
-      bash \
 # Ghostscript is required for rendering PDF previews
       ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
