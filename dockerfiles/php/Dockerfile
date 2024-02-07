@@ -3,32 +3,14 @@
 ##
 FROM php:8.1-fpm-alpine3.17
 
-##################################
-# Arguments from docker-compose  #
-##################################
-# Define the ARG variable with a default value
-ARG CURRENT_GID=1000
-ARG CURRENT_UID=1000
 
-ARG XDEBUG_ENABLE=0
-
-##################################
-#   Adding WP-CLI   #
-##################################
-COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
-
-# install wp-cli dependencies
-RUN apk add --no-cache \
-# bash is needed for 'wp shell': https://github.com/wp-cli/shell-command/blob/b8dafcc2a2eba5732fdee70be077675a302848e9/src/WP_CLI/REPL.php#L104
-    bash \
-    less \
-    mysql-client
 
 ##################################
 #     Persistent dependencies    #
 ##################################
 RUN set -eux; \
     apk add --no-cache \
+      bash \
 # Ghostscript is required for rendering PDF previews
       ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
@@ -38,22 +20,15 @@ RUN set -eux; \
 # ToDo - better to separate this to additional container (run, work and stop)
 # Need envsubst for operate with env variables in config files
       gettext \
-  ; \
-#
-##################################
-#     Recreate www-data user     #
-##################################
-# Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
-    deluser www-data; \
-    addgroup -g $CURRENT_GID www-data; \
-    adduser -u $CURRENT_UID -D -G www-data www-data; \
-  \
+# install wp-cli dependencies
+      less \
+      mysql-client
 #
 ##################################
 #     install PHP extensions     #
 ##################################
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
-    set -ex; \
+RUN    set -ex; \
     \
     apk add --no-cache --virtual .build-deps \
       $PHPIZE_DEPS \
@@ -79,12 +54,9 @@ RUN set -eux; \
       mysqli \
       zip \
     ; \
-# Install Xdebug if XDEBUG_ENABLE is set to 1 \
 # Install Xdebug see https://xdebug.org/docs/install
-    if [ "$XDEBUG_ENABLE" = "1" ]; then \
-      pecl install xdebug-3.1.4; \
+    pecl install xdebug-3.1.4; \
 #      docker-php-ext-enable xdebug; \
-    fi; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
@@ -166,6 +138,11 @@ RUN set -eux; \
     } > /usr/local/etc/php/conf.d/custom-php.ini
 
 ##################################
+#   Adding WP-CLI   #
+##################################
+COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
+
+##################################
 #     WordPress logs folder      #
 ##################################
 RUN mkdir -p /var/log/wordpress; \
@@ -176,12 +153,6 @@ RUN mkdir -p /var/log/wordpress; \
 ##################################
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-##################################
-#   Prepare ssmtp config folder  #
-##################################
-#RUN mkdir -p /etc/ssmtp/templates; \
-#    chown -R www-data:www-data /etc/ssmtp
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
