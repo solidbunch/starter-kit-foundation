@@ -63,7 +63,7 @@ define('DB_PASSWORD', getenv_docker('MYSQL_PASSWORD', 'example_password'));
  */
 
 /** Database hostname */
-define('DB_HOST', getenv_docker('MYSQL_HOST', 'mariadbd'));
+define('DB_HOST', getenv_docker('MYSQL_HOST', 'mariadb'));
 
 /**
  * Database charset to use in creating database tables.

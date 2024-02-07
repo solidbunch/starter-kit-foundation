@@ -1,7 +1,6 @@
 ##
 ## Based on official WordPress image https://hub.docker.com/_/wordpress
 ##
-
 FROM php:8.1-fpm-alpine3.17
 
 ##################################
@@ -47,7 +46,7 @@ RUN set -eux; \
 # Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
     deluser www-data; \
     addgroup -g $CURRENT_GID www-data; \
-    adduser -u $CURRENT_UID -D -S -G www-data www-data; \
+    adduser -u $CURRENT_UID -D -G www-data www-data; \
   \
 #
 ##################################
@@ -84,7 +83,7 @@ RUN set -eux; \
 # Install Xdebug see https://xdebug.org/docs/install
     if [ "$XDEBUG_ENABLE" = "1" ]; then \
       pecl install xdebug-3.1.4; \
-      docker-php-ext-enable xdebug; \
+#      docker-php-ext-enable xdebug; \
     fi; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
@@ -181,8 +180,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ##################################
 #   Prepare ssmtp config folder  #
 ##################################
-RUN mkdir -p /etc/ssmtp/templates; \
-    chown -R www-data:www-data /etc/ssmtp
+#RUN mkdir -p /etc/ssmtp/templates; \
+#    chown -R www-data:www-data /etc/ssmtp
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
