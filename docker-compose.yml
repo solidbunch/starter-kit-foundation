@@ -3,10 +3,8 @@ version: "3.9"
 services:
 
   mariadb:
-    # Use custom private packages storage for your project
-    image: ghcr.io/solidbunch/starter-kit/mariadb:11.2.2-jammy
-    # Uncomment build directive to use local built image
-    #build: ./dockerfiles/mariadb
+    image: ghcr.io/solidbunch/starter-kit-mariadb:11.2.2-jammy
+    #build: ./dockerfiles/mariadb # Uncomment build directive to use local build
     container_name: "${APP_NAME}_mariadb"
     restart: unless-stopped
     env_file: .env
@@ -20,20 +18,17 @@ services:
       - ./db-data:/var/lib/mysql
 
   php:
-    build:
-      context: ./dockerfiles/php
-      args:
-        # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
-        XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
-    image: "${APP_NAME}_php_img"
+    image: ghcr.io/solidbunch/starter-kit-php:8.1-fpm-alpine3.17
+    #build: ./dockerfiles/php # Uncomment build directive to use local build
     container_name: "${APP_NAME}_php"
     restart: unless-stopped
     depends_on:
       - mariadb
     working_dir: /srv/web
     env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     volumes:
       # Web root folder
       - ./web/wp-core:/srv/web

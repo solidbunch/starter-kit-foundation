@@ -148,6 +148,9 @@ The configuration file `/config/nginx/templates/config/https.conf.template`  wil
 - `make recreate` - `docker compose up -d --build --force-recreate`
 - `make pma`
 
+## Docker images
+Use custom private packages storage for your project
+
 ## Structure
 wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
 
