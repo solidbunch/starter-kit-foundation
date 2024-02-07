@@ -2,10 +2,12 @@ version: "3.9"
 
 services:
 
-  mariadbd:
-    build: ./docker/mariadbd
-    image: "${APP_NAME}_mariadbd_img"
-    container_name: "${APP_NAME}_mariadbd"
+  mariadb:
+    # Use custom private packages storage for your project
+    image: ghcr.io/solidbunch/starter-kit/mariadb:11.2.2-jammy
+    # Uncomment build directive to use local built image
+    #build: ./dockerfiles/mariadb
+    container_name: "${APP_NAME}_mariadb"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
@@ -19,7 +21,7 @@ services:
 
   php:
     build:
-      context: ./docker/php
+      context: ./dockerfiles/php
       args:
         # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
@@ -27,10 +29,9 @@ services:
         XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
     image: "${APP_NAME}_php_img"
     container_name: "${APP_NAME}_php"
-    user: www-data
     restart: unless-stopped
     depends_on:
-      - mariadbd
+      - mariadb
     working_dir: /srv/web
     env_file: .env
     volumes:
@@ -48,12 +49,12 @@ services:
       - ./sh:/shell:ro
 
   nginx:
-    build: ./docker/nginx
+    build: ./dockerfiles/nginx
     image: "${APP_NAME}_nginx_img"
     container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
     depends_on:
-      - mariadbd
+      - mariadb
       - php
     working_dir: /srv/web
     env_file: .env
@@ -78,7 +79,7 @@ services:
 
   cron:
     build:
-      context: ./docker/cron
+      context: ./dockerfiles/cron
       dockerfile: Dockerfile
       args:
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
@@ -87,7 +88,7 @@ services:
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
     depends_on:
-      - mariadbd
+      - mariadb
       - php
     env_file: .env
     volumes:

@@ -4,14 +4,13 @@ services:
 
   php-composer:
     build:
-      context: ./docker/php-composer
+      context: ./dockerfiles/php-composer
       args:
         APP_NAME: ${APP_NAME}
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     image: "${APP_NAME}_php_extra_img"
     container_name: "${APP_NAME}_php_extra"
-    user: www-data
     restart: "no"
     env_file: .env
     working_dir: /srv
@@ -25,13 +24,12 @@ services:
 
   node:
     build:
-      context: ./docker/node
+      context: ./dockerfiles/node
       args:
         CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
         CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
     image: "${APP_NAME}_node_img"
     container_name: "${APP_NAME}_node"
-    user: node
     restart: "no"
     env_file: .env
     working_dir: /srv/web

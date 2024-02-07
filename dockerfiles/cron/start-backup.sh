@@ -12,7 +12,7 @@ if [ ! "$APP_NAME" ]; then
 fi
 
 # Default values
-DATABASE_CONTAINER="${APP_NAME}_mariadbd"
+DATABASE_CONTAINER="${APP_NAME}_mariadb"
 WORDPRESS_CONTAINER="${APP_NAME}_php"
 MODE="daily"
 MODE_TIMER=6

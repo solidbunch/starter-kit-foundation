@@ -23,6 +23,8 @@ endif
 export CURRENT_UID
 export CURRENT_GID
 
+export DOCKER_BUILDKIT=1
+
 # Default values
 LOGO_SH=bash ./sh/logo.sh
 
@@ -97,19 +99,21 @@ pma:
 log:
 	docker compose logs -f
 
-# Run container and bash inside container
-run:
+composer:
 	$(LOGO_SH)
-	docker compose -f docker-compose.yml -f docker-compose.build.yml run -it --rm --build $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh"
+	docker compose -f docker-compose.build.yml run -it --rm --build php-composer su -c bash -c "echo -e 'You are inside php-composer container' && bash" www-data
 
-# Exec bash inside running container
-exec:
+node:
 	$(LOGO_SH)
-	docker compose exec -it $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh"
+	docker compose -f docker-compose.build.yml run -it --rm --build node su -c bash -c "echo -e 'You are inside node container' && bash" node
+
+wp:
+	$(LOGO_SH)
+	docker compose exec php su -c bash -c "echo -e 'You are inside php container' && bash" www-data
 
 lint:
-	docker compose -f docker-compose.build.yml run -it --rm --build php-composer sh -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"
-	docker compose -f docker-compose.build.yml run -it --rm --build node sh -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint"
+	docker compose -f docker-compose.build.yml run -it --rm --build php-composer su -c sh -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" www-data
+	docker compose -f docker-compose.build.yml run -it --rm --build node su -c sh -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" node
 
 # IasC
 terraform:

@@ -8,5 +8,8 @@ ARG CURRENT_UID=1000
 
 # Create the current user and home directory
 RUN deluser --remove-home node \
-    && addgroup -S node -g $CURRENT_GID \
-    && adduser -S -G node -u $CURRENT_UID node
+    && addgroup -g $CURRENT_GID node\
+    && adduser -u $CURRENT_UID -D -G node node
+
+RUN apk add --no-cache \
+    bash
