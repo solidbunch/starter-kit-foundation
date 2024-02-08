@@ -44,8 +44,8 @@ services:
       - ./sh:/shell:ro
 
   nginx:
-    build: ./dockerfiles/nginx
-    image: "${APP_NAME}_nginx_img"
+    image: ghcr.io/solidbunch/starter-kit-nginx:1.25-alpine3.18
+    #build: ./dockerfiles/nginx # Uncomment build directive to use local build
     container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
     depends_on:
@@ -73,13 +73,8 @@ services:
       - ./logs/nginx:/var/log/nginx
 
   cron:
-    build:
-      context: ./dockerfiles/cron
-      dockerfile: Dockerfile
-      args:
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
-    image: "${APP_NAME}_cron_img"
+    image: ghcr.io/solidbunch/starter-kit-cron:1.5-alpine3.18
+    #build: ./dockerfiles/cron # Uncomment build directive to use local build
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
     depends_on:
@@ -87,8 +82,14 @@ services:
       - php
     env_file: .env
     volumes:
+      # Share docker socket to allow cron run scenarios inside other containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Share crontabs files into tmp folder
+      - ./config/cron/crontabs:/tmp/crontabs
+      # Backups folder
       - ./backups:/srv/backups
+      # Share shell scripts
+      - ./sh:/shell:ro
 
 networks:
   project_network:

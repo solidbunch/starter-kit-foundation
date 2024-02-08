@@ -18,11 +18,11 @@
 # Let's run!
 
 # WordPress cron run by system cron
-*/10 * * * * docker exec -u www-data ${APP_NAME}_php flock -n /var/log/wordpress/wp-cron.lck php /srv/web/wp-cron.php >> /var/log/cron.log
+*/5 * * * * docker exec -u www-data ${APP_NAME}_php flock -n /var/log/wordpress/wp-cron.lck php /srv/web/wp-cron.php >> /var/log/cron.log
 
 
 # Backup database and media
-15 3 * * * start-backup.sh daily >> /var/log/cron.log 2>&1
-15 4 * * 1 start-backup.sh weekly >> /var/log/cron.log 2>&1
+15 3 * * * bash /shell/cron/start-backup.sh daily >> /var/log/cron.log 2>&1
+15 4 * * 1 bash /shell/cron/start-backup.sh weekly >> /var/log/cron.log 2>&1
 
 # An empty line is required at the end of this file for a valid cron file
