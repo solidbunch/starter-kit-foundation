@@ -8,8 +8,6 @@
 set -e
 
 # start cron
-chown "root:root" /etc/crontabs/root
-
 crond -L /var/log/cron.log -c /etc/crontabs
 
 # trap SIGINT and SIGTERM signals and gracefully exit

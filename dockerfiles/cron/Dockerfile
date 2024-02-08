@@ -21,15 +21,13 @@ RUN set -ex \
     && mkfifo -m 0666 /var/log/cron.log \
     && ln -s /var/log/cron.log /var/log/crond.log
 
-# Copy current crontab into container
-COPY crontabs/root /etc/crontabs/root
+# Prepare and run entrypoint
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Copy main cron script
 COPY start-cron.sh /usr/local/bin
 RUN chmod +x /usr/local/bin/start-cron.sh
 
-# Prepare backup script
-COPY start-backup.sh /usr/local/bin
-RUN chmod +x /usr/local/bin/start-backup.sh
-
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["start-cron.sh"]
