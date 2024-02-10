@@ -21,8 +21,8 @@ if [ "$1" ]; then
 fi
 
 # Define the services and images arrays
-SERVICES=("mariadb"             "php"              "nginx"              "cron")
-IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}")
+SERVICES=("mariadb"             "php"              "nginx"              "cron"              "php-composer"              "node")
+IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_PHP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}")
 
 # Get the length of the arrays
 ARRAY_LENGTH=${#SERVICES[@]}
@@ -78,7 +78,14 @@ if [ "$MODE" == "build" ]; then
     echo -e "${CYAN}[Info]${NOCOLOR} Building ${YELLOW}${SERVICES[i]}${NOCOLOR} [${PLATFORM}]"
 
     # Building image and loading it into docker images
-    docker buildx build --platform ${PLATFORM} -t "${IMAGES[i]}" "./dockerfiles/${SERVICES[i]}" --load
+    # APP_PHP_IMAGE needed for php-composer image only
+    docker buildx build \
+      --build-arg \
+        APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
+      --platform ${PLATFORM} \
+      -t "${IMAGES[i]}" \
+      "./dockerfiles/${SERVICES[i]}" \
+      --load
 
     echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [${PLATFORM}]"
     echo -e "-----------------------------------------------------------------"
@@ -100,7 +107,13 @@ if [ "$MODE" == "push" ]; then
       echo -e "${CYAN}[Info]${NOCOLOR} Pushing ${YELLOW}${SERVICES[i]}${NOCOLOR} [linux/amd64,linux/arm64]"
 
       # Building image and pushing it into registry
-      docker buildx build --platform linux/amd64,linux/arm64 -t "${IMAGES[i]}" "./dockerfiles/${SERVICES[i]}" --push
+      docker buildx build \
+        --build-arg \
+          APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
+        --platform linux/amd64,linux/arm64 \
+        -t "${IMAGES[i]}" \
+        "./dockerfiles/${SERVICES[i]}" \
+        --push
 
       echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [linux/amd64,linux/arm64]"
       echo -e "-----------------------------------------------------------------"

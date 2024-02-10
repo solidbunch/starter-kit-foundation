@@ -1,6 +1,6 @@
 # Taking current project php container builded image
-ARG APP_NAME
-FROM ${APP_NAME}_php_img:latest
+ARG APP_PHP_IMAGE
+FROM ${APP_PHP_IMAGE}
 
 # Installing php composer dependencies
 # https://hub.docker.com/_/composer
