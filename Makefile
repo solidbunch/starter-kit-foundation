@@ -20,6 +20,12 @@ ifeq ($(shell expr $(CURRENT_GID) \< 1000), 1)
 	CURRENT_GID := 1000
 endif
 
+#if [ ! "${CURRENT_GID}" ] || [ ! "${CURRENT_UID}" ]; then
+#  CURRENT_GID="${DEFAULT_GID}"
+#  CURRENT_UID="${DEFAULT_UID}"
+#fi
+
+
 export CURRENT_UID
 export CURRENT_GID
 
@@ -47,9 +53,9 @@ secret:
 	$(LOGO_SH)
 	bash ./sh/env/secret-gen.sh
 
-build:
-	docker compose -f docker-compose.yml build
-	docker compose -f docker-compose.build.yml build
+init:
+	$(LOGO_SH)
+	bash ./sh/env/init.sh $(PARAMS)
 
 # Run mix watch with browserSync
 watch:
@@ -122,13 +128,9 @@ terraform:
 ansible:
 	ansible-playbook -i iasc/ansible/inventory.ini iasc/ansible/prepare-servers.yml $(PARAMS)
 
-# Full docker cleanup
-docker-clean:
-	docker container prune
-	docker image prune -a
-	docker volume prune
-	docker network prune
-	docker system prune
+# docker build|docker push|docker clean
+docker:
+	bash ./sh/docker.sh $(PARAMS)
 
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run
