@@ -3,8 +3,7 @@ version: "3.9"
 services:
 
   mariadb:
-    image: ghcr.io/solidbunch/starter-kit-mariadb:11.2.2-jammy
-    #build: ./dockerfiles/mariadb # Uncomment build directive to use local build
+    image: "${APP_DATABASE_IMAGE}"
     container_name: "${APP_NAME}_mariadb"
     restart: unless-stopped
     env_file: .env
@@ -18,8 +17,7 @@ services:
       - ./db-data:/var/lib/mysql
 
   php:
-    image: ghcr.io/solidbunch/starter-kit-php:8.1-fpm-alpine3.17
-    #build: ./dockerfiles/php # Uncomment build directive to use local build
+    image: "${APP_PHP_IMAGE}"
     container_name: "${APP_NAME}_php"
     restart: unless-stopped
     depends_on:
@@ -44,8 +42,7 @@ services:
       - ./sh:/shell:ro
 
   nginx:
-    image: ghcr.io/solidbunch/starter-kit-nginx:1.25-alpine3.18
-    #build: ./dockerfiles/nginx # Uncomment build directive to use local build
+    image: "${APP_NGINX_IMAGE}"
     container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
     depends_on:
@@ -73,8 +70,7 @@ services:
       - ./logs/nginx:/var/log/nginx
 
   cron:
-    image: ghcr.io/solidbunch/starter-kit-cron:1.5-alpine3.18
-    #build: ./dockerfiles/cron # Uncomment build directive to use local build
+    image: "${APP_CRON_IMAGE}"
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
     depends_on:
