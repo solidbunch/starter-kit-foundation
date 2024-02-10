@@ -20,7 +20,7 @@ if [ "$1" ]; then
     MODE="$1"
 fi
 
-# Define the services and images
+# Define the services and images arrays
 SERVICES=("mariadb"             "php"              "nginx"              "cron")
 IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}")
 
@@ -58,8 +58,6 @@ if [ "$MODE" == "build" ]; then
 
   # Step 2: Create a New Builder Instance
 
-  #docker buildx create --name starter-kit-builder --bootstrap --use
-
   # Name of the builder
   BUILDER_NAME="starter-kit-builder"
 
@@ -75,14 +73,14 @@ if [ "$MODE" == "build" ]; then
 
   # Step 3: Build the Image Locally
 
-# Define parallel arrays for Dockerfile directories and their corresponding image names
-
-
   # Loop through the arrays
   for (( i=0; i<ARRAY_LENGTH; i++ )); do
-    echo -e "${CYAN}[Info]${YELLOW} Building ${SERVICES[i]} [${PLATFORM}]${NOCOLOR}"
+    echo -e "${CYAN}[Info]${NOCOLOR} Building ${YELLOW}${SERVICES[i]}${NOCOLOR} [${PLATFORM}]"
+
+    # Building image and loading it into docker images
     docker buildx build --platform ${PLATFORM} -t "${IMAGES[i]}" "./dockerfiles/${SERVICES[i]}" --load
-    echo -e "${LIGHTGREEN}[Success]${YELLOW} Build done for ${SERVICES[i]} ${IMAGES[i]} [${PLATFORM}]${NOCOLOR}"
+
+    echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [${PLATFORM}]"
     echo -e "-----------------------------------------------------------------"
     echo ""
   done
@@ -96,16 +94,19 @@ if [ "$MODE" == "push" ]; then
 
   for (( i=0; i<ARRAY_LENGTH; i++ )); do
     # Ask for user confirmation before building
-    echo -e "Do you want to push ${LIGHTYELLOW}${SERVICES[i]}${NOCOLOR} image (${LIGHTYELLOW}${IMAGES[i]}${NOCOLOR})? (y/n)"
+    echo -e "Do you want to push ${LIGHTYELLOW}${SERVICES[i]}${NOCOLOR} image (${YELLOW}${IMAGES[i]}${NOCOLOR})? (y/n)"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      echo -e "${CYAN}[Info]${NOCOLOR} Pushing ${SERVICES[i]} [linux/amd64,linux/arm64]${NOCOLOR}"
-      docker buildx build --platform linux/amd64,linux/arm64 -t "${IMAGES[i]}" "./dockerfiles/${SERVICES[i]}"
-      echo -e "${LIGHTGREEN}[Success]${YELLOW} Push done for ${SERVICES[i]} ${IMAGES[i]} [linux/amd64,linux/arm64]${NOCOLOR}"
+      echo -e "${CYAN}[Info]${NOCOLOR} Pushing ${YELLOW}${SERVICES[i]}${NOCOLOR} [linux/amd64,linux/arm64]"
+
+      # Building image and pushing it into registry
+      docker buildx build --platform linux/amd64,linux/arm64 -t "${IMAGES[i]}" "./dockerfiles/${SERVICES[i]}" --push
+
+      echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [linux/amd64,linux/arm64]"
       echo -e "-----------------------------------------------------------------"
       echo ""
     else
-      echo -e "${LIGHTGREEN}Skipping push for ${SERVICES[i]}${NOCOLOR}"
+      echo -e "${CYAN}[Info]${NOCOLOR} Skipping push for ${YELLOW}${SERVICES[i]}${NOCOLOR}"
       echo -e "-----------------------------------------------------------------"
       echo ""
     fi
