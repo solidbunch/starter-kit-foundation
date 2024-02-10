@@ -3,16 +3,13 @@ version: "3.9"
 services:
 
   php-composer:
-    build:
-      context: ./dockerfiles/php-composer
-      args:
-        APP_NAME: ${APP_NAME}
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
-    image: "${APP_NAME}_php_extra_img"
-    container_name: "${APP_NAME}_php_extra"
+    image: "${APP_PHP_COMPOSER_IMAGE}"
+    container_name: "${APP_NAME}_php_composer"
     restart: "no"
     env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     working_dir: /srv
     volumes:
       # Project files with same path
@@ -23,15 +20,13 @@ services:
       - ~/.ssh:/home/www-data/.ssh:ro
 
   node:
-    build:
-      context: ./dockerfiles/node
-      args:
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
-    image: "${APP_NAME}_node_img"
+    image: "${APP_NODE_IMAGE}"
     container_name: "${APP_NAME}_node"
     restart: "no"
     env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     working_dir: /srv/web
     ports:
       - "3000:3000"
@@ -43,7 +38,7 @@ services:
       - ./web/wp-content:/srv/web/wp-content
 
   phpmyadmin:
-    image: phpmyadmin:5.2-apache
+    image: "${APP_PHPMYADMIN_IMAGE}"
     container_name: "${APP_NAME}_phpmyadmin"
     restart: "no"
     ports:
