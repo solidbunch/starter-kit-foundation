@@ -22,9 +22,10 @@ replace_env_vars() {
 
 # Recreate www-data user
 # Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
-deluser www-data; \
-addgroup -g "${CURRENT_GID}" www-data; \
+deluser www-data
+addgroup -g "${CURRENT_GID}" www-data
 adduser -u "${CURRENT_UID}" -D -G www-data www-data
+chown www-data:www-data /var/log/wordpress
 
 echo "www-data user UID=${CURRENT_UID} updated"
 
