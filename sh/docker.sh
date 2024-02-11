@@ -24,70 +24,50 @@ fi
 SERVICES=("mariadb"             "php"              "nginx"              "cron"              "php-composer"              "node")
 IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_PHP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}")
 
+PLATFORMS=linux/amd64,linux/arm64
+
 # Get the length of the arrays
 ARRAY_LENGTH=${#SERVICES[@]}
 
+CreateBuilder() {
+    # Name of the builder
+    BUILDER_NAME="starter-kit-builder"
+
+    # Check if the builder already exists
+    if ! docker buildx ls | grep -q $BUILDER_NAME; then
+      # Builder does not exist, so create it
+      echo -e "${CYAN}[Info]${NOCOLOR} Creating new builder instance named $BUILDER_NAME..."
+      docker buildx create --name $BUILDER_NAME --bootstrap --use
+    else
+      # Builder exists, no action needed
+      echo -e "${CYAN}[Info]${NOCOLOR} Builder $BUILDER_NAME already exists."
+    fi
+}
+
+## Build
+# Build the images with defined names
 if [ "$MODE" == "build" ]; then
 
-  # Detect the architecture
-  ARCHITECTURE=$(uname -m)
+  # Step 1: Create a New Builder Instance
 
-  # Map architecture to Docker's platform format
-  case $ARCHITECTURE in
-    x86_64)
-      PLATFORM="linux/amd64"
-      ;;
-    aarch64)
-      PLATFORM="linux/arm64"
-      ;;
-    arm64)
-      PLATFORM="linux/arm64"
-      ;;
-    *)
-      echo "Unsupported architecture: $ARCHITECTURE"
-      exit 1
-      ;;
-  esac
+  CreateBuilder
 
-  #docker compose -f docker-compose.yml build
-  #docker compose -f docker-compose.build.yml build
-
-  # Step 1: Login to GitHub Container Registry (GHCR)
-
-  #echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
-
-  # Step 2: Create a New Builder Instance
-
-  # Name of the builder
-  BUILDER_NAME="starter-kit-builder"
-
-  # Check if the builder already exists
-  if ! docker buildx ls | grep -q $BUILDER_NAME; then
-    # Builder does not exist, so create it
-    echo -e "${CYAN}[Info]${NOCOLOR} Creating new builder instance named $BUILDER_NAME..."
-    docker buildx create --name $BUILDER_NAME --bootstrap --use
-  else
-    # Builder exists, no action needed
-    echo -e "${CYAN}[Info]${NOCOLOR} Builder $BUILDER_NAME already exists."
-  fi
-
-  # Step 3: Build the Image Locally
+  # Step 2: Build the Image Locally
 
   # Loop through the arrays
   for (( i=0; i<ARRAY_LENGTH; i++ )); do
-    echo -e "${CYAN}[Info]${NOCOLOR} Building ${YELLOW}${SERVICES[i]}${NOCOLOR} [${PLATFORM}]"
+    echo -e "${CYAN}[Info]${NOCOLOR} Building ${YELLOW}${SERVICES[i]}${NOCOLOR}"
 
     # Building image and loading it into docker images
     # APP_PHP_IMAGE needed for php-composer image only
     docker buildx build \
       --build-arg \
         APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
-      --platform ${PLATFORM} \
       -t "${IMAGES[i]}" \
       "./dockerfiles/${SERVICES[i]}" \
       --load
 
-    echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [${PLATFORM}]"
+    echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR}"
     echo -e "-----------------------------------------------------------------"
     echo ""
   done
@@ -95,18 +75,28 @@ if [ "$MODE" == "build" ]; then
 fi
 
 ## Push
-# Step 4: Push the Image to the Registry
-
+# Build and Push the Images to the Registry
 if [ "$MODE" == "push" ]; then
 
+  # Step 1: Login to GitHub Container Registry (GHCR)
+
+  #export CR_PAT=YOUR_TOKEN
+  #echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+
+  # Step 2: Create a New Builder Instance
+
+  CreateBuilder
+
+  # Step 3: Build and Push to GitHub Container Registry (GHCR)
   for (( i=0; i<ARRAY_LENGTH; i++ )); do
     # Ask for user confirmation before building
     echo -e "Do you want to push ${LIGHTYELLOW}${SERVICES[i]}${NOCOLOR} image (${YELLOW}${IMAGES[i]}${NOCOLOR})? (y/n)"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      echo -e "${CYAN}[Info]${NOCOLOR} Pushing ${YELLOW}${SERVICES[i]}${NOCOLOR} [linux/amd64,linux/arm64]"
+      echo -e "${CYAN}[Info]${NOCOLOR} Building and Pushing ${YELLOW}${SERVICES[i]}${NOCOLOR} [${PLATFORMS}]"
 
       # Building image and pushing it into registry
+      # APP_PHP_IMAGE needed for php-composer image only
       docker buildx build \
         --build-arg \
           APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
@@ -115,7 +105,7 @@ if [ "$MODE" == "push" ]; then
         "./dockerfiles/${SERVICES[i]}" \
         --push
 
-      echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [linux/amd64,linux/arm64]"
+      echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [${PLATFORMS}]"
       echo -e "-----------------------------------------------------------------"
       echo ""
     else
@@ -126,9 +116,6 @@ if [ "$MODE" == "push" ]; then
   done
 
 fi
-
-#docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/solidbunch/starter-kit-mariadb:11.2.2-jammy --push .
-
 
 ## Clean
 # Full docker cleanup
