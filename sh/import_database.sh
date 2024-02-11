@@ -50,6 +50,6 @@ docker compose exec "${DATABASE_CONTAINER}" bash -c "pv /tmp/${DUMP_FILE} | mari
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Database import done"
 
 # Run database domains replacement
-docker compose exec "${PHP_WP_CONTAINER}" bash /shell/database_replacements.sh
+docker compose exec "${PHP_WP_CONTAINER}" su -c "bash /shell/database_replacements.sh" www-data
 
 

@@ -87,16 +87,16 @@ recreate:
 	docker compose up -d --build --force-recreate
 
 # Run database import script with first argument as file name and second as database name
-db-import:
+import:
 	bash ./sh/import_database.sh $(PARAMS)
 
 # Run database export script with first argument as file name and second as database name
-db-export:
+export:
 	bash ./sh/export_database.sh $(PARAMS)
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
-	docker compose run --rm --build php bash -c "bash /shell/database_replacements.sh $(PARAMS)"
+	docker compose run --rm --build php su -c "bash /shell/database_replacements.sh $(PARAMS)" www-data
 
 # Run phpMyAdmin docker container
 pma:
