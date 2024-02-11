@@ -40,8 +40,10 @@ CreateBuilder() {
       docker buildx create --name $BUILDER_NAME --bootstrap --use
     else
       # Builder exists, no action needed
+      docker buildx use ${BUILDER_NAME}
       echo -e "${CYAN}[Info]${NOCOLOR} Builder $BUILDER_NAME already exists."
     fi
+
 }
 
 ## Build
