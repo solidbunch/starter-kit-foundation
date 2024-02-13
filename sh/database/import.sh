@@ -10,7 +10,7 @@ source ./sh/utils/colors
 
 # Take database hostname from .env file
 DATABASE_CONTAINER="$MYSQL_HOST"
-PHP_WP_CONTAINER="php"
+WP_CONTAINER="php"
 
 # Stop when error
 set -e
@@ -50,6 +50,6 @@ docker compose exec "${DATABASE_CONTAINER}" bash -c "pv /tmp/${DUMP_FILE} | mari
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Database import done"
 
 # Run database domains replacement
-docker compose exec "${PHP_WP_CONTAINER}" su -c "bash /shell/database_replacements.sh" www-data
+docker compose exec "${WP_CONTAINER}" su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"
 
 

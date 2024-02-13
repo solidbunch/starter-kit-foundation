@@ -88,15 +88,15 @@ recreate:
 
 # Run database import script with first argument as file name and second as database name
 import:
-	bash ./sh/import_database.sh $(PARAMS)
+	bash ./sh/database/import.sh $(PARAMS)
 
 # Run database export script with first argument as file name and second as database name
 export:
-	bash ./sh/export_database.sh $(PARAMS)
+	bash ./sh/database/export.sh $(PARAMS)
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
-	docker compose run --rm --build php su -c "bash /shell/database_replacements.sh $(PARAMS)" www-data
+	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
 # Run phpMyAdmin docker container
 pma:
@@ -105,21 +105,17 @@ pma:
 log:
 	docker compose logs -f
 
-composer:
+run:
 	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run -it --rm --build php-composer su -c bash -c "echo -e 'You are inside php-composer container' && bash" www-data
+	bash ./sh/run.sh run $(PARAMS)
 
-node:
+exec:
 	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run -it --rm --build node su -c bash -c "echo -e 'You are inside node container' && bash" node
-
-wp:
-	$(LOGO_SH)
-	docker compose exec php su -c bash -c "echo -e 'You are inside php container' && bash" www-data
+	bash ./sh/run.sh exec $(PARAMS)
 
 lint:
-	docker compose -f docker-compose.build.yml run -it --rm --build php-composer su -c sh -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" www-data
-	docker compose -f docker-compose.build.yml run -it --rm --build node su -c sh -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" node
+	docker compose -f docker-compose.build.yml run -it --rm --build composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
+	docker compose -f docker-compose.build.yml run -it --rm --build node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
 
 # IasC
 terraform:

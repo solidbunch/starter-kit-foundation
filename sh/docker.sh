@@ -20,9 +20,13 @@ if [ "$1" ]; then
     MODE="$1"
 fi
 
+if [ "$2" ]; then
+    BUILD_SERVICE="$2"
+fi
+
 # Define the services and images arrays
-SERVICES=("mariadb"             "php"              "nginx"              "cron"              "php-composer"              "node")
-IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_PHP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}")
+SERVICES=("mariadb"             "php"              "nginx"              "cron"              "composer"              "node")
+IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}")
 
 PLATFORMS=linux/amd64,linux/arm64
 
@@ -43,31 +47,27 @@ CreateBuilder() {
       docker buildx use ${BUILDER_NAME}
       echo -e "${CYAN}[Info]${NOCOLOR} Builder $BUILDER_NAME already exists."
     fi
-
 }
 
 ## Build
 # Build the images with defined names
 if [ "$MODE" == "build" ]; then
 
-  # Step 1: Create a New Builder Instance
-
-  CreateBuilder
-
-  # Step 2: Build the Image Locally
-
   # Loop through the arrays
   for (( i=0; i<ARRAY_LENGTH; i++ )); do
+
+    # Check if $BUILD_SERVICE parameter exist for build only selected service
+    if [[ -n "$BUILD_SERVICE" && "$BUILD_SERVICE" != "${SERVICES[i]}" ]]; then
+      continue
+    fi
+
     echo -e "${CYAN}[Info]${NOCOLOR} Building ${YELLOW}${SERVICES[i]}${NOCOLOR}"
 
-    # Building image and loading it into docker images
-    # APP_PHP_IMAGE needed for php-composer image only
-    docker buildx build \
+    docker build \
       --build-arg \
         APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
       -t "${IMAGES[i]}" \
       "./dockerfiles/${SERVICES[i]}" \
-      --load
 
     echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR}"
     echo -e "-----------------------------------------------------------------"
@@ -91,6 +91,12 @@ if [ "$MODE" == "push" ]; then
 
   # Step 3: Build and Push to GitHub Container Registry (GHCR)
   for (( i=0; i<ARRAY_LENGTH; i++ )); do
+
+    # Check if $BUILD_SERVICE parameter exist for push only selected service
+    if [[ -n "$BUILD_SERVICE" && "$BUILD_SERVICE" != "${SERVICES[i]}" ]]; then
+      continue
+    fi
+
     # Ask for user confirmation before building
     echo -e "Do you want to push ${LIGHTYELLOW}${SERVICES[i]}${NOCOLOR} image (${YELLOW}${IMAGES[i]}${NOCOLOR})? (y/n)"
     read -r response
@@ -98,7 +104,7 @@ if [ "$MODE" == "push" ]; then
       echo -e "${CYAN}[Info]${NOCOLOR} Building and Pushing ${YELLOW}${SERVICES[i]}${NOCOLOR} [${PLATFORMS}]"
 
       # Building image and pushing it into registry
-      # APP_PHP_IMAGE needed for php-composer image only
+      # APP_PHP_IMAGE needed for composer image only
       docker buildx build \
         --build-arg \
           APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
