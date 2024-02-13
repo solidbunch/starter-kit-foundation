@@ -143,8 +143,7 @@ COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
 ##################################
 #     WordPress logs folder      #
 ##################################
-RUN mkdir -p /var/log/wordpress; \
-    chown www-data:www-data /var/log/wordpress
+RUN mkdir -p /var/log/wordpress
 
 ##################################
 #   Prepare and run entrypoint   #

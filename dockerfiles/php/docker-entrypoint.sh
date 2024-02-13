@@ -22,12 +22,18 @@ replace_env_vars() {
 
 # Recreate www-data user
 # Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
+# Deleting default user (with group)
 deluser www-data
-addgroup -g "${CURRENT_GID}" www-data
-adduser -u "${CURRENT_UID}" -D -G www-data www-data
-chown www-data:www-data /var/log/wordpress
+# 82 is the standard uid/gid for "www-data" in Alpine
+# https://git.alpinelinux.org/aports/tree/main/apache2/apache2.pre-install?h=3.14-stable
+# https://git.alpinelinux.org/aports/tree/main/lighttpd/lighttpd.pre-install?h=3.14-stable
+# https://git.alpinelinux.org/aports/tree/main/nginx/nginx.pre-install?h=3.14-stable
 
-echo "www-data user UID=${CURRENT_UID} updated"
+addgroup -g "${CURRENT_GID}" "${DEFAULT_USER}"
+adduser -u "${CURRENT_UID}" -D -G "${DEFAULT_USER}" "${DEFAULT_USER}"
+chown "${DEFAULT_USER}":"${DEFAULT_USER}" /var/log/wordpress
+
+echo "${DEFAULT_USER} user UID=${CURRENT_UID} updated"
 
 # Replace env variables with values in sSMTP config using gettext app
 replace_env_vars "/etc/ssmtp/templates/ssmtp.conf.template" "/etc/ssmtp/ssmtp.conf"

@@ -2,12 +2,13 @@ version: "3.9"
 
 services:
 
-  php-composer:
-    image: "${APP_PHP_COMPOSER_IMAGE}"
-    container_name: "${APP_NAME}_php_composer"
+  composer:
+    image: "${APP_COMPOSER_IMAGE}"
+    container_name: "${APP_NAME}_composer"
     restart: "no"
     env_file: .env
     environment:
+      DEFAULT_USER: ${DEFAULT_USER}
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     working_dir: /srv
@@ -17,7 +18,7 @@ services:
       # SSMTP config
       - ./config/ssmtp:/etc/ssmtp/templates:ro
       # User added in Dockerfile
-      - ~/.ssh:/home/www-data/.ssh:ro
+      - ~/.ssh:/home/${DEFAULT_USER}/.ssh:ro
 
   node:
     image: "${APP_NODE_IMAGE}"
