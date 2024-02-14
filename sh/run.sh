@@ -13,15 +13,13 @@ source ./.env
 if [ "$1" != "" ]; then
   MODE="$1"
 else
-  echo "ERROR: mode not defined"
-  exit 1
+  echo -e "${LIGHTRED}[Error]${NOCOLOR} Mode parameter not defined"; exit 1;
 fi
 
 if [ "$2" != "" ]; then
   SERVICE="$2"
 else
-  echo "ERROR: service not defined"
-  exit 1
+  echo -e "${LIGHTRED}[Error]${NOCOLOR} Service parameter not defined"; exit 1;
 fi
 
 if [ "$SERVICE" == "wp" ]; then
@@ -36,9 +34,24 @@ if [ "$3" ]; then
 fi
 
 if [ "$MODE" == "run" ]; then
-  docker compose -f docker-compose.yml -f docker-compose.build.yml run -it --rm --build "${SERVICE}" su -c "echo -e 'You are ${USER} user inside ${SERVICE} container' && bash" "${USER}"
+  docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.build.yml \
+    run \
+      -it \
+      --rm \
+      --build \
+    "${SERVICE}" \
+    su -c "echo -e 'You are ${USER} user inside ${SERVICE} container' && bash" \
+    "${USER}"
 fi
 
 if [ "$MODE" == "exec" ]; then
-  docker compose -f docker-compose.yml -f docker-compose.build.yml exec -u "${USER}" "${SERVICE}" bash -c "echo -e 'You are ${USER} user inside ${SERVICE} container' && bash"
+  docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.build.yml \
+    exec \
+      -u "${USER}" \
+    "${SERVICE}" \
+    bash -c "echo -e 'You are ${USER} user inside ${SERVICE} container' && bash"
 fi
