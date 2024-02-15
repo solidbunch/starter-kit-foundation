@@ -24,9 +24,7 @@
 3. [GitHub SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
 
 
-## How to use
-
-### Creating new project
+## Creating new project
 
 1. Create a new project directory and clone this repo into project folder.
 
@@ -36,7 +34,7 @@
 
 5. Follow next [installation](#installation-of-existing-project) steps.
 
-### Installation of existing project
+## Installation of existing project
 
 1. Create a project folder and clone this repository if you haven't already done so
 
@@ -56,8 +54,7 @@ make install prod
 BTW: We recommend to use `/srv` folder instead `/var/www`. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
 
-
-### Usage 🚀
+## Usage 🚀
 
 The project is ready to use immediately after installation, but you can stop, recreate, launch the containers in different environments.
 
@@ -84,7 +81,7 @@ You can add secret variables names there without secret data, just for structure
 
 ⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
-### Run composer scripts
+## Run composer scripts
 
 ```bash
 make run composer
@@ -94,7 +91,7 @@ make run composer
 composer install/update
 ```
 
-### Run node scripts
+## Run node scripts
 
 ```bash
 make run node
@@ -104,7 +101,7 @@ make run node
 npm install
 ```
 
-### Production Launch with HTTPS
+## Production Launch with HTTPS
 
 1. Put your certificate files in `./config/nginx/ssl/` with names <your-app-domain.com>.crt and <your-app-domain.com>.key
 2. Change var `APP_PROTOCOL=https` in your `.env.type.[prod]`
@@ -115,7 +112,7 @@ make up prod
 ```
 The configuration file `/config/nginx/templates/config/https.conf.template`  will be used instead of `/config/nginx/templates/config/http.conf.template`
 
-### Makefile commands
+## Makefile commands
 
 - `make install [environment_type]`
 - `make secret`
