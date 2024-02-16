@@ -175,7 +175,7 @@ make docker push
 │   │   ├── themes/           # Themes folder. Add your theme here
 │   │   └── uploads/          # Media uploads folder. All subfolders content is gitignored
 │   └── wp-core/              # WordPress core files, docker mounted volume
-├── composer.json             # Manage packages, ver of WordPress, plugins & dependencies
+├── composer.json             # Manage version of WordPress, plugins & dependencies
 ├── docker-compose.build.yml  # Docker compose configuration file with utility services
 ├── docker-compose.yml        # Main docker compose file
 └── Makefile                  # Make commands configuration
@@ -247,7 +247,9 @@ make exec mariadb
 mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
 ```
 Where 'new_password' - new root password
+
 5. Revert back changes in `docker-compose.yml`
+
 6. Restart containers:
 ```bash
 make restart
