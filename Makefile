@@ -3,7 +3,7 @@
 
 include ./sh/utils/colors
 
-include .env
+include ./config/environment/.env.main
 
 SHELL = /bin/sh
 
