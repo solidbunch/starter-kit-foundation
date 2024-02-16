@@ -28,7 +28,7 @@
 
 1. Check your GitHub SSH connection `ssh -T git@github.com`
 
-2. Create a new project directory and clone this repo into project folder.
+2. Create a new project directory and clone this repository into the project folder.
 
 3. Update environment variables in the `./config/environment/.env.main` file. Change `APP_NAME`, etc.
 
@@ -47,7 +47,7 @@ make install [environment_type]
 ```
 Where `environment_type` - any type that exist in `./config/environment/.env.type.*.` `local` is the default. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, build containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to `.env.type` files.
 
-For example, to use productions environment run:
+For example, to use production environment run:
 
 ```bash
 make install prod
@@ -55,7 +55,7 @@ make install prod
 And `.env.type.prod` will be used with defined APP_DOMAIN, APP_PROTOCOL, and other settings.
 
 
-BTW: We recommend to use `/srv` folder instead `/var/www`. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
+BTW: We recommend using the `/srv` folder instead of `/var/www` for your web content. This recommendation is based on the [Filesystem Hierarchy Standard (FHS)](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html), which suggests /srv for site-specific data served by the system.
 
 
 ## Usage 🚀
@@ -76,7 +76,7 @@ make up stage
 make up prod
 ```
 
-Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
+Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app runs.
 
 After the installation, you can add your custom secrets 🔑 to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data.
 
@@ -86,15 +86,19 @@ You can add secret variables names there without secret data, just for structure
 ⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ## Run composer scripts
-To run PHP composer need to run `composer` container and go inside it:
+To run PHP Composer, you need to run the `composer` container and enter it:
 ```bash
 make run composer
 ```
 Command `make run [service_name]` will run bash inside selected service (container).
 
-Inside container you can use command line to run any command you need in any folder of your project. For example this command in default folder `/srv` will install packages defined in main composer.json file:
+Inside the container, you can use the command line to run any command you need in any folder of your project. For example, to install packages defined in the main composer.json file, in default folder `/srv` use:
 ```bash
-composer install/update
+composer install
+```
+or
+```bash
+composer update
 ```
 
 ## Run node scripts
@@ -103,7 +107,7 @@ To use watch with BrowserSync run:
 make watch
 ```
 
-To run other npm scripts need to run `node` container and go inside it:
+To run other npm scripts need to run `node` container and enter it:
 ```bash
 make run node
 ```
@@ -111,14 +115,14 @@ It has another default folder `/srv/web` - root WordPress folder. Use `cd` comma
 
 ## Production Launch with HTTPS
 
-1. Put your certificate files in `./config/nginx/ssl/` with names `<your-app-domain.com>.crt` and `<your-app-domain.com>.key`
-2. Change var `APP_PROTOCOL=https` in your `.env.type.[prod]`
-3. Start containers with http > https redirect:
+1. Place your certificate files in `./config/nginx/ssl/` with the names `<your-app-domain.com>.crt` and `<your-app-domain.com>.key`.
+2. Update the variable `APP_PROTOCOL=https` in your `.env.type.prod` file to enable HTTPS.
+3. Start containers with HTTP to HTTPS redirect:
 
 ```bash
 make up prod
 ```
-The configuration file `/config/nginx/templates/config/https.conf.template`  will be used instead of `/config/nginx/templates/config/http.conf.template`
+The configuration file `/config/nginx/templates/config/https.conf.template` will be used instead of `/config/nginx/templates/config/http.conf.template`
 
 ## Makefile commands
 
@@ -141,20 +145,21 @@ The configuration file `/config/nginx/templates/config/https.conf.template`  wil
 
 ## Docker images
 Use custom containers registry for your project docker containers. [GitHub Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) or [Docker Hub](https://docs.docker.com/guides/walkthroughs/publish-your-image/).
-Use this commands to build and push images to registry:
+Use these commands to build and push images to the registry:
 ```bash
-make docker build|push
+make docker build
+```
+```bash
+make docker push
 ```
 
 ## Structure
-wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
-
 ```
-├── backups/                  # Daily and weekly WordPress media, languages folders, and database backups
+├── backups/                  # Daily and weekly WordPress media, and database backups
 ├── config/                   # Global config files
 ├── db-data/                  # Database docker mounted volume
 ├── dockerfiles/              # Docker images (Dockerfiles). Need just for build
-├── iasc/                     # IaC configuration for server support. Terraform and Ansible configs.
+├── iasc/                     # IaC Terraform and Ansible configuration for server setup
 ├── logs/                     # System and WordPress logs
 ├── sh/                       # Bash scripts
 │   ├── cron/                 # Cron scripts
@@ -163,7 +168,7 @@ wp-content - docker mounted WordPress wp-content folder, it's your working direc
 │   ├── utils/                # Additional bash utils
 │   └── wp-cli/               # Scripts that used WP-CLI commands
 ├── web/                      # Web application folder
-│   ├── wp-config/            # wp-config.php file and files that should be copied to web root public folder
+│   ├── wp-config/            # wp-config.php and files that should be copied to web root dir
 │   ├── wp-content/           # wp-content folder
 │   │   ├── mu-plugins/       # Must use plugins
 │   │   ├── plugins/          # Plugins folder. Add your plugins here
@@ -175,8 +180,12 @@ wp-content - docker mounted WordPress wp-content folder, it's your working direc
 ├── docker-compose.yml        # Main docker compose file
 └── Makefile                  # Make commands configuration
 ```
+`wp-config` folder contents will copy to `wp-core` folder every time composer update/install runs.
 
-Do not edit files in the wp-core folder, it builds by composer.
+`wp-content` - docker mounted WordPress folder. Add plugins and custom theme here.
+
+`wp-core` - web public directory. Do not edit files in the `wp-core` folder, it installs by composer.
+
 
 ## Sending emails
 
