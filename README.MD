@@ -32,7 +32,7 @@
 
 3. Update environment variables in the `./config/environment/.env.main` file. Change `APP_NAME`, etc.
 
-4. Update `./config/environment/.env.type.local, .env.type.dev, .env.type.stage, .env.type.prod` - specific environment types for local, development, staging, and production. You can add any new environment type. Change `APP_DOMAIN`, and other variables
+4. Update `./config/environment/.env.type.local`, `.env.type.dev`, `.env.type.stage`, `.env.type.prod` - specific environment types for local, development, staging, and production. You can add any new environment type. Change `APP_DOMAIN`, and other variables
 
 5. Follow next [installation](#installation-of-existing-project) steps.
 
@@ -90,7 +90,7 @@ To run PHP Composer, you need to run the `composer` container and enter it:
 ```bash
 make run composer
 ```
-Command `make run [service_name]` will run bash inside selected service (container).
+Command `make run <service_name>` will run bash inside selected service (container).
 
 Inside the container, you can use the command line to run any command you need in any folder of your project. For example, to install packages defined in the main composer.json file, in default folder `/srv` use:
 ```bash
@@ -138,8 +138,8 @@ The configuration file `/config/nginx/templates/config/https.conf.template` will
 - `make export` - will export current database to sql file
 - `make replace [search_domain] [replace_domain]` -  search replace domain in the database
 - `make pma`
-- `make run [service_name]` - `docker compose run -it --rm .... [service_name] ...`
-- `make exec [service_name]` - `docker compose exec -it .... [service_name] ...`
+- `make run <service_name>` - `docker compose run -it --rm .... <service_name> ...`
+- `make exec <service_name>` - `docker compose exec -it .... <service_name> ...`
 - `make lint` - run php, js, and css linters
 - `make docker clean` - remove all built containers, images, volumes, etc
 
@@ -168,14 +168,14 @@ make docker push
 │   ├── utils/                # Additional bash utils
 │   └── wp-cli/               # Scripts that used WP-CLI commands
 ├── web/                      # Web application folder
-│   ├── wp-config/            # wp-config.php and files that should be copied to web root dir
+│   ├── wp-config/            # wp-config.php & files that should be copied to web root dir
 │   ├── wp-content/           # wp-content folder
 │   │   ├── mu-plugins/       # Must use plugins
 │   │   ├── plugins/          # Plugins folder. Add your plugins here
 │   │   ├── themes/           # Themes folder. Add your theme here
 │   │   └── uploads/          # Media uploads folder. All subfolders content is gitignored
 │   └── wp-core/              # WordPress core files, docker mounted volume
-├── composer.json             # Manage packages, versions of WordPress, plugins & dependencies
+├── composer.json             # Manage packages, ver of WordPress, plugins & dependencies
 ├── docker-compose.build.yml  # Docker compose configuration file with utility services
 ├── docker-compose.yml        # Main docker compose file
 └── Makefile                  # Make commands configuration
@@ -237,7 +237,7 @@ make pma
 ```bash
 make restart
 ```
-3. Go inside mariadb container:
+3. Enter inside mariadb container:
 ```bash
 make exec mariadb
 ```
@@ -247,6 +247,11 @@ make exec mariadb
 mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
 ```
 Where 'new_password' - new root password
+5. Revert back changes in `docker-compose.yml`
+6. Restart containers:
+```bash
+make restart
+```
 
 ## Additional scripts
 ### Automatic backups
