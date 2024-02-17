@@ -44,9 +44,20 @@ PARAMS = $(filter-out $@,$(MAKECMDGOALS))
 # `make install dev npm` - will run only npm install and run dev mode
 install:
 	$(LOGO_SH)
+	# Generate .env.secret
 	bash ./sh/env/secret-gen.sh
+	# Init root .env file
 	bash ./sh/env/init.sh $(PARAMS)
+	# Composer and npm build
 	bash ./sh/install.sh $(PARAMS)
+	# Check WordPress installed correctly
+	docker compose run -it --rm php su -c "wp core verify-checksums" $(DEFAULT_USER)
+	# Run main project docker containers
+	docker compose up -d
+	# Check database is up
+	bash ./sh/database/check.sh
+	# Setup WordPress database
+	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
 
 # Generate .env.secret file
 secret:
