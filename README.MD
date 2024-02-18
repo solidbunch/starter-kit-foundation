@@ -184,7 +184,7 @@ make docker push
 
 `wp-content` - docker mounted WordPress folder. Add plugins and custom theme here.
 
-`wp-core` - web public directory. WordPress core files. Do not edit files in the `wp-core` folder, it installs by composer.
+`wp-core` - web public directory. WordPress core files. Do not edit files in this folder, it installs by composer.
 
 
 ## Sending emails
