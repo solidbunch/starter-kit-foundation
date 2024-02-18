@@ -19,7 +19,6 @@ if [[ ! $choice =~ ^[Yy]$ ]]; then
   exit 0
 fi
 
-
 # Build main docker images
 docker compose build
 
