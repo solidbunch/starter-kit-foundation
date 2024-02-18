@@ -122,7 +122,7 @@ It has another default folder `/srv/web` - root WordPress folder. Use `cd` comma
 ```bash
 make up prod
 ```
-The configuration file `/config/nginx/templates/config/https.conf.template` will be used instead of `/config/nginx/templates/config/http.conf.template`
+The configuration file `./config/nginx/templates/config/https.conf.template` will be used instead of `./config/nginx/templates/config/http.conf.template`
 
 ## Makefile commands
 
@@ -143,9 +143,12 @@ The configuration file `/config/nginx/templates/config/https.conf.template` will
 - `make lint` - run php, js, and css linters
 - `make docker clean` - remove all built containers, images, volumes, etc
 
-## Docker images
-Use custom containers registry for your project docker containers. [GitHub Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) or [Docker Hub](https://docs.docker.com/guides/walkthroughs/publish-your-image/).
-Use these commands to build and push images to the registry:
+## Docker Images
+
+Image names are defined in `./config/environment/.env.main`. Images are pulled from the registry by Docker. Use a custom containers registry for your project's Docker containers, such as [GitHub Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) or [Docker Hub](https://docs.docker.com/guides/walkthroughs/publish-your-image/).
+
+To build and push images to the registry, use the following commands from the root of your project directory:
+
 ```bash
 make docker build
 ```
