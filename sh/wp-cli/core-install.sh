@@ -31,6 +31,6 @@ wp core install \
 
 wp rewrite structure '/%postname%/' --hard
 
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: ${YELLOW}$WP_ADMIN_USER${NOCOLOR}"
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin password: ${YELLOW}$WP_ADMIN_PASSWORD${NOCOLOR}"
+echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: ${LIGHTYELLOW}$WP_ADMIN_USER${NOCOLOR}"
+echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin password: ${LIGHTYELLOW}$WP_ADMIN_PASSWORD${NOCOLOR}"
 echo -e "${LIGHTYELLOW}[Warning]${NOCOLOR} Store your password in safe place"
