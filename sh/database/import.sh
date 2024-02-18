@@ -28,8 +28,8 @@ if [ "$2" != "" ]; then
 fi
 
 echo -e "${LIGHTYELLOW}[Warning]${NOCOLOR} Current database '${MYSQL_DATABASE}' data will be replaced"
-read -p "Are you sure? (y/n): " choice
-if [[ ! $choice =~ ^[Yy]$ ]]; then
+read -rp "Are you sure? (y/n): " choice
+if [[ ! $choice =~ ^[Yy](es)?$ ]]; then
   echo "Not confirmed. Exiting."
   exit 0
 fi

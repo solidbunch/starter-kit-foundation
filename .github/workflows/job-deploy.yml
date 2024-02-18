@@ -22,37 +22,12 @@ on:
         type: string
 
 jobs:
-  prepare:
+  build:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Prepare .env
-        run: |
-          cp ./config/environment/.env.main .env
-          echo >> .env
-          cat ./config/environment/.env.type.${{ inputs.ENVIRONMENT_TYPE }} >> .env
-
-      - name: Save Prepared Built cache
-        uses: actions/cache@v3
-        with:
-          path: .
-          key: prepared-build-cache-${{ github.run_number }}
-
-
-  build-composer:
-    runs-on: ubuntu-22.04
-
-    needs: [prepare]
-
-    steps:
-      - name: Use Prepared Built cache
-        uses: actions/cache@v3
-        with:
-          path: .
-          key: prepared-build-cache-${{ github.run_number }}
 
       - name: Set up SSH key
         run: |
@@ -61,57 +36,35 @@ jobs:
           chmod 400 ~/.ssh/id_rsa
           echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
 
-      - name: Install Composer Dependencies
+      - name: Prepare .env
+        run: |
+          bash ./sh/env/secret-gen.sh
+          bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
+
+      - name: Install Composer and Node Dependencies
         run: |
           source ./.env
-          WP_DEFAULT_THEME=${WP_DEFAULT_THEME} composer update-${{ inputs.ENVIRONMENT_TYPE }}
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          bash ./sh/install.sh yes
 
-      - name: Save Composer Built cache
+      - name: Save Built cache
         uses: actions/cache@v3
         with:
           path: .
-          key: composer-build-cache-${{ github.run_number }}
-
-  build-node:
-    runs-on: ubuntu-22.04
-
-    needs: [ prepare, build-composer ]
-
-    steps:
-      - name: Use Composer Built cache
-        uses: actions/cache@v3
-        with:
-          path: .
-          key: composer-build-cache-${{ github.run_number }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install npm Dependencies
-        run: |
-          source ./.env
-          npm run install-${{ inputs.ENVIRONMENT_TYPE }} --prefix ./app/wp-content/themes/"${WP_DEFAULT_THEME}"
-          rm -rf ./app/wp-content/themes/"${WP_DEFAULT_THEME}"/node_modules
-
-      - name: Save Node Built cache
-        uses: actions/cache@v3
-        with:
-          path: .
-          key: composer-node-build-cache-${{ github.run_number }}
+          key: build-cache-${{ github.run_number }}
 
   deploy:
     runs-on: ubuntu-22.04
 
-    needs: [ prepare, build-composer, build-node ]
+    needs: [ build ]
 
     steps:
-      - name: Use Node Built cache
+      - name: Use Built cache
         uses: actions/cache@v3
         with:
           path: .
-          key: composer-node-build-cache-${{ github.run_number }}
+          key: build-cache-${{ github.run_number }}
 
       - name: Set up SSH key
         run: |
@@ -143,9 +96,9 @@ jobs:
             --exclude ".env.*secret" \
             --exclude "config/nginx/ssl/*.key" \
             --exclude "config/nginx/ssl/*.crt" \
-            --exclude "wp-content/cache" \
-            --exclude "wp-content/languages" \
-            --exclude "wp-content/uploads" \
+            --exclude "web/wp-content/cache" \
+            --exclude "web/wp-content/languages" \
+            --exclude "web/wp-content/uploads" \
             ./ ${{ inputs.SSH_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
           ssh ${{ inputs.SSH_ALIAS }} " \
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && \

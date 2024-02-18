@@ -49,9 +49,7 @@ install:
 	# Init root .env file
 	bash ./sh/env/init.sh $(PARAMS)
 	# Composer and npm build
-	bash ./sh/install.sh $(PARAMS)
-	# Check WordPress installed correctly
-	docker compose run -it --rm php su -c "wp core verify-checksums" $(DEFAULT_USER)
+	bash ./sh/install.sh
 	# Run main project docker containers
 	docker compose up -d
 	# Check database is up
