@@ -45,7 +45,7 @@ logs/**/*.out
 .env.*secret
 /config/nginx/ssl/*.key
 /config/nginx/ssl/*.crt
-iasc/public_keys
+iac/public_keys
 
 #=============================#
 #          Terraform          #
