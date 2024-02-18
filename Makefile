@@ -130,10 +130,10 @@ lint:
 
 # IasC
 terraform:
-	terraform -chdir=iasc/terraform $(PARAMS)
+	terraform -chdir=iac/terraform $(PARAMS)
 
 ansible:
-	ansible-playbook -i iasc/ansible/inventory.ini iasc/ansible/prepare-servers.yml $(PARAMS)
+	ansible-playbook -i iac/ansible/inventory.ini iac/ansible/prepare-servers.yml $(PARAMS)
 
 # docker build|docker push|docker clean
 docker:
