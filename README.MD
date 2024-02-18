@@ -159,7 +159,7 @@ make docker push
 ├── config/                   # Global config files
 ├── db-data/                  # Database docker mounted volume
 ├── dockerfiles/              # Docker images (Dockerfiles). Need just for build
-├── iac/                     # IaC Terraform and Ansible configuration for server setup
+├── iac/                      # IaC Terraform and Ansible configuration for server setup
 ├── logs/                     # System and WordPress logs
 ├── sh/                       # Bash scripts
 │   ├── cron/                 # Cron scripts
