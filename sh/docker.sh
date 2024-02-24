@@ -111,6 +111,7 @@ if [ "$MODE" == "push" ]; then
         --platform linux/amd64,linux/arm64 \
         -t "${IMAGES[i]}" \
         "./dockerfiles/${SERVICES[i]}" \
+        --output "type=image,name=target,annotation-index.org.opencontainers.image.description=Docker ${SERVICES[i]} [linux/amd64;linux/arm64] image,annotation-index.org.opencontainers.image.licenses=MIT License" \
         --push
 
       echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [${PLATFORMS}]"
