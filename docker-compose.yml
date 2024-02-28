@@ -34,10 +34,10 @@ services:
       - ./web/wp-content:/srv/web/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
+      # PHP config
+      - ./config/php:/usr/local/etc/php/templates
       # SSMTP config
       - ./config/ssmtp:/etc/ssmtp/templates:ro
-      # Xdebug config
-      - ./config/xdebug/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
       # Share shell scripts
       - ./sh:/shell:ro
 
@@ -64,8 +64,9 @@ services:
       # WordPress wp-content folder
       - ./web/wp-content:/srv/web/wp-content
       # Nginx config
-      - ./config/nginx/templates:/etc/nginx/templates:ro
-      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      - ./config/nginx:/etc/nginx/templates:ro
+      # SSL files
+      - ./config/ssl:/etc/nginx/ssl:ro
       # Logs
       - ./logs/nginx:/var/log/nginx
 
@@ -81,7 +82,7 @@ services:
       # Share docker socket to allow cron run scenarios inside other containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Share crontabs files into tmp folder
-      - ./config/cron/crontabs:/tmp/crontabs
+      - ./config/crontabs:/tmp/crontabs
       # Backups folder
       - ./backups:/srv/backups
       # Share shell scripts
