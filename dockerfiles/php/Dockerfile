@@ -21,13 +21,12 @@ RUN set -eux; \
       imagemagick \
 # Use SMTP relay service
       ssmtp \
-# ToDo - better to separate this to additional container (run, work and stop)
-# Need envsubst for operate with env variables in config files
+# Envsubst for operate with env variables in config files
       gettext \
-# install wp-cli dependencies
+# Install wp-cli dependencies
       less \
       mysql-client
-#
+
 ##################################
 #     install PHP extensions     #
 ##################################
@@ -60,14 +59,11 @@ RUN set -ex; \
     ; \
 # Install Xdebug see https://xdebug.org/docs/install
     pecl install xdebug-${XDEBUG_VERSION}; \
-#      docker-php-ext-enable xdebug; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
     pecl install imagick-${IMAGICK_VERSION}; \
-    docker-php-ext-enable imagick; \
-    rm -r /tmp/pear; \
-    \
+#
 # some misbehaving extensions end up outputting to stdout 🙈 (https://github.com/docker-library/wordpress/issues/669#issuecomment-993945967)
     out="$(php -r 'exit(0);')"; \
     [ -z "$out" ]; \
@@ -89,57 +85,9 @@ RUN set -ex; \
   # check for output like "PHP Warning:  PHP Startup: Unable to load dynamic library 'foo' (tried: ...)
     err="$(php --version 3>&1 1>&2 2>&3)"; \
     [ -z "$err" ]; \
-    \
 #
 # Clear /tmp
-    rm -rf /tmp/*; \
-#
-##################################
-#      Set PHP.ini settings      #
-##################################
-# see https://secure.php.net/manual/en/opcache.installation.php
-    \
-    set -eux; \
-    docker-php-ext-enable opcache; \
-    { \
-      echo 'opcache.memory_consumption=128'; \
-      echo 'opcache.interned_strings_buffer=8'; \
-      echo 'opcache.max_accelerated_files=4000'; \
-      echo 'opcache.revalidate_freq=2'; \
-    } > /usr/local/etc/php/conf.d/opcache-recommended.ini; \
-# https://wordpress.org/documentation/article/editing-wp-config-php/#configure-error-logging
-    { \
-  # https://www.php.net/manual/en/errorfunc.constants.php
-  # https://github.com/docker-library/wordpress/issues/420#issuecomment-517839670
-      echo 'error_reporting = E_ERROR | E_WARNING | E_PARSE | E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_COMPILE_WARNING | E_RECOVERABLE_ERROR'; \
-      echo 'display_errors = Off'; \
-      echo 'display_startup_errors = Off'; \
-      echo 'log_errors = On'; \
-      echo 'error_log = /dev/stderr'; \
-      echo 'log_errors_max_len = 1024'; \
-      echo 'ignore_repeated_errors = On'; \
-      echo 'ignore_repeated_source = Off'; \
-      echo 'html_errors = Off'; \
-    } > /usr/local/etc/php/conf.d/error-logging.ini; \
-##
-## set PHP.ini settings for sendmail
-    { \
-      echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
-      #echo 'sendmail_path = /usr/sbin/sendmail -t'; \
-    } > /usr/local/etc/php/conf.d/sendmail.ini; \
-##
-## set custom PHP.ini settings
-    { \
-      # Resource Limits
-      echo 'max_execution_time = 30'; \
-      # Memory limits works across WP_MEMORY_LIMIT and WP_MAX_MEMORY_LIMIT constants that comes from .env file
-      # echo 'memory_limit = 128M'; \
-      # Data Handling
-      echo 'post_max_size = 8M'; \
-      # File uploads
-      echo 'upload_max_filesize = 6M'; \
-      echo 'max_file_uploads = 20'; \
-    } > /usr/local/etc/php/conf.d/custom-php.ini
+    rm -rf /tmp/*
 
 ##################################
 #     WordPress logs folder      #
