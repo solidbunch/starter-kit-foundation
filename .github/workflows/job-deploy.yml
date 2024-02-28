@@ -49,7 +49,7 @@ jobs:
           bash ./sh/install.sh yes
 
       - name: Save Built cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .
           key: build-cache-${{ github.run_number }}
@@ -61,7 +61,7 @@ jobs:
 
     steps:
       - name: Use Built cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .
           key: build-cache-${{ github.run_number }}
@@ -94,8 +94,7 @@ jobs:
             --exclude ".env" \
             --exclude ".env.*override" \
             --exclude ".env.*secret" \
-            --exclude "config/nginx/ssl/*.key" \
-            --exclude "config/nginx/ssl/*.crt" \
+            --exclude "config/ssl/*.pem" \
             --exclude "web/wp-content/cache" \
             --exclude "web/wp-content/languages" \
             --exclude "web/wp-content/uploads" \
@@ -104,4 +103,3 @@ jobs:
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && \
             make secret && \
             make recreate ${{ inputs.ENVIRONMENT_TYPE }}"
-

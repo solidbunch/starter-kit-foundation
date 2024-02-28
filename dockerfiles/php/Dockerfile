@@ -1,7 +1,13 @@
-##
-## Based on official WordPress image https://hub.docker.com/_/wordpress
-##
 FROM php:8.1-fpm-alpine3.17
+
+ENV XDEBUG_VERSION 3.1.4
+ENV IMAGICK_VERSION 3.7.0
+
+##################################
+#         Adding WP-CLI          #
+##################################
+# https://hub.docker.com/_/wordpress
+COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
 
 ##################################
 #     Persistent dependencies    #
@@ -26,7 +32,7 @@ RUN set -eux; \
 #     install PHP extensions     #
 ##################################
 # install the PHP extensions we need (https://make.wordpress.org/hosting/handbook/handbook/server-environment/#php-extensions)
-RUN    set -ex; \
+RUN set -ex; \
     \
     apk add --no-cache --virtual .build-deps \
       $PHPIZE_DEPS \
@@ -53,12 +59,12 @@ RUN    set -ex; \
       zip \
     ; \
 # Install Xdebug see https://xdebug.org/docs/install
-    pecl install xdebug-3.1.4; \
+    pecl install xdebug-${XDEBUG_VERSION}; \
 #      docker-php-ext-enable xdebug; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
-    pecl install imagick-3.7.0; \
+    pecl install imagick-${IMAGICK_VERSION}; \
     docker-php-ext-enable imagick; \
     rm -r /tmp/pear; \
     \
@@ -118,8 +124,8 @@ RUN    set -ex; \
 ##
 ## set PHP.ini settings for sendmail
     { \
-      #echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
-      echo 'sendmail_path = /usr/sbin/sendmail -t'; \
+      echo 'sendmail_path = /usr/sbin/ssmtp -t -i'; \
+      #echo 'sendmail_path = /usr/sbin/sendmail -t'; \
     } > /usr/local/etc/php/conf.d/sendmail.ini; \
 ##
 ## set custom PHP.ini settings
@@ -134,11 +140,6 @@ RUN    set -ex; \
       echo 'upload_max_filesize = 6M'; \
       echo 'max_file_uploads = 20'; \
     } > /usr/local/etc/php/conf.d/custom-php.ini
-
-##################################
-#   Adding WP-CLI   #
-##################################
-COPY --from=wordpress:cli-2.9-php8.1 /usr/local/bin/wp /usr/local/bin/wp
 
 ##################################
 #     WordPress logs folder      #

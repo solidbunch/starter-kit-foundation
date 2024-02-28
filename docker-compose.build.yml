@@ -5,7 +5,7 @@ services:
   composer:
     image: "${APP_COMPOSER_IMAGE}"
     container_name: "${APP_NAME}_composer"
-    restart: "no"
+    restart: no
     env_file: .env
     environment:
       DEFAULT_USER: ${DEFAULT_USER}
@@ -15,15 +15,21 @@ services:
     volumes:
       # Project files with same path
       - ./:/srv
-      # SSMTP config
-      - ./config/ssmtp:/etc/ssmtp/templates:ro
       # User added in Dockerfile
       - ~/.ssh:/home/${DEFAULT_USER}/.ssh:ro
+      # Debug log
+      - ./logs/wordpress:/var/log/wordpress
+      # PHP config
+      - ./config/php:/usr/local/etc/php/templates
+      # SSMTP config
+      - ./config/ssmtp:/etc/ssmtp/templates:ro
+      # Share shell scripts
+      - ./sh:/shell:ro
 
   node:
     image: "${APP_NODE_IMAGE}"
     container_name: "${APP_NAME}_node"
-    restart: "no"
+    restart: no
     env_file: .env
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
@@ -41,7 +47,7 @@ services:
   phpmyadmin:
     image: "${APP_PHPMYADMIN_IMAGE}"
     container_name: "${APP_NAME}_phpmyadmin"
-    restart: "no"
+    restart: no
     ports:
       - ${PMA_EXT_PORT}:80
     env_file: .env

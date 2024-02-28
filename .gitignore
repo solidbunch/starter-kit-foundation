@@ -43,8 +43,9 @@ logs/**/*.out
 .env
 .env.*override
 .env.*secret
-/config/nginx/ssl/*.key
-/config/nginx/ssl/*.crt
+/config/ssl/**/*.key
+/config/ssl/**/*.crt
+/config/ssl/**/*.pem
 iac/public_keys
 
 #=============================#
