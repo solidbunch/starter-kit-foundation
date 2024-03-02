@@ -26,5 +26,4 @@ RUN set -eux ; \
     $([ "$(apk --print-arch)" != "x86" ] && echo mercurial) \
     $([ "$(apk --print-arch)" != "armhf" ] && echo p7zip)
 
-CMD ["composer", "install"]
-
+CMD ["composer"]

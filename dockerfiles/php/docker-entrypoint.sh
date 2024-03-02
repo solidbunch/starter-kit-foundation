@@ -49,16 +49,6 @@ chown "${DEFAULT_USER}":"${DEFAULT_USER}" /var/log/wordpress
 
 echo "${DEFAULT_USER} user UID=${CURRENT_UID} updated"
 
-# Move all conf.d/*.ini files to the disabled directory
-# We use only manually connected ini files to control all extensions and settings
-entrypoint_log "$ME: Disabling automatically added ini files"
-mkdir -p "/usr/local/etc/php/conf.d/disabled"
-mv "/usr/local/etc/php/conf.d/"*.ini "/usr/local/etc/php/conf.d/disabled/" 2>/dev/null || true
-
-# Replace env variables with values in PHP config using gettext app
-# And move ini files into config folder
-replace_env_vars "/usr/local/etc/php/templates" "/usr/local/etc/php/conf.d"
-
 # Replace env variables with values in sSMTP config using gettext app
 replace_env_vars "/etc/ssmtp/templates" "/etc/ssmtp"
 
