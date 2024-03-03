@@ -17,91 +17,50 @@
 
 </p>
 
-## What's inside the containers
-<p align="center">
-
-  <a href="https://hub.docker.com/_/php">
-    <img alt="PHP" src="https://img.shields.io/badge/PHP%20fpm-8.1-8892bf">
-  </a>
-
-  <a href="https://hub.docker.com/_/mariadb">
-    <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-10.11-c0765a">
-  </a>
-
-  <a href="https://hub.docker.com/_/wordpress">
-    <img alt="WordPress" src="https://img.shields.io/badge/WordPress-6.3-lightgrey">
-  </a>
-
-  <a href="https://hub.docker.com/_/nginx">
-    <img alt="Nginx" src="https://img.shields.io/badge/Nginx-1.25-00a652">
-  </a>
-
-  <a href="https://hub.docker.com/_/composer">
-    <img alt="Composer" src="https://img.shields.io/badge/Composer-2.6-885630">
-  </a>
-
-  <a href="https://hub.docker.com/_/node">
-    <img alt="Node" src="https://img.shields.io/badge/Node-18-8cc94c">
-  </a>
-
-  <a href="https://hub.docker.com/_/wordpress">
-    <img alt="WP CLI" src="https://img.shields.io/badge/WPcli-2.9-222222">
-  </a>
-
-  <a href="https://hub.docker.com/_/phpmyadmin">
-    <img alt="phpMyAdmin" src="https://img.shields.io/badge/phpMyAdmin-5.1-f99d0f">
-  </a>
-
-</p>
-
 ## Requirements
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v24+
 2. [Docker Compose](https://docs.docker.com/compose/install/) v2.21+
+3. [GitHub SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
 
 
-## How to use
+## Creating new project
 
-### Installation
+1. Check your GitHub SSH connection `ssh -T git@github.com`
 
-1. Create a new project directory<sup>[1](#footnote_fhs)</sup>:
-
-```bash
-mkdir you-project.com && cd you-project.com
-```
-
-2. Clone Starter Kit foundation:
-
-```bash
-git clone --depth=1 git@github.com:solidbunch/starter-kit-foundation.git . && rm -rf .git
-```
+2. Create a new project directory and clone this repository into the project folder.
 
 3. Update environment variables in the `./config/environment/.env.main` file. Change `APP_NAME`, etc.
 
+4. Update `./config/environment/.env.type.local`, `.env.type.dev`, `.env.type.stage`, `.env.type.prod` - specific environment types for local, development, staging, and production. You can add any new environment type. Change `APP_DOMAIN`, and other variables
 
-4. Update `./config/environment/.env.main|.env.type.local|.env.type.dev|.env.type.stage|.env.type.prod` - specific environment types for local, development, staging, and production. You can add any new environment type. For example, an additional production server for the use of multiply instances of the app. Change `APP_DOMAIN`, and other variables
+5. Follow next [installation](#installation-of-existing-project) steps.
 
+## Installation of existing project
 
-3. Run installation process:
+1. Create a project folder and clone this repository if you haven't already done so
+
+2. Run installation process:
 
 ```bash
-make install [environment_type] [mode]
+make install [environment_type]
 ```
-Where **environment_type** - any type that exist in ./config/environment/.env.type.*. `local` is the default. **mode** - `composer` or `npm` installation mode. Empty by default runs full installation. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, build containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to .env.type files.
+Where `environment_type` - any type that exist in `./config/environment/.env.type.*.` `local` is the default. This will create a `.env.secrets` file with passwords, run PHP Composer, and NPM dependencies installation, build containers, set up the database, with WordPress tables, and create a wp-admin user. So, as a result, the project will be fully accessible in the browser with the domain you added to `.env.type` files.
 
-Also, you can run `make install local composer` or `make install local npm` to run just composer install or npm install
-
-To use productions environment run:
+For example, to use production environment run:
 
 ```bash
 make install prod
 ```
+And `.env.type.prod` will be used with defined APP_DOMAIN, APP_PROTOCOL, and other settings.
 
-<a name="footnote_fhs"></a>[1]: We recommend to use `/srv` folder instead `/var/www`. Create `/srv/apps` folder for your web apps. See [FHS](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html).
 
-### Usage 🚀
+BTW: We recommend using the `/srv` folder instead of `/var/www` for your web content. This recommendation is based on the [Filesystem Hierarchy Standard (FHS)](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s17.html), which suggests /srv for site-specific data served by the system.
 
-The project is ready to use immediately after installation, but you can stop, recreate, launch the containers in different environments.
+
+## Usage 🚀
+
+The project is ready to use immediately after installation, but you can stop, recreate, launch the containers in different environments. To run containers use command:
 
 ```bash
 make up [environment_type]
@@ -117,7 +76,7 @@ make up stage
 make up prod
 ```
 
-Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app run.
+Do not edit the automatically concatenated root `.env` file. It will be overwritten every time the app runs.
 
 After the installation, you can add your custom secrets 🔑 to `.env.secret`, but keep in mind that your secrets will not appear in the repository and will not be visible to other users. There is a `./sh/env/.env.secret.template` file for this. It has a template of secrets, without secret data.
 
@@ -126,51 +85,110 @@ You can add secret variables names there without secret data, just for structure
 
 ⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
-### Production Launch with HTTPS
+## Run composer scripts
+To run PHP Composer, you need to run the `composer` container and enter it:
+```bash
+make run composer
+```
+Command `make run <service_name>` will run bash inside selected service (container).
 
-1. Put your certificate files in `./config/nginx/ssl/` with names <your-app-domain.com>.crt and <your-app-domain.com>.key
-2. Change var `APP_PROTOCOL=https` in your `.env.type.[environment_type]`
-3. Start containers with http > https redirect:
+Inside the container, you can use the command line to run any command you need in any folder of your project. For example, to install packages defined in the main composer.json file, in default folder `/srv` use:
+```bash
+composer install
+```
+or
+```bash
+composer update
+```
+
+## Run node scripts
+To use watch with BrowserSync run:
+```bash
+make watch
+```
+
+To run other npm scripts need to run `node` container and enter it:
+```bash
+make run node
+```
+It has another default folder `/srv/web` - root WordPress folder. Use `cd` command to go to your theme and run any command.
+
+## Production Launch with HTTPS
+
+1. Place your certificate files in `./config/nginx/ssl/` with the names `<your-app-domain.com>.crt` and `<your-app-domain.com>.key`.
+2. Update the variable `APP_PROTOCOL=https` in your `.env.type.prod` file to enable HTTPS.
+3. Start containers with HTTP to HTTPS redirect:
 
 ```bash
 make up prod
 ```
-The configuration file `/config/nginx/templates/config/https.conf.template`  will be used instead of `/config/nginx/templates/config/http.conf.template`
+The configuration file `./config/nginx/templates/config/https.conf.template` will be used instead of `./config/nginx/templates/config/http.conf.template`
 
-### Makefile commands
+## Makefile commands
 
-- `make install [environment_type] [mode]`
+- `make install [environment_type]`
 - `make secret`
+- `make watch` - run node watcher
 - `make up [environment_type]` - `docker compose up -d --build`
 - `make upd [environment_type]` - `docker compose up --build`
 - `make down` - `docker compose down -v`
 - `make restart` - `docker compose restart`
 - `make recreate` - `docker compose up -d --build --force-recreate`
+- `make import <sql_file_name>` - import sql file to WordPress database
+- `make export` - will export current database to sql file
+- `make replace [search_domain] [replace_domain]` -  search replace domain in the database
 - `make pma`
+- `make run <service_name>` - `docker compose run -it --rm .... <service_name> ...`
+- `make exec <service_name>` - `docker compose exec -it .... <service_name> ...`
+- `make lint` - run php, js, and css linters
+- `make docker clean` - remove all built containers, images, volumes, etc
+
+## Docker Images
+
+Image names are defined in `./config/environment/.env.main`. Images are pulled from the registry by Docker. Use a custom containers registry for your project's Docker containers, such as [GitHub Registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) or [Docker Hub](https://docs.docker.com/guides/walkthroughs/publish-your-image/).
+
+To build and push images to the registry, use the following commands from the root of your project directory:
+
+```bash
+make docker build
+```
+```bash
+make docker push
+```
 
 ## Structure
-wp-content - docker mounted WordPress wp-content folder, it's your working directory. Add plugins and custom theme here.
-
 ```
-backups/                  # Daily and weekly WordPress media and database backups
-config/                   # Global config files
-db-data/                  # Database docker mounted volume
-docker/                   # Docker images (Dockerfiles) and additional scripts
-logs/                     # System and wordpress logs
-sh/                       # Bash scripts
-├── env/                  # Operations with environment files
-└── utils/                # Additional bash utils
-wp-content/               # Docker mounted volume, WordPress wp-content folder
-├── mu-plugins/           # Must use plugins
-├── plugins/              # Plugins folder. Add your plugins here
-├── themes/               # Themes folder. Add your theme here
-│   └── twenty*/          # Standard themes added to .gitignore
-├── .../                  # Everything else in the wp-content folder is gitignored
-└── uploads/              # Media uploads folder. All subfolders content is gitignored
-wp-core/                  # WordPress core files, docker mounted volume. Gitignored
+├── backups/                  # Daily and weekly WordPress media, and database backups
+├── config/                   # Global config files
+├── db-data/                  # Database docker mounted volume
+├── dockerfiles/              # Docker images (Dockerfiles). Need just for build
+├── iac/                      # IaC Terraform and Ansible configuration for server setup
+├── logs/                     # System and WordPress logs
+├── sh/                       # Bash scripts
+│   ├── cron/                 # Cron scripts
+│   ├── database/             # Database management
+│   ├── env/                  # Operations with environment files
+│   ├── utils/                # Additional bash utils
+│   └── wp-cli/               # Scripts that used WP-CLI commands
+├── web/                      # Web application folder
+│   ├── wp-config/            # wp-config.php & files that should be copied to web root dir
+│   ├── wp-content/           # wp-content folder
+│   │   ├── mu-plugins/       # Must use plugins
+│   │   ├── plugins/          # Plugins folder. Add your plugins here
+│   │   ├── themes/           # Themes folder. Add your theme here
+│   │   └── uploads/          # Media uploads folder. All subfolders content is gitignored
+│   └── wp-core/              # WordPress core files, docker mounted volume
+├── composer.json             # Manage version of WordPress, plugins & dependencies
+├── docker-compose.build.yml  # Docker compose configuration file with utility services
+├── docker-compose.yml        # Main docker compose file
+└── Makefile                  # Make commands configuration
 ```
+`wp-config` folder contents will copy to `wp-core` folder every time composer update/install runs.
 
-Do not edit files in the wp-core folder, it builds automatically.
+`wp-content` - docker mounted WordPress folder. Add plugins and custom theme here.
+
+`wp-core` - web public directory. WordPress core files. Do not edit files in this folder, it installs by composer.
+
 
 ## Sending emails
 
@@ -208,7 +226,7 @@ To use phpMyadmin need to run the phpMyadmin container first. It's not running b
 2. Run phpMyadmin container:
 
 ```bash
-make pma-up
+make pma
 ```
 
 3. Open the `your-app-domain.com:PMA_EXT_PORT` URL in the browser to access phpMyadmin. For example, we use `PMA_EXT_PORT=8801`. Open `your-app-domain.com:8801`
@@ -216,11 +234,28 @@ make pma-up
 
 ⚠️  **WARNING 📣 Do not use phpMyadmin on public (production or open stage), it's not secure!**
 
-
-To stop the phpMyadmin container run command:
+### Reset database root password
+1. In `docker-compose.yml` file uncomment `command: --skip-grant-tables` in mariadb service
+2. Restart containers:
+```bash
+make restart
+```
+3. Enter inside mariadb container:
+```bash
+make exec mariadb
+```
+4. Inside container run:
 
 ```bash
-make pma-down
+mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
+```
+Where 'new_password' - new root password
+
+5. Revert back changes in `docker-compose.yml`
+
+6. Restart containers:
+```bash
+make restart
 ```
 
 ## Additional scripts
@@ -235,7 +270,7 @@ To activate backups:
 2. Check crontab file in `./config/crontabs` - change cronjob time if it needs.
 
 
-3. If you have more than one database (maybe custom databases), check `mysqldump` command parameters in `./docker/cron/start-backup.sh`
+3. If you have more than one database (maybe custom databases), check `mariadb-dump` command parameters in `./docker/cron/start-backup.sh`
 
 Backups will appear in the `./backups` folder, logs in the docker cron container logs
 

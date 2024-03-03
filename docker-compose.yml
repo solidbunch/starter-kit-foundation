@@ -2,53 +2,53 @@ version: "3.9"
 
 services:
 
-  database:
-    image: mariadb:10.11
-    container_name: "${APP_NAME}_database"
+  mariadb:
+    image: "${APP_DATABASE_IMAGE}"
+    container_name: "${APP_NAME}_mariadb"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     ports:
       - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
-    # Uncomment this to reset root password and run inside container mysql> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
+    # Uncomment this to reset root password and run inside container mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
     #command: --skip-grant-tables
     volumes:
       - ./db-data:/var/lib/mysql
 
-  wordpress:
-    build:
-      context: ./docker/wordpress
-      dockerfile: Dockerfile
-      args:
-        # Transferring current system User ID into container. Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
-        XDEBUG_ENABLE: ${XDEBUG_ENABLE:-0}
-    container_name: "${APP_NAME}_wordpress"
+  php:
+    image: "${APP_PHP_IMAGE}"
+    container_name: "${APP_NAME}_php"
     restart: unless-stopped
     depends_on:
-      - database
+      - mariadb
+    working_dir: /srv/web
     env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     volumes:
       # Web root folder
-      - ./app/wp-core:/var/www/html
+      - ./web/wp-core:/srv/web
       # WordPress wp-content folder
-      - ./app/wp-content:/var/www/html/wp-content
+      - ./web/wp-content:/srv/web/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
+      # PHP ini config
+      - ./config/php:/usr/local/etc/php
       # SSMTP config
       - ./config/ssmtp:/etc/ssmtp/templates:ro
-      # Xdebug config
-      - ./config/xdebug/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini:ro
+      # Share shell scripts
+      - ./sh:/shell:ro
 
   nginx:
-    build: ./docker/nginx
+    image: "${APP_NGINX_IMAGE}"
     container_name: "${APP_NAME}_nginx"
     restart: unless-stopped
     depends_on:
-      - database
-      - wordpress
+      - mariadb
+      - php
+    working_dir: /srv/web
     env_file: .env
     ports:
       - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
@@ -60,28 +60,33 @@ services:
           - "${APP_DOMAIN}"
     volumes:
       # Web root folder
-      - ./app/wp-core:/var/www/html
+      - ./web/wp-core:/srv/web
       # WordPress wp-content folder
-      - ./app/wp-content:/var/www/html/wp-content
+      - ./web/wp-content:/srv/web/wp-content
       # Nginx config
-      - ./config/nginx/templates:/etc/nginx/templates:ro
-      - ./config/nginx/ssl:/etc/nginx/ssl:ro
+      - ./config/nginx:/etc/nginx/templates:ro
+      # SSL files
+      - ./config/ssl:/etc/nginx/ssl:ro
       # Logs
       - ./logs/nginx:/var/log/nginx
 
   cron:
-    build:
-      context: ./docker/cron
-      dockerfile: Dockerfile
-      args:
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+    image: "${APP_CRON_IMAGE}"
     container_name: "${APP_NAME}_cron"
     restart: unless-stopped
+    depends_on:
+      - mariadb
+      - php
     env_file: .env
     volumes:
+      # Share docker socket to allow cron run scenarios inside other containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./backups:/srv/wordpress/backups
+      # Share crontabs files into tmp folder
+      - ./config/crontabs:/tmp/crontabs
+      # Backups folder
+      - ./backups:/srv/backups
+      # Share shell scripts
+      - ./sh:/shell:ro
 
 networks:
   project_network:
