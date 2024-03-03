@@ -1,5 +1,5 @@
 # Run from original mariadb ubuntu
-FROM mariadb:11.2.2-jammy
+FROM mariadb:11.3.2-jammy
 
 # Install pv
 RUN apt-get update; \
