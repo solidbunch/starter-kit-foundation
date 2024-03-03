@@ -3,7 +3,7 @@
 
 include ./sh/utils/colors
 
-include .env
+include ./config/environment/.env.main
 
 SHELL = /bin/sh
 
@@ -13,15 +13,23 @@ CURRENT_GID := $(shell id -g)
 
 # Check if CURRENT_UID and CURRENT_GID are less than 1000 (Fix Mac users ID)
 ifeq ($(shell expr $(CURRENT_UID) \< 1000), 1)
-CURRENT_UID := 1000
+	CURRENT_UID := 1000
 endif
 
 ifeq ($(shell expr $(CURRENT_GID) \< 1000), 1)
-CURRENT_GID := 1000
+	CURRENT_GID := 1000
 endif
+
+#if [ ! "${CURRENT_GID}" ] || [ ! "${CURRENT_UID}" ]; then
+#  CURRENT_GID="${DEFAULT_GID}"
+#  CURRENT_UID="${DEFAULT_UID}"
+#fi
+
 
 export CURRENT_UID
 export CURRENT_GID
+
+export DOCKER_BUILDKIT=1
 
 # Default values
 LOGO_SH=bash ./sh/logo.sh
@@ -36,14 +44,27 @@ PARAMS = $(filter-out $@,$(MAKECMDGOALS))
 # `make install dev npm` - will run only npm install and run dev mode
 install:
 	$(LOGO_SH)
+	# Generate .env.secret
 	bash ./sh/env/secret-gen.sh
+	# Init root .env file
 	bash ./sh/env/init.sh $(PARAMS)
-	bash ./sh/install.sh $(PARAMS)
+	# Composer and npm build
+	bash ./sh/install.sh
+	# Run main project docker containers
+	docker compose up -d
+	# Check database is up
+	bash ./sh/database/check.sh
+	# Setup WordPress database
+	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
 
 # Generate .env.secret file
 secret:
 	$(LOGO_SH)
 	bash ./sh/env/secret-gen.sh
+
+init:
+	$(LOGO_SH)
+	bash ./sh/env/init.sh $(PARAMS)
 
 # Run mix watch with browserSync
 watch:
@@ -75,57 +96,46 @@ recreate:
 	docker compose up -d --build --force-recreate
 
 # Run database import script with first argument as file name and second as database name
-db-import:
-	bash ./sh/import_database.sh $(PARAMS)
+import:
+	bash ./sh/database/import.sh $(PARAMS)
 
 # Run database export script with first argument as file name and second as database name
-db-export:
-	bash ./sh/export_database.sh $(PARAMS)
+export:
+	bash ./sh/database/export.sh $(PARAMS)
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
-	docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash -c "bash /shell/database_replacements.sh $(PARAMS)"
+	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
 # Run phpMyAdmin docker container
 pma:
 	docker compose -f docker-compose.build.yml run --service-ports --rm --build phpmyadmin
 
-# run WP-CLI container for custom commands
-wp:
-	docker compose -f docker-compose.build.yml run --rm --build wp-cli-container bash 2> /dev/null
-
 log:
 	docker compose logs -f
 
-wlog:
-	grc tail -f logs/wordpress/debug.log
-
-ilog:
-	grc tail -f logs/wordpress/info.log
-
-# Run container and bash inside container
 run:
 	$(LOGO_SH)
-	docker compose -f docker-compose.build.yml run -it --rm --build $(PARAMS) sh -c "echo -e 'You are inside $(PARAMS) container' && sh" 2> /dev/null
+	bash ./sh/run.sh run $(PARAMS)
+
+exec:
+	$(LOGO_SH)
+	bash ./sh/run.sh exec $(PARAMS)
 
 lint:
-	docker compose -f docker-compose.build.yml run -it --rm --build composer-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer lint"
-	docker compose -f docker-compose.build.yml run -it --rm --build node-container sh -c "cd app/wp-content/themes/${WP_DEFAULT_THEME} && npm run lint"
+	docker compose -f docker-compose.build.yml run -it --rm --build composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
+	docker compose -f docker-compose.build.yml run -it --rm --build node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
 
 # IasC
 terraform:
-	terraform -chdir=iasc/terraform $(PARAMS)
+	terraform -chdir=iac/terraform $(PARAMS)
 
 ansible:
-	ansible-playbook iasc/ansible/prepare-servers.yml $(PARAMS)
+	ansible-playbook -i iac/ansible/inventory.ini iac/ansible/prepare-servers.yml $(PARAMS)
 
-# Full docker cleanup
-docker-clean:
-	docker container prune
-	docker image prune -a
-	docker volume prune
-	docker network prune
-	docker system prune
+# docker build|docker push|docker clean
+docker:
+	bash ./sh/docker.sh $(PARAMS)
 
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run

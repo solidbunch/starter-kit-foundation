@@ -2,60 +2,52 @@ version: "3.9"
 
 services:
 
-  composer-container:
-    build:
-      context: ./docker/composer
-      dockerfile: Dockerfile
-      args:
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+  composer:
+    image: "${APP_COMPOSER_IMAGE}"
     container_name: "${APP_NAME}_composer"
-    restart: "no"
+    restart: no
     env_file: .env
-    command: [ "composer", "install" ]
-    working_dir: /workspace
+    environment:
+      DEFAULT_USER: ${DEFAULT_USER}
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+    working_dir: /srv
     volumes:
-      - ./:/workspace
+      # Project files with same path
+      - ./:/srv
       # User added in Dockerfile
-      - ~/.ssh:/home/user/.ssh:ro
+      - ~/.ssh:/home/${DEFAULT_USER}/.ssh:ro
+      # Debug log
+      - ./logs/wordpress:/var/log/wordpress
+      # PHP ini config
+      - ./config/php:/usr/local/etc/php
+      # SSMTP config
+      - ./config/ssmtp:/etc/ssmtp/templates:ro
+      # Share shell scripts
+      - ./sh:/shell:ro
 
-  node-container:
-    build:
-      context: ./docker/node
-      dockerfile: Dockerfile
-      args:
-        CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-        CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+  node:
+    image: "${APP_NODE_IMAGE}"
     container_name: "${APP_NAME}_node"
-    restart: "no"
+    restart: no
     env_file: .env
-    command: [ "npm", "install" ]
-    working_dir: /workspace
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+    working_dir: /srv/web
     ports:
       - "3000:3000"
       - "3001:3001"
     volumes:
-      - ./:/workspace
-
-  wp-cli-container:
-    image: wordpress:cli-2.9-php8.1
-    container_name: "${APP_NAME}_wp-cli"
-    command: ["wp", "shell"]
-    user: "${CURRENT_UID:-$DEFAULT_UID}:${CURRENT_GID:-$DEFAULT_GID}"
-    restart: "no"
-    working_dir: /var/www/html
-    env_file: .env
-    volumes:
-      - ./app/wp-core:/var/www/html
-      - ./app/wp-content:/var/www/html/wp-content
-      # Share shell scripts
-      - ./sh:/shell:ro
-
+      # Web root folder
+      - ./web/wp-core:/srv/web
+      # WordPress wp-content folder
+      - ./web/wp-content:/srv/web/wp-content
 
   phpmyadmin:
-    image: phpmyadmin:5.2-apache
+    image: "${APP_PHPMYADMIN_IMAGE}"
     container_name: "${APP_NAME}_phpmyadmin"
-    restart: "no"
+    restart: no
     ports:
       - ${PMA_EXT_PORT}:80
     env_file: .env

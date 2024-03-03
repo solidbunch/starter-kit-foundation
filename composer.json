@@ -35,10 +35,10 @@
       "package": {
         "name": "solidbunch/wordpress-core",
         "type": "laravel-library",
-        "version": "6.4.2",
+        "version": "6.4.3",
         "dist": {
           "type": "zip",
-          "url": "https://wordpress.org/wordpress-6.4.2.zip"
+          "url": "https://wordpress.org/wordpress-6.4.3.zip"
         }
       }
     },
@@ -49,7 +49,7 @@
   ],
   "require": {
     "php": ">=8.1",
-    "solidbunch/wordpress-core": "6.4.2",
+    "solidbunch/wordpress-core": "6.4.3",
     "composer/installers": "2.2.0",
     "solidbunch/starter-kit-theme": "dev-develop",
     "wpackagist-plugin/svg-support": "2.5.5"
@@ -63,41 +63,39 @@
     "optimize-autoloader": true,
     "preferred-install": "dist",
     "sort-packages": true,
-    "discard-changes": true,
+    "discard-changes": false,
     "allow-plugins": {
       "composer/installers": true
     }
   },
   "extra": {
     "installer-paths": {
-      "app/wp-core/": [
+      "web/wp-core/": [
         "solidbunch/wordpress-core"
       ],
-      "app/wp-content/mu-plugins/{$name}": [
+      "web/wp-content/mu-plugins/{$name}": [
         "type:wordpress-muplugin"
       ],
-      "app/wp-content/plugins/{$name}": [
+      "web/wp-content/plugins/{$name}": [
         "type:wordpress-plugin"
       ],
-      "app/wp-content/themes/{$name}": [
+      "web/wp-content/themes/{$name}": [
         "type:wordpress-theme"
       ]
     }
   },
   "scripts": {
-    "update-local": [
-      "@update-dev"
+    "install-dev": [
+      "composer install"
+    ],
+    "install-prod": [
+      "composer install --no-dev --no-interaction --optimize-autoloader"
     ],
     "update-dev": [
-      "composer update",
-      "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer update"
-    ],
-    "update-stage": [
-      "@update-prod"
+      "composer update"
     ],
     "update-prod": [
-      "composer update --no-dev --no-interaction --optimize-autoloader",
-      "cd app/wp-content/themes/${WP_DEFAULT_THEME} && composer update --no-dev --no-interaction --optimize-autoloader"
+      "composer update --no-dev --no-interaction --optimize-autoloader"
     ],
     "post-install-cmd": [
       "@post-script"
@@ -106,8 +104,8 @@
       "@post-script"
     ],
     "post-script": [
-      "rm -rf app/wp-core/wp-content/*",
-      "cp -r app/web/* app/wp-core || true"
+      "rm -rf web/wp-core/wp-content/*",
+      "cp -r web/wp-config/* web/wp-core || true"
     ]
   }
 }

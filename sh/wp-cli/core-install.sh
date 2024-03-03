@@ -7,8 +7,6 @@ source /shell/utils/colors
 # Stop when error
 set -e
 
-wp core verify-checksums
-
 if wp core is-installed; then
   echo -e "${CYAN}[Info]${NOCOLOR} WordPress is already installed"; exit 0;
 fi
@@ -33,6 +31,6 @@ wp core install \
 
 wp rewrite structure '/%postname%/' --hard
 
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: $WP_ADMIN_USER"
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin password: $WP_ADMIN_PASSWORD"
+echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: ${LIGHTYELLOW}$WP_ADMIN_USER${NOCOLOR}"
+echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin password: ${LIGHTYELLOW}$WP_ADMIN_PASSWORD${NOCOLOR}"
 echo -e "${LIGHTYELLOW}[Warning]${NOCOLOR} Store your password in safe place"

@@ -6,9 +6,12 @@ set -e
 # Colors
 source ./sh/utils/colors
 
+# We have no root .env yet, need to connect main env to generate root .env file
+source ./config/environment/.env.main
+
 # Get environment type ENVIRONMENT_TYPE var from args
 # Default values
-ENVIRONMENT_TYPE=local
+ENVIRONMENT_TYPE="$APP_DEFAULT_ENV_TYPE"
 
 # Parse environment type args
 if [ "$1" ]; then
