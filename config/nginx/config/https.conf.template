@@ -15,8 +15,9 @@ server {
 
 # https://www > https://non-www redirect
 server {
-    listen ${APP_HTTPS_PORT} ssl http2;
-    listen [::]:${APP_HTTPS_PORT} ssl http2;
+    listen ${APP_HTTPS_PORT} ssl;
+    listen [::]:${APP_HTTPS_PORT} ssl;
+    http2 on;
     server_name www.${APP_DOMAIN};
 
     include /etc/nginx/conf.d/config/partials/ssl.conf;
@@ -26,8 +27,9 @@ server {
 
 # Main directive
 server {
-    listen ${APP_HTTPS_PORT} ssl http2;
-    listen [::]:${APP_HTTPS_PORT} ssl http2;
+    listen ${APP_HTTPS_PORT} ssl;
+    listen [::]:${APP_HTTPS_PORT} ssl;
+    http2 on;
     server_name ${APP_DOMAIN};
 
     root /srv/web;
