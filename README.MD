@@ -113,6 +113,35 @@ make run node
 ```
 It has another default folder `/srv/web` - root WordPress folder. Use `cd` command to go to your theme and run any command.
 
+## CI/CD Deployments
+Use GitHub Actions, GitLab CI/CD or other pipelines.
+
+1. Add secrets variables to repo options:
+
+- `SSH_KEY` - Private key that used for servers access. Do not forget to add public key from this pair to `~/authorized_keys` file on servers (use `make ansible` command for this)
+- `SSH_CONFIG_DEV` - SSH config for develop server with address, port, user, etc. See the example
+- `SSH_CONFIG_STAGE` - Same for staging
+- `SSH_CONFIG_PROD` - SSH config for production server
+
+SSH config example:
+```conf
+Host *
+   IdentitiesOnly yes
+   StrictHostKeyChecking no
+
+Host ssh_alias
+  HostName starter-kit.io
+  User serverusername
+  Port 22
+
+Host github.com
+   HostName github.com
+   User git
+```
+
+2. Check CI/CD jobs config file, use `.github` for GitHub Actions
+3. Push some changes to deployment branch and check pipelines logs
+
 ## Production Launch with HTTPS
 
 1. Place your certificate files in `./config/nginx/ssl/` with the names `<your-app-domain.com>.crt` and `<your-app-domain.com>.key`.
