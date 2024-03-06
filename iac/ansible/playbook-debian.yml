@@ -1,7 +1,6 @@
-- name: Install Docker with docker compose plugin on Ubuntu Server
+- name: Install Docker with docker compose plugin on Debian/Ubuntu Server
   hosts:
-    - development
-    - production
+    - development2
   become: yes
   tasks:
     - name: Update apt cache
@@ -14,21 +13,19 @@
         name: "{{ packages }}"
       vars:
         packages:
-          - apt-transport-https
           - ca-certificates
           - curl
-          - gnupg-agent
-          - software-properties-common
+          - gnupg
           - make
 
     - name: Add Docker’s official GPG key
       apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
+        url: https://download.docker.com/linux/debian/gpg
         state: present
 
     - name: Set up the stable repository
       apt_repository:
-        repo: deb [arch=arm64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        repo: "deb [arch=arm64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
         state: present
 
     - name: Install Docker Engine
