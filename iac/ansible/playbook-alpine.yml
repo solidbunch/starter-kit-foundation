@@ -13,10 +13,11 @@
         state: present
       vars:
         packages:
-          - make
-          - rsync
+          - bash
           - docker
           - docker-cli-compose
+          - make
+          - rsync
 
     - name: Add docker service to start at boot
       command: rc-update add docker default

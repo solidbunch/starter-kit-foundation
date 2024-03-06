@@ -6,13 +6,13 @@ resource "aws_instance" "develop-server" {
   key_name               = aws_key_pair.deploy.key_name
 
   tags = {
-    Name          = "starter-kit.io DEV"
+    Name          = "DEV starter-kit.io"
     Environment   = "Development"
   }
 
   root_block_device {
     volume_type = "gp2"  # General Purpose SSD
-    volume_size = 8      # Size in GB
+    volume_size = 20     # Size in GB
   }
 }
 
@@ -24,13 +24,13 @@ resource "aws_instance" "develop2-server" {
   key_name               = aws_key_pair.deploy.key_name
 
   tags = {
-    Name          = "starter-kit.io DEV2"
+    Name          = "DEV2 starter-kit.io"
     Environment   = "Development"
   }
 
   root_block_device {
     volume_type = "gp2"  # General Purpose SSD
-    volume_size = 8      # Size in GB
+    volume_size = 20     # Size in GB
   }
 }
 
