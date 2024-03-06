@@ -1,0 +1,81 @@
+- name: Install Docker with Docker Compose plugin on Alpine Server
+  hosts:
+    - development2
+  become: yes
+  become_method: doas
+  tasks:
+    - name: Update apk cache
+      command: apk update
+
+    - name: Install required system packages
+      apk:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - make
+          - rsync
+          - docker
+          - docker-cli-compose
+
+    - name: Add docker service to start at boot
+      command: rc-update add docker default
+
+    - name: Start docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add current user to the docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Output Docker version
+      debug:
+        var: docker_version.stdout
+
+    - name: Verify Docker Compose installation
+      command: docker compose version
+      register: compose_version
+      changed_when: false
+
+    - name: Output Docker Compose plugin version
+      debug:
+        var: compose_version.stdout
+
+    - name: Ensure ansible_user owns the deploy folder
+      file:
+        path: /srv
+        owner: "{{ ansible_user }}"
+        state: directory
+        recurse: yes
+
+    - name: Update hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update hostname with command
+      command: hostname "{{ inventory_hostname }}"
+
+    - name: Ensure ~/.profile exists
+      file:
+        path: "/home/{{ ansible_user }}/.profile"
+        state: touch
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Update command prompt (PS1) to show user@hostname in .profile
+      lineinfile:
+        path: "/home/{{ ansible_user }}/.profile"
+        line: "export PS1='\\u@$(hostname):\\w\\$ '"
+        regexp: '^export PS1='
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"

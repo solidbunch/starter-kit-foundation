@@ -131,7 +131,7 @@ terraform:
 	terraform -chdir=iac/terraform $(PARAMS)
 
 ansible:
-	ansible-playbook -i iac/ansible/inventory.ini iac/ansible/prepare-servers.yml $(PARAMS)
+	ansible-playbook -i iac/ansible/inventory.ini iac/ansible/playbook-alpine.yml $(PARAMS)
 
 # docker build|docker push|docker clean
 docker:
