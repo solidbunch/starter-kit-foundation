@@ -116,9 +116,10 @@ It has another default folder `/srv/web` - root WordPress folder. Use `cd` comma
 ## CI/CD Deployments
 Use GitHub Actions, GitLab CI/CD or other pipelines.
 
-1. Add secrets variables to repo options:
+1. Add public key to `~/authorized_keys` file on servers (use `make ansible` command if you haven't already done so)
+2. Add secrets variables to repo options:
 
-- `SSH_KEY` - Private key that used for servers access. Do not forget to add public key from this pair to `~/authorized_keys` file on servers (use `make ansible` command for this)
+- `SSH_KEY` - Private key from pair that used for servers access
 - `SSH_CONFIG_DEV` - SSH config for develop server with address, port, user, etc. See the example
 - `SSH_CONFIG_STAGE` - Same for staging
 - `SSH_CONFIG_PROD` - SSH config for production server
@@ -139,8 +140,8 @@ Host github.com
    User git
 ```
 
-2. Check CI/CD jobs config file, use `.github` for GitHub Actions
-3. Push some changes to deployment branch and check pipelines logs
+3. Check CI/CD jobs config file, use `.github` for GitHub Actions
+4. Push some changes to deployment branch and check pipelines logs
 
 ## Production Launch with HTTPS
 
