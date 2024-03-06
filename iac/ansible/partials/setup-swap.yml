@@ -1,0 +1,37 @@
+# Setup swap
+
+    - name: Check if swap is already enabled
+      shell: swapon --show | grep -q "^"
+      register: swap_exists
+      changed_when: false
+      ignore_errors: true
+
+    - name: Create swap file
+      command: fallocate -l 1G /swapfile
+      when: swap_exists.rc != 0
+      become: yes
+
+    - name: Set swap file permissions
+      file:
+        path: /swapfile
+        mode: '0600'
+      when: swap_exists.rc != 0
+      become: yes
+
+    - name: Set up swap space
+      command: mkswap /swapfile
+      when: swap_exists.rc != 0
+      become: yes
+
+    - name: Enable swap
+      command: swapon /swapfile
+      when: swap_exists.rc != 0
+      become: yes
+
+    - name: Add swap to fstab
+      blockinfile:
+        path: /etc/fstab
+        block: "/swapfile none swap sw 0 0"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+      when: swap_exists.rc != 0
+      become: yes
