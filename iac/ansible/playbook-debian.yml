@@ -16,6 +16,7 @@
           - ca-certificates
           - curl
           - gnupg
+          - rsync
           - make
 
     - name: Add Docker’s official GPG key
