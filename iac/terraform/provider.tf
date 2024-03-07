@@ -8,8 +8,14 @@ terraform {
 }
 
 # Define the provider block for AWS
+/*
 provider "aws" {
   region = "eu-central-1"
+}
+*/
+
+provider "aws" {
+  region = "us-east-2"
 }
 
 # Define deploy key
