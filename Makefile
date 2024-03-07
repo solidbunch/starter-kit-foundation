@@ -62,7 +62,7 @@ secret:
 	$(LOGO_SH)
 	bash ./sh/env/secret-gen.sh
 
-init:
+env:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
 

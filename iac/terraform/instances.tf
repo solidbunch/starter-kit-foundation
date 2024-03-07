@@ -6,7 +6,7 @@ resource "aws_instance" "develop-server" {
   key_name               = aws_key_pair.deploy.key_name
 
   tags = {
-    Name          = "DEV starter-kit.io"
+    Name          = "DEV develop.starter-kit.io"
     Environment   = "Development"
   }
 
@@ -17,14 +17,13 @@ resource "aws_instance" "develop-server" {
 }
 
 resource "aws_instance" "develop2-server" {
-  //ami                    = "ami-01c3c86584374c23b" # alpine-3.19.1-aarch64-uefi-cloudinit-r0 64-bit (Arm), SSD Volume Type, user 'alpine', become 'doas'
-  ami                    = "ami-04bd057ffbd865312" # Debian 12 (HVM), SSD Volume Type, user 'admin', become 'sudo'
+  ami                    = "ami-0c758b376a9cf7862" # Debian 12 (HVM), SSD Volume Type, user 'admin', become 'sudo'
   instance_type          = "t4g.nano"
   vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
   key_name               = aws_key_pair.deploy.key_name
 
   tags = {
-    Name          = "DEV2 starter-kit.io"
+    Name          = "DEV2 develop2.starter-kit.io"
     Environment   = "Development"
   }
 
