@@ -1,0 +1,28 @@
+all:
+  children:
+    development:
+      hosts:
+        develop.starter-kit.io:
+          os: ubuntu
+          ansible_user: ubuntu
+
+    development2:
+      hosts:
+        develop2.starter-kit.io:
+          os: debian
+          ansible_user: admin
+          swap_vars:
+            size: 2G
+            swappiness: 20
+
+    staging:
+      hosts:
+        staging.starter-kit.io:
+          os: ubuntu
+          ansible_user: ubuntu
+
+    production:
+      hosts:
+        prod.starter-kit.io:
+          os: ubuntu
+          ansible_user: ubuntu

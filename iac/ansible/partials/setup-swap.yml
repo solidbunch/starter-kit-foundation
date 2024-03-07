@@ -1,37 +1,49 @@
 # Setup swap
 
-    - name: Check if swap is already enabled
-      shell: swapon --show | grep -q "^"
-      register: swap_exists
-      changed_when: false
-      ignore_errors: true
+    - name: Gather system facts
+      setup:
+      # Ensures Ansible facts are up to date.
+
+    - name: Set fact for swap existence based on Ansible facts
+      set_fact:
+        swap_exists: "{{ ansible_swaptotal_mb > 0 }}"
+      # Checks if swap space is already enabled.
 
     - name: Create swap file
-      command: fallocate -l 1G /swapfile
-      when: swap_exists.rc != 0
-      become: yes
+      command: fallocate -l "{{ swap_vars.size }}" /swapfile
+      when: not swap_exists
+      # Creates a swap file with the specified size from your main playbook's vars.
 
     - name: Set swap file permissions
       file:
         path: /swapfile
         mode: '0600'
-      when: swap_exists.rc != 0
-      become: yes
+      when: not swap_exists
+      # Sets appropriate permissions for the swap file.
 
     - name: Set up swap space
       command: mkswap /swapfile
-      when: swap_exists.rc != 0
-      become: yes
+      when: not swap_exists
+      # Initializes the swap file.
 
     - name: Enable swap
       command: swapon /swapfile
-      when: swap_exists.rc != 0
-      become: yes
+      when: not swap_exists
+      # Activates the swap file.
 
     - name: Add swap to fstab
       blockinfile:
         path: /etc/fstab
         block: "/swapfile none swap sw 0 0"
         marker: "# {mark} ANSIBLE MANAGED BLOCK"
-      when: swap_exists.rc != 0
-      become: yes
+      when: not swap_exists
+      # Ensures the swap setup persists across reboots.
+
+    - name: Adjust swappiness
+      sysctl:
+        name: vm.swappiness
+        value: "{{ swap_vars.swappiness }}"
+        state: present
+        reload: yes
+      # This task is optional and adjusts the system's swappiness parameter.
+
