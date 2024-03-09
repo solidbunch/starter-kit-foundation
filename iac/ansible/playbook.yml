@@ -1,0 +1,10 @@
+- name: Install required packages and settings on Debian/Ubuntu Server
+  hosts:
+    - development
+    - staging
+    - production
+  become: yes
+  tasks:
+    - import_tasks: ./partials/common-tasks.yml
+    - import_tasks: ./partials/install-docker.yml
+    - import_tasks: ./partials/setup-swap.yml
