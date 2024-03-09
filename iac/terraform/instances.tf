@@ -1,57 +1,59 @@
 # Create an EC2 instances
+# If you have 'Error: collecting instance settings: couldn't find resource' just check AMI id, it changes time to time
+
 resource "aws_instance" "develop-server" {
-  ami                    = "ami-0fc02b454efabb390" # Ubuntu Server 22.04 LTS (HVM) 64-bit (Arm), SSD Volume Type, user 'ubuntu', become 'sudo'
-  instance_type          = "t4g.micro"
+  provider               = aws.frankfurt # Refer to the aliased provider
+  ami                    = "ami-04bd057ffbd865312" # Debian 12 (HVM), arm64, SSD Volume Type, user 'admin', become 'sudo'
+  instance_type          = "t4g.nano"
   vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
   key_name               = aws_key_pair.deploy.key_name
 
   tags = {
-    Name          = "DEV develop.starter-kit.io"
-    Environment   = "Development"
+    Name          = "develop.starter-kit.io"
+    Environment   = "DEV"
   }
 
   root_block_device {
     volume_type = "gp2"  # General Purpose SSD
     volume_size = 20     # Size in GB
   }
+
+  # Ensure the instance stops rather than terminates on OS shutdown
+  instance_initiated_shutdown_behavior = "stop"
+
+  # Enable termination protection
+  disable_api_termination = true
 }
 
-resource "aws_instance" "develop2-server" {
+/*resource "aws_instance" "production-server" {
+  provider               = aws.frankfurt # Refer to the aliased provider
   ami                    = "ami-0c758b376a9cf7862" # Debian 12 (HVM), SSD Volume Type, user 'admin', become 'sudo'
   instance_type          = "t4g.nano"
   vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
   key_name               = aws_key_pair.deploy.key_name
 
   tags = {
-    Name          = "DEV2 develop2.starter-kit.io"
-    Environment   = "Development"
+    Name          = "starter-kit.io"
+    Environment   = "PROD"
   }
 
   root_block_device {
     volume_type = "gp2"  # General Purpose SSD
-    volume_size = 20     # Size in GB
-  }
-}
-
-/*resource "aws_instance" "production-server" {
-  ami                    = "ami-0fc02b454efabb390" # Ubuntu Server 22.04 LTS (HVM) 64-bit (Arm), SSD Volume Type
-  instance_type          = "t4g.micro"
-  vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
-  key_name               = aws_key_pair.deploy.key_name
-
-  tags = {
-    Name          = "starter-kit.io PROD"
-    Environment   = "Production"
+    volume_size = 25     # Size in GB
   }
 
-  root_block_device {
-    volume_type = "gp2"  # General Purpose SSD
-    volume_size = 8      # Size in GB
-  }
+  # Ensure the instance stops rather than terminates on OS shutdown
+  instance_initiated_shutdown_behavior = "stop"
+
+  # Enable termination protection
+  disable_api_termination = true
+
+  # Enables stop protection
+  disable_api_stop = true
 }*/
 
-output "develop2_ip_addr" {
-  value = aws_instance.develop2-server.public_ip
+output "develop_ip_addr" {
+  value = aws_instance.develop-server.public_ip
 }
 
 /*output "prod_ip_addr" {
