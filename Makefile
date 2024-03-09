@@ -66,6 +66,9 @@ env:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
 
+core-install:
+	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
+
 # Run mix watch with browserSync
 watch:
 	$(LOGO_SH)
