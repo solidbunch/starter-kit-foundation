@@ -46,7 +46,7 @@ logs/**/*.out
 /config/ssl/**/*.key
 /config/ssl/**/*.crt
 /config/ssl/**/*.pem
-iac/public_keys
+iac/terraform/public_keys
 
 #=============================#
 #          Terraform          #

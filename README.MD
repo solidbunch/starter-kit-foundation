@@ -113,36 +113,6 @@ make run node
 ```
 It has another default folder `/srv/web` - root WordPress folder. Use `cd` command to go to your theme and run any command.
 
-## CI/CD Deployments
-Use GitHub Actions, GitLab CI/CD or other pipelines.
-
-1. Add public key to `~/authorized_keys` file on servers (use `make ansible` command if you haven't already done so)
-2. Add secrets variables to repo options:
-
-- `SSH_KEY` - Private key from pair that used for servers access
-- `SSH_CONFIG_DEV` - SSH config for develop server with address, port, user, etc. See the example
-- `SSH_CONFIG_STAGE` - Same for staging
-- `SSH_CONFIG_PROD` - SSH config for production server
-
-SSH config example:
-```conf
-Host *
-   IdentitiesOnly yes
-   StrictHostKeyChecking no
-
-Host ssh_alias
-  HostName starter-kit.io
-  User serverusername
-  Port 22
-
-Host github.com
-   HostName github.com
-   User git
-```
-
-3. Check CI/CD jobs config file, use `.github` for GitHub Actions
-4. Push some changes to deployment branch and check pipelines logs
-
 ## Production Launch with HTTPS
 
 1. Place your certificate files in `./config/nginx/ssl/` with the names `<your-app-domain.com>.crt` and `<your-app-domain.com>.key`.
@@ -277,7 +247,7 @@ make exec mariadb
 4. Inside container run:
 
 ```bash
-mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
+mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%'[credentials](..%2F..%2F..%2F.aws%2Fcredentials) IDENTIFIED BY 'new_password';
 ```
 Where 'new_password' - new root password
 
@@ -287,6 +257,78 @@ Where 'new_password' - new root password
 ```bash
 make restart
 ```
+
+## Infrastructure
+
+### Setup infrastructure with Terraform
+
+For control your servers infrastructure use following steps:
+
+1. Check `./iac/terraform/*.tf` files, update your provider and infrastructure settings
+2. Add provider credentials. For example for AWS use `~/.aws/credentials` file. Add `aws_access_key_id` and `aws_secret_access_key`. [Configuration and credential file settings](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-global)
+3. Add your deployment public key `id_rsa.pub` to `./iac/terraform/public_keys/` folder
+4. Run terraform [commands](https://developer.hashicorp.com/terraform/cli/commands):
+```bash
+make terraform [command]
+```
+
+Examples:
+```bash
+make terraform init
+make terraform plan
+make terraform apply
+```
+
+### Automate server apps with Ansible
+
+For running server setup automations use this steps:
+
+1. Add public key to `~/authorized_keys` file on servers (use `make terraform apply` command if you haven't already done so)
+2. Check your credentials in `./.ssh` folder. Use [ssh config file](https://linuxize.com/post/using-the-ssh-config-file/) to simplify connections.
+3. Check `./iac/ansible/inventory.yml` servers and credentials, host names should be the same as on ssh config file.
+4.Check `./iac/ansible/playbook.yml` file hosts and tasks. Hosts must correspond to inventory hosts.
+5.Run ansible command:
+```bash
+make ansible
+```
+This will run main playbook `ansible-playbook -i iac/ansible/inventory.yml iac/ansible/playbook.yml` for all hosts.
+
+To run playbook for specific host use command:
+```bash
+make ansible -- --limit [host]
+```
+After that you will be able to run CI/CD deployment pipelines automations.
+
+## CI/CD Deployments
+Use GitHub Actions, GitLab CI/CD or other pipelines.
+
+1. Add deploy public key to `~/authorized_keys` file on servers (use `make terraform apply` command if you haven't already done so)
+2. Check required apps already installed on servers (use `make ansible` command if you haven't already done so)
+3. Add secrets variables to repo options:
+
+- `SSH_KEY` - Private key from deploy pair that used for servers access
+- `SSH_CONFIG_DEV` - SSH config for develop server with address, port, user, etc. See the example
+- `SSH_CONFIG_STAGE` - Same for staging
+- `SSH_CONFIG_PROD` - SSH config for production server
+
+SSH config example:
+```conf
+Host *
+   IdentitiesOnly yes
+   StrictHostKeyChecking no
+
+Host ssh_alias
+  HostName starter-kit.io
+  User serverusername
+  Port 22
+
+Host github.com
+   HostName github.com
+   User git
+```
+
+4. Check CI/CD jobs config file, use `./.github` for GitHub Actions
+5. Push some changes to deployment branch and check pipelines logs
 
 ## Additional scripts
 ### Automatic backups

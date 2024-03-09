@@ -1,4 +1,5 @@
 resource "aws_security_group" "allow_http_s" {
+  provider    = aws.frankfurt  # Refer to the aliased provider
   name        = "Allow HTTP(s)"
   description = "Allow HTTP and HTTPS inbound traffic"
 
@@ -32,7 +33,8 @@ resource "aws_security_group" "allow_http_s" {
 }
 
 resource "aws_security_group" "allow_ssh" {
-    name        = "Allow SSH"
+  provider    = aws.frankfurt  # Refer to the aliased provider
+  name        = "Allow SSH"
   description = "Allow SSH inbound traffic"
 
   ingress {
