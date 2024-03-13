@@ -33,3 +33,12 @@
         regexp: '\\u@\\h'
         replace: '\\u@\\H'
         backup: yes
+
+    - name: Set default directory after SSH login
+      ansible.builtin.lineinfile:
+        path: "/home/{{ ansible_user }}/.profile"
+        line: "cd /srv/{{ inventory_hostname }}"
+        create: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0644'
