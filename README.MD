@@ -247,9 +247,17 @@ make exec mariadb
 4. Inside container run:
 
 ```bash
-mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%'[credentials](..%2F..%2F..%2F.aws%2Fcredentials) IDENTIFIED BY 'new_password';
+ mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
 ```
 Where 'new_password' - new root password
+
+You can reset another database user password too - just change the username, host, and add new password.
+
+For example, there are two `root` users in database - with `%` host and with `localhost`. Use this command to see all users:
+
+```bash
+SELECT User, Host FROM mysql.user;
+```
 
 5. Revert back changes in `docker-compose.yml`
 
