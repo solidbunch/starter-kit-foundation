@@ -22,14 +22,9 @@
         try_files $uri $uri/ /index.php?$args;
     }
 
-    # Special directives for wp-admin area
-    # If you have media upload error:
-    # "Post-processing of the image failed likely because the server is busy or does not have enough resources. Uploading a smaller image may help. Suggested maximum size is 2500 pixels".
-    # Uncomment this rule. Generally, we are not recommend to upload large files. In most cases this is not necessary. Think twice
-    #location ~ ^/wp-admin/.*\.php$ {
-        #client_max_body_size 6M;
-        #include /etc/nginx/conf.d/config/partials/php.conf;
-    #}
+    # Generally, we are not recommend to upload large files. In most cases this is not necessary. Think twice
+    # Correspond to php.ini optin 'upload_max_filesize = 20M'
+    client_max_body_size 20M;
 
     # Process only main index.php, and wp-admin/*.php,
     # and  other php root files, excerpt wp-*.php and xmlrpc.php,
