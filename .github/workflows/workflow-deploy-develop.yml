@@ -1,4 +1,4 @@
-name: Develop Deploy
+name: Deploy to Develop
 
 on:
   push:
@@ -11,9 +11,9 @@ jobs:
     uses: ./.github/workflows/job-deploy.yml
     secrets:
       SSH_KEY: ${{ secrets.SSH_KEY }}
-      SSH_CONFIG: ${{ secrets.SSH_CONFIG_DEV }}
+      SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
     with:
-      SSH_ALIAS: ssh_alias
+      SSH_HOST_ALIAS: develop.starter-kit.io
       DEPLOY_PATH_DESTINATION: /srv/develop.starter-kit.io
       DEPLOYMENT_NAME: "StarterKit push to develop"
       ENVIRONMENT_TYPE: dev
