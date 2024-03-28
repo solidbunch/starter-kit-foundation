@@ -97,8 +97,13 @@ RUN mkdir -p /var/log/wordpress
 ##################################
 #   Prepare and run entrypoint   #
 ##################################
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN mkdir /docker-entrypoint.d
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+COPY docker-entrypoint.sh /
+COPY ./docker-entrypoint.d/* /docker-entrypoint.d
+
+RUN chmod +x /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.d/*.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["php-fpm"]
