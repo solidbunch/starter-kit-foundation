@@ -9,7 +9,7 @@ jobs:
     secrets:
       SSH_KEY: ${{ secrets.SSH_KEY }}
       SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
-      ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
     with:
       SSH_HOST_ALIAS: starter-kit.io
       DEPLOY_PATH_DESTINATION: /srv/starter-kit.io
