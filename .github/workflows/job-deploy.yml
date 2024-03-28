@@ -29,13 +29,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
-          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
-
       - name: Prepare .env
         run: |
           bash ./sh/env/secret-gen.sh
@@ -46,6 +39,7 @@ jobs:
           source ./.env
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
+          export COMPOSER_AUTH='{"github-oauth": {"github.com": "${{ secrets.ACCESS_TOKEN }}"}}'
           bash ./sh/install.sh yes
 
       - name: Save Built cache
