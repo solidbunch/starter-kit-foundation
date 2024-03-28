@@ -12,6 +12,7 @@ jobs:
     secrets:
       SSH_KEY: ${{ secrets.SSH_KEY }}
       SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
+      ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
     with:
       SSH_HOST_ALIAS: develop.starter-kit.io
       DEPLOY_PATH_DESTINATION: /srv/develop.starter-kit.io
