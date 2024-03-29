@@ -26,7 +26,7 @@
 
 ## Creating new project
 
-1. Check your GitHub SSH connection `ssh -T git@github.com` or use Personal Access Token in `.env.secret` `COMPOSER_AUTH`
+1. Check your GitHub SSH connection `ssh -T git@github.com` or use [Personal Access Token](#cicd-deployments) in `.env.secret` `COMPOSER_AUTH`
 
 2. Create a new project directory and clone this repository into the project folder.
 
@@ -316,8 +316,8 @@ Use GitHub Actions, GitLab CI/CD or other pipelines.
 
 - `SSH_KEY` - Private key from deploy pair that used for servers access
 - `SSH_CONFIG` - SSH config for servers with address, port, user, etc. See the example
-- `ACCESS_TOKEN` - Personal Access Token, see [Managing your personal access tokens on GitHub](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
-and [Personal access tokens on GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+- `COMPOSER_AUTH` - [Composer authentication](https://getcomposer.org/doc/articles/authentication-for-private-packages.md) JSON object with Personal Access Token, see [Managing your personal access tokens on GitHub](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+and [Personal access tokens on GitLab](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html). For local usage in `.env.secret` file use a serialized **unescaped** JSON object without spaces, for GitHub secrets use **escaped** JSON object without spaces.
 
 SSH config example:
 ```conf
@@ -338,6 +338,16 @@ Host starter-kit.io
   User serverusername
   Port 22
 
+```
+
+COMPOSER_AUTH example for GitHub secrets:
+```bash
+{\"github-oauth\":{\"github.com\":\"ACCESS_TOKEN_GITHUB\"}}
+```
+
+COMPOSER_AUTH example for local usage:
+```bash
+{"github-oauth":{"github.com":"ACCESS_TOKEN_GITHUB"}}
 ```
 
 4. Check CI/CD jobs config file, use `./.github` for GitHub Actions
