@@ -23,6 +23,6 @@ provider "aws" {
 resource "aws_key_pair" "deploy" {
   provider   = aws.frankfurt # Refer to the aliased provider
   key_name   = "deploy-key"
-  public_key = file("./public_keys/id_rsa.pub")
+  public_key = file("./public_keys/id_rsa_starter_kit_deploy.pub")
   # make terraform import aws_key_pair.deploy deploy-key
 }

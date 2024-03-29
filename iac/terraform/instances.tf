@@ -59,3 +59,11 @@ output "develop_ip_addr" {
 /*output "prod_ip_addr" {
   value = aws_instance.production-server.public_ip
 }*/
+
+/**
+ * If IP address was renew, follow this steps:
+ * 1. Update DNS for selected domains
+ * 2. Update SSH config in git deploy variables
+ * 3. Update local SSH config
+ * 4. Update Ansible inventory if needed
+**/

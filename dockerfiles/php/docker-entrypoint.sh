@@ -2,6 +2,7 @@
 
 set -Eeuo pipefail
 
+# Current file
 ME=$(basename "$0")
 
 entrypoint_log() {
@@ -10,48 +11,38 @@ entrypoint_log() {
     fi
 }
 
-replace_env_vars() {
-  local template_dir="$1"
-  local output_dir="$2"
-  local suffix="${PHP_ENVSUBST_TEMPLATE_SUFFIX:-.template}"
-  local filter="${PHP_ENVSUBST_FILTER:-}"
+if /usr/bin/find "/docker-entrypoint.d/" -mindepth 1 -maxdepth 1 -type f -print -quit 2>/dev/null | read v; then
+    entrypoint_log "$0: /docker-entrypoint.d/ is not empty, will attempt to perform configuration"
 
-  local template defined_envs relative_path output_path subdir
-  defined_envs=$(printf '${%s} ' $(awk "END { for (name in ENVIRON) { print ( name ~ /${filter}/ ) ? name : \"\" } }" < /dev/null ))
-  [ -d "$template_dir" ] || return 0
-  if [ ! -w "$output_dir" ]; then
-    entrypoint_log "$ME: ERROR: $template_dir exists, but $output_dir is not writable"
-    return 0
-  fi
-  find "$template_dir" -follow -type f -name "*$suffix" -print | while read -r template; do
-    relative_path="${template#"$template_dir/"}"
-    output_path="$output_dir/${relative_path%"$suffix"}"
-    subdir=$(dirname "$relative_path")
-    # create a subdirectory where the template file exists
-    mkdir -p "$output_dir/$subdir"
-    entrypoint_log "$ME: Running envsubst on $template to $output_path"
-    envsubst "$defined_envs" < "$template" > "$output_path"
-  done
-}
+    entrypoint_log "$0: Looking for shell scripts in /docker-entrypoint.d/"
+    find "/docker-entrypoint.d/" -follow -type f -print | sort -V | while read -r f; do
+        case "$f" in
+            *.envsh)
+                if [ -x "$f" ]; then
+                    entrypoint_log "$0: Sourcing $f";
+                    . "$f"
+                else
+                    # warn on shell scripts without exec bit
+                    entrypoint_log "$0: Ignoring $f, not executable";
+                fi
+                ;;
+            *.sh)
+                if [ -x "$f" ]; then
+                    entrypoint_log "$0: Launching $f";
+                    "$f"
+                else
+                    # warn on shell scripts without exec bit
+                    entrypoint_log "$0: Ignoring $f, not executable";
+                fi
+                ;;
+            *) entrypoint_log "$0: Ignoring $f";;
+        esac
+    done
 
-# Recreate www-data user
-# Fix www-data UID from 82 to ${CURRENT_UID} (Permission denied error)
-# Deleting default user (with group)
-deluser www-data
-# 82 is the standard uid/gid for "www-data" in Alpine
-# https://git.alpinelinux.org/aports/tree/main/apache2/apache2.pre-install?h=3.14-stable
-# https://git.alpinelinux.org/aports/tree/main/lighttpd/lighttpd.pre-install?h=3.14-stable
-# https://git.alpinelinux.org/aports/tree/main/nginx/nginx.pre-install?h=3.14-stable
-
-addgroup -g "${CURRENT_GID}" "${DEFAULT_USER}"
-adduser -u "${CURRENT_UID}" -D -G "${DEFAULT_USER}" "${DEFAULT_USER}"
-chown "${DEFAULT_USER}":"${DEFAULT_USER}" /var/log/wordpress
-
-echo "${DEFAULT_USER} user UID=${CURRENT_UID} updated"
-
-# Replace env variables with values in sSMTP config using gettext app
-replace_env_vars "/etc/ssmtp/templates" "/etc/ssmtp"
-
+    entrypoint_log "$0: Configuration complete; ready for start up"
+else
+    entrypoint_log "$0: No files found in /docker-entrypoint.d/, skipping configuration"
+fi
 
 ## exec php-fpm (added as parameter in Dockerfile CMD ["php-fpm"])
 exec "$@"

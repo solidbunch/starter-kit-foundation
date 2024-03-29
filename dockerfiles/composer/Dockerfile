@@ -26,4 +26,10 @@ RUN set -eux ; \
     $([ "$(apk --print-arch)" != "x86" ] && echo mercurial) \
     $([ "$(apk --print-arch)" != "armhf" ] && echo p7zip)
 
+##################################
+#       Prepare entrypoint       #
+##################################
+COPY ./docker-entrypoint.d/* /docker-entrypoint.d
+RUN chmod +x /docker-entrypoint.d/*.sh
+
 CMD ["composer"]
