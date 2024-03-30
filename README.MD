@@ -294,8 +294,8 @@ For running server setup automations use this steps:
 1. Add public key to `~/authorized_keys` file on servers (use `make terraform apply` command if you haven't already done so)
 2. Check your credentials in `./.ssh` folder. Use [ssh config file](https://linuxize.com/post/using-the-ssh-config-file/) to simplify connections.
 3. Check `./iac/ansible/inventory.yml` servers and credentials, host names should be the same as on ssh config file.
-4.Check `./iac/ansible/playbook.yml` file hosts and tasks. Hosts must correspond to inventory hosts.
-5.Run ansible command:
+4. Check `./iac/ansible/playbook.yml` file hosts and tasks. Hosts must correspond to inventory hosts.
+5. Run ansible command:
 ```bash
 make ansible
 ```

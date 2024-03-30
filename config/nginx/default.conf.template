@@ -5,4 +5,15 @@
 
 server_names_hash_bucket_size 128;
 
+# Nginx logs
+include /etc/nginx/conf.d/config/partials/logs.conf;
+
 include /etc/nginx/conf.d/config/${APP_PROTOCOL}.conf;
+
+# Return nothing for not defined domains
+# ToDo add 443 port
+server {
+    listen 80 default_server;
+    server_name _;
+    return 444;
+}
