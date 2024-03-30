@@ -13,6 +13,7 @@ server {
 }
 
 # Main directive
+# ToDo return to non variable port 80 and 443
 server {
     listen ${APP_HTTP_PORT};
     listen [::]:${APP_HTTP_PORT};

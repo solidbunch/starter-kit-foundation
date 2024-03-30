@@ -1,8 +1,8 @@
 # Do not edit .conf file, it will override by script.
 # Edit .conf.template file to change settings
 
-    # Send all errors to docker logs
-    error_log ${APP_NGINX_ERROR_LOG};
+  # Send all errors to docker logs
+  error_log ${APP_NGINX_ERROR_LOG};
 
-    # Send access log to docker logs
-    access_log ${APP_NGINX_ACCESS_LOG};
+  # Send access log to docker logs
+  access_log ${APP_NGINX_ACCESS_LOG};

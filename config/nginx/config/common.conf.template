@@ -15,9 +15,6 @@
     # And follow 403 errors to 404 for security reasons
     #error_page 403 =404 /404.html;
 
-    # Nginx logs
-    include /etc/nginx/conf.d/config/partials/logs.conf;
-
     location / {
         try_files $uri $uri/ /index.php?$args;
     }
