@@ -66,14 +66,14 @@ jobs:
           bash ./sh/install-node.sh yes
 
       - name: Cache dependencies - save
-        if: steps.cache-deps-restore.outputs.cache-hit != 'true' || steps.cache-deps-restore-wis-blocks.outputs.cache-hit != 'true'
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
             vendor
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
 
-      - name: Cache dependencies - save
+      - name: Cache dependencies theme - save
         if: steps.cache-deps-restore-theme.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
