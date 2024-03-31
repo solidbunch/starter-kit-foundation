@@ -35,7 +35,7 @@ docker compose -f docker-compose.build.yml build
 # Use composer update for update to last changes without lock file if we are using custom dependency. For example custom theme or plugin with 'dev-branch-name' version
 # Use composer install for install from lock file for regular cases for theme or plugin
 docker compose -f docker-compose.build.yml run --rm composer su -c "\
-    composer update-${APP_BUILD_MODE} && \
+    composer install-${APP_BUILD_MODE} && \
     cd /srv/web/wp-core && \
     wp core verify-checksums && \
     cd /srv/web/wp-content/themes/${WP_DEFAULT_THEME} && \
