@@ -31,6 +31,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache dependencies - restore
+        id: cache-deps-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            vendor
+            /home/runner
+          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
+
       - name: Prepare .env
         run: |
           bash ./sh/env/secret-gen.sh
@@ -43,11 +52,20 @@ jobs:
           export CURRENT_GID=$(id -g)
           bash ./sh/install.sh yes
 
-      - name: Save Built cache
-        uses: actions/cache@v4
+      - name: Cache dependencies - save
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            vendor
+            /home/runner
+          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
+
+      - name: Save Built job
+        uses: actions/cache/save@v4
         with:
           path: .
-          key: build-cache-${{ github.run_number }}
+          key: build-job-${{ github.run_number }}
 
   deploy:
     runs-on: ubuntu-22.04
@@ -55,11 +73,11 @@ jobs:
     needs: [ build ]
 
     steps:
-      - name: Use Built cache
-        uses: actions/cache@v4
+      - name: Use Built job
+        uses: actions/cache/restore@v4
         with:
           path: .
-          key: build-cache-${{ github.run_number }}
+          key: build-job-${{ github.run_number }}
 
       - name: Set up SSH key
         run: |
