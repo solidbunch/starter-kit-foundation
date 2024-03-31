@@ -37,7 +37,6 @@ jobs:
         with:
           path: |
             vendor
-            /home/runner
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
 
       - name: Prepare .env
@@ -58,7 +57,6 @@ jobs:
         with:
           path: |
             vendor
-            /home/runner
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
 
       - name: Save Built job
