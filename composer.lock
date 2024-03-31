@@ -923,7 +923,7 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:solidbunch/starter-kit-theme.git",
-                "reference": "b36e05d6b86769d79563b41a4e6a002619eef5ac"
+                "reference": "6691511ef195a4736f62f2019cc4d03cbdc3a2db"
             },
             "require": {
                 "htmlburger/carbon-fields": "3.6.2",
@@ -1014,7 +1014,7 @@
             "support": {
                 "issues": "https://github.com/solidbunch/starter-kit-theme/issues"
             },
-            "time": "2024-03-26T14:36:03+00:00"
+            "time": "2024-03-31T22:40:57+00:00"
         },
         {
             "name": "solidbunch/wordpress-core",
