@@ -48,8 +48,10 @@ install:
 	bash ./sh/env/secret-gen.sh
 	# Init root .env file
 	bash ./sh/env/init.sh $(PARAMS)
-	# Composer and npm build
+	# Composer build
 	bash ./sh/install.sh
+	# Npm build
+	bash ./sh/install-node.sh
 	# Run main project docker containers
 	docker compose up -d
 	# Check database is up
