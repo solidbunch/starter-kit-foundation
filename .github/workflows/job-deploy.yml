@@ -45,19 +45,41 @@ jobs:
           echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
-      - name: Install Composer and Node Dependencies
+      - name: Install Composer Dependencies
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           bash ./sh/install.sh yes
 
+      - name: Cache dependencies theme - restore
+        id: cache-deps-restore-theme
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            web/wp-content/themes/starter-kit-theme/node_modules
+          key: build-cache-theme-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
+
+      - name: Install Node Dependencies
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          bash ./sh/install-node.sh yes
+
       - name: Cache dependencies - save
-        if: steps.cache-deps-restore.outputs.cache-hit != 'true'
+        if: steps.cache-deps-restore.outputs.cache-hit != 'true' || steps.cache-deps-restore-wis-blocks.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
             vendor
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
+
+      - name: Cache dependencies - save
+        if: steps.cache-deps-restore-theme.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            web/wp-content/themes/starter-kit-theme/node_modules
+          key: build-cache-theme-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
 
       - name: Save Built job
         uses: actions/cache/save@v4
