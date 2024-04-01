@@ -21,12 +21,12 @@
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v24+
 2. [Docker Compose](https://docs.docker.com/compose/install/) v2.21+
-3. [GitHub SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+3. [GitHub SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) or [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
 
 ## Creating new project
 
-1. Check your GitHub SSH connection `ssh -T git@github.com` or use [Personal Access Token](#cicd-deployments) in `.env.secret` `COMPOSER_AUTH`
+1. Check your GitHub SSH with `ssh -T git@github.com` or use [PAT](#cicd-deployments) in `.env.secret` `COMPOSER_AUTH`
 
 2. Create a new project directory and clone this repository into the project folder.
 
@@ -83,7 +83,7 @@ After the installation, you can add your custom secrets 🔑 to `.env.secret`, b
 You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generate_this_pass` with the real password when you run `make install` or `make secret` (`bash sh/env/secret-gen.sh`).
 
 
-⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
+⚠️ **WARNING 📣 Do not define secrets (keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ## Run composer scripts
 To run PHP Composer, you need to run the `composer` container and enter it:
@@ -294,8 +294,8 @@ For running server setup automations use this steps:
 1. Add public key to `~/authorized_keys` file on servers (use `make terraform apply` command if you haven't already done so)
 2. Check your credentials in `./.ssh` folder. Use [ssh config file](https://linuxize.com/post/using-the-ssh-config-file/) to simplify connections.
 3. Check `./iac/ansible/inventory.yml` servers and credentials, host names should be the same as on ssh config file.
-4.Check `./iac/ansible/playbook.yml` file hosts and tasks. Hosts must correspond to inventory hosts.
-5.Run ansible command:
+4. Check `./iac/ansible/playbook.yml` file hosts and tasks. Hosts must correspond to inventory hosts.
+5. Run ansible command:
 ```bash
 make ansible
 ```

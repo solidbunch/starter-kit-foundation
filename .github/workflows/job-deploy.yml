@@ -37,17 +37,36 @@ jobs:
           echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
+      - name: Build Cache - restore
+        id: build-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            vendor
+            web
+          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+
       - name: Install Composer and Node Dependencies
+        if: steps.build-cache-restore.outputs.cache-hit != 'true'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           bash ./sh/install.sh yes
 
-      - name: Save Built cache
-        uses: actions/cache@v4
+      - name: Build Cache - save
+        if: steps.build-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            vendor
+            web
+          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+
+      - name: Save Built job
+        uses: actions/cache/save@v4
         with:
           path: .
-          key: build-cache-${{ github.run_number }}
+          key: build-job-${{ github.run_number }}
 
   deploy:
     runs-on: ubuntu-22.04
@@ -55,11 +74,11 @@ jobs:
     needs: [ build ]
 
     steps:
-      - name: Use Built cache
-        uses: actions/cache@v4
+      - name: Use Built job
+        uses: actions/cache/restore@v4
         with:
           path: .
-          key: build-cache-${{ github.run_number }}
+          key: build-job-${{ github.run_number }}
 
       - name: Set up SSH key
         run: |
