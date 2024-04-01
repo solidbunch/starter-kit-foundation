@@ -26,7 +26,7 @@
 
 ## Creating new project
 
-1. Check your GitHub SSH connection `ssh -T git@github.com` or use [Personal Access Token](#cicd-deployments) in `.env.secret` `COMPOSER_AUTH`
+1. Check your GitHub SSH with `ssh -T git@github.com` or use [PAT](#cicd-deployments) in `.env.secret` `COMPOSER_AUTH`
 
 2. Create a new project directory and clone this repository into the project folder.
 
