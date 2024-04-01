@@ -47,6 +47,7 @@ jobs:
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Install Composer and Node Dependencies
+        if: steps.build-cache-restore.outputs.cache-hit != 'true'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
