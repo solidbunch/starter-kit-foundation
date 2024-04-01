@@ -31,53 +31,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache dependencies - restore
-        id: cache-deps-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            vendor
-          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
-
       - name: Prepare .env
         run: |
           bash ./sh/env/secret-gen.sh
           echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
-      - name: Install Composer Dependencies
-        run: |
-          export CURRENT_UID=$(id -u)
-          export CURRENT_GID=$(id -g)
-          bash ./sh/install.sh yes
-
-      - name: Cache dependencies theme - restore
-        id: cache-deps-restore-theme
+      - name: Build Cache - restore
+        id: build-cache-restore
         uses: actions/cache/restore@v4
         with:
           path: |
-            web/wp-content/themes/starter-kit-theme/node_modules
-          key: build-cache-theme-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
+            vendor
+            web
+          key: composer-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
-      - name: Install Node Dependencies
+      - name: Install Composer and Node Dependencies
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
-          bash ./sh/install-node.sh yes
+          bash ./sh/install.sh
 
-      - name: Cache dependencies - save
+      - name: Build Cache - save
+        if: steps.build-cache-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
             vendor
-          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
-
-      - name: Cache dependencies theme - save
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            web/wp-content/themes/starter-kit-theme/node_modules
-          key: build-cache-theme-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}
+            web
+          key: composer-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Save Built job
         uses: actions/cache/save@v4

@@ -21,7 +21,7 @@
 
 1. [Docker Engine](https://docs.docker.com/engine/install/) v24+
 2. [Docker Compose](https://docs.docker.com/compose/install/) v2.21+
-3. [GitHub SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
+3. [GitHub SSH key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh) or [Personal Access Token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 
 
 ## Creating new project
@@ -83,7 +83,7 @@ After the installation, you can add your custom secrets 🔑 to `.env.secret`, b
 You can add secret variables names there without secret data, just for structure. A password generator will replace the special word `generate_this_pass` with the real password when you run `make install` or `make secret` (`bash sh/env/secret-gen.sh`).
 
 
-⚠️ **WARNING 📣 Do not define secrets (private keys, passwords, tokens, etc.) in committed files, it's not secure!**
+⚠️ **WARNING 📣 Do not define secrets (keys, passwords, tokens, etc.) in committed files, it's not secure!**
 
 ## Run composer scripts
 To run PHP Composer, you need to run the `composer` container and enter it:

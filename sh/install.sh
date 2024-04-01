@@ -25,14 +25,8 @@ if [ "$CONFIRMED" != "yes" ]; then
   fi
 fi
 
-# Build main docker images
-docker compose build
-
-# Build service docker images
-docker compose -f docker-compose.build.yml build
-
 # Run composer scripts
-# Use composer update for update to last changes without lock file if we are using custom dependency. For example custom theme or plugin with 'dev-branch-name' version
+# Use composer update for update to last changes without lock file
 # Use composer install for install from lock file for regular cases for theme or plugin
 docker compose -f docker-compose.build.yml run --rm composer su -c "\
     composer install-${APP_BUILD_MODE} && \
@@ -40,4 +34,9 @@ docker compose -f docker-compose.build.yml run --rm composer su -c "\
     wp core verify-checksums && \
     cd /srv/web/wp-content/themes/${WP_DEFAULT_THEME} && \
     composer install-${APP_BUILD_MODE}" \
+  "${DEFAULT_USER}"
+
+# Run Node scripts
+docker compose -f docker-compose.build.yml run --rm node su -c "\
+    npm run install-${APP_BUILD_MODE} --prefix ./wp-content/themes/${WP_DEFAULT_THEME}" \
   "${DEFAULT_USER}"
