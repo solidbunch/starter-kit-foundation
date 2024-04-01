@@ -44,7 +44,7 @@ jobs:
           path: |
             vendor
             web
-          key: composer-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Install Composer and Node Dependencies
         run: |
@@ -59,7 +59,7 @@ jobs:
           path: |
             vendor
             web
-          key: composer-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Save Built job
         uses: actions/cache/save@v4
