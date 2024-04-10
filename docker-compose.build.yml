@@ -58,6 +58,22 @@ services:
       PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       UPLOAD_LIMIT: 500M
 
+  certbot:
+    image: "${APP_CERTBOT_IMAGE}"
+    container_name: "${APP_NAME}_certbot"
+    restart: no
+    env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+    volumes:
+      # SSL certificate files
+      - ./config/ssl:/etc/letsencrypt
+      # Web root folder
+      - ./web/wp-core:/srv/web
+      # Logs folder
+      - ./logs/letsencrypt:/var/log/letsencrypt
+
 networks:
   project_network:
     external: true
