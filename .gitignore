@@ -27,6 +27,7 @@ ehthumbs.db
 #    Log, map files, secret .env    #
 #===================================#
 *.log
+*.log.*
 error_log
 access_log
 logs/**/*.out
@@ -43,10 +44,10 @@ logs/**/*.out
 .env
 .env.*override
 .env.*secret
-/config/ssl/**/*.key
-/config/ssl/**/*.crt
-/config/ssl/**/*.pem
+/config/ssl/
+!/config/ssl/readme.txt
 iac/terraform/public_keys
+
 
 #=============================#
 #          Terraform          #
@@ -66,6 +67,7 @@ override.tf.json
 terraform.rc
 *.lock.hcl
 
+
 #===================================#
 #       Vendor and npm Files        #
 #===================================#
@@ -84,11 +86,14 @@ vendor
 #===================================#
 /web/wp-core
 
+
 #===================================#
 #          Content Files            #
 #===================================#
 /web/wp-content/*
-!/web/wp-content/index.php
+
+# tmp folder
+tmp/
 
 
 #===================================#
