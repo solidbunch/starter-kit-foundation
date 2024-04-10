@@ -21,7 +21,7 @@ if [ "$CONFIRMED" != "yes" ]; then
   read -rp "Are you sure? (y/n): " choice
   if [[ ! $choice =~ ^[Yy](es)?$ ]]; then
     echo "Not confirmed. Exiting."
-    exit 0
+    exit 1
   fi
 fi
 
