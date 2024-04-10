@@ -174,7 +174,7 @@ define('WP_MAX_MEMORY_LIMIT', getenv_docker('WP_MAX_MEMORY_LIMIT', '512M'));
 /**
  * Better to use server cron
  *
- * Look to ./config/crontabs snd ./logs/cron
+ * Look to ./config/cron/crontabs snd ./logs/cron
  */
 define('DISABLE_WP_CRON', !!getenv_docker('WP_DISABLE_WP_CRON', true));
 
