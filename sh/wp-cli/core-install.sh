@@ -35,8 +35,6 @@ wp core install \
 
 wp plugin activate --all
 
-#wp option update blog_public 1
-
 wp rewrite structure '/%postname%/'
 
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: ${LIGHTYELLOW}$WP_ADMIN_USER${NOCOLOR}"
