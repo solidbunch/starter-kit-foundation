@@ -30,8 +30,6 @@ fi
 # Use composer install for install from lock file for regular cases for theme or plugin
 docker compose -f docker-compose.build.yml run --rm composer su -c "\
     composer install-${APP_BUILD_MODE} && \
-    cd /srv/web/wp-core && \
-    wp core verify-checksums && \
     cd /srv/web/wp-content/themes/${WP_DEFAULT_THEME} && \
     composer install-${APP_BUILD_MODE}" \
   "${DEFAULT_USER}"
