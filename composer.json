@@ -35,10 +35,10 @@
       "package": {
         "name": "solidbunch/wordpress-core",
         "type": "laravel-library",
-        "version": "6.4.3",
+        "version": "6.5.2",
         "dist": {
           "type": "zip",
-          "url": "https://wordpress.org/wordpress-6.4.3.zip"
+          "url": "https://wordpress.org/wordpress-6.5.2.zip"
         }
       }
     },
@@ -49,7 +49,7 @@
   ],
   "require": {
     "php": ">=8.1",
-    "solidbunch/wordpress-core": "6.4.3",
+    "solidbunch/wordpress-core": "6.5.2",
     "composer/installers": "2.2.0",
     "solidbunch/starter-kit-theme": "dev-develop",
     "wpackagist-plugin/svg-support": "2.5.5"
