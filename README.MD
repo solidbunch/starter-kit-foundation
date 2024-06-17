@@ -1,4 +1,4 @@
-# Starter Kit foundation
+# StarterKit Foundation
 <!--suppress HtmlDeprecatedAttribute -->
 
 <p align="center">
@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<strong>Starter Kit foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.</strong>
+<strong>StarterKit foundation - is a WordPress environment boilerplate for fast and easy start projects with docker containers, convenient credential settings, improved configuration.</strong>
 
 </p>
 
