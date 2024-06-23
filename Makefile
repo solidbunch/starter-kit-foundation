@@ -114,6 +114,9 @@ replace:
 pma:
 	docker compose -f docker-compose.build.yml run --service-ports --rm --build phpmyadmin
 
+mailhog:
+	docker-compose -f docker-compose.build.yml run --service-ports --rm --name mailhog mailhog
+
 log:
 	docker compose logs -f
 
