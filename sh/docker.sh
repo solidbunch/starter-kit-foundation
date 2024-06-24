@@ -82,8 +82,9 @@ if [ "$MODE" == "push" ]; then
 
   # Step 1: Login to GitHub Container Registry (GHCR)
 
-  #export CR_PAT=YOUR_TOKEN
-  echo "$GHCR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
+  echo -e "${CYAN}[Info]${NOCOLOR} Use your PAT and 'USERNAME' placeholder to login to Container Registry ${NOCOLOR} "
+  #docker login ghcr.io -u USERNAME -p "$GHCR_TOKEN"
+  docker login ghcr.io
 
   # Step 2: Create a New Builder Instance
 
