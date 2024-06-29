@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "54adc957cd72e7939f175c9c52070a31",
+    "content-hash": "cb355a69d17775b9f1c02af339e9ecba",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -1131,15 +1131,15 @@
         },
         {
             "name": "wpackagist-plugin/contact-form-7",
-            "version": "5.9.5",
+            "version": "5.9.6",
             "source": {
                 "type": "svn",
                 "url": "https://plugins.svn.wordpress.org/contact-form-7/",
-                "reference": "tags/5.9.5"
+                "reference": "tags/5.9.6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://downloads.wordpress.org/plugin/contact-form-7.5.9.5.zip"
+                "url": "https://downloads.wordpress.org/plugin/contact-form-7.5.9.6.zip"
             },
             "require": {
                 "composer/installers": "^1.0 || ^2.0"
