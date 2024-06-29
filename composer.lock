@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a0c8ee420179f5349ca7ee40bd1ed318",
+    "content-hash": "54adc957cd72e7939f175c9c52070a31",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -923,7 +923,7 @@
             "source": {
                 "type": "git",
                 "url": "git@github.com:solidbunch/starter-kit-theme.git",
-                "reference": "254ed28e0a3ef8ffa021085599c74ca1133476ce"
+                "reference": "cac5b0cb73425f1a1ddbec26f0430b93004d0a63"
             },
             "require": {
                 "htmlburger/carbon-fields": "3.6.2",
@@ -1014,7 +1014,7 @@
             "support": {
                 "issues": "https://github.com/solidbunch/starter-kit-theme/issues"
             },
-            "time": "2024-06-26T16:13:54+00:00"
+            "time": "2024-06-28T14:35:20+00:00"
         },
         {
             "name": "solidbunch/wordpress-core",
@@ -1146,6 +1146,24 @@
             },
             "type": "wordpress-plugin",
             "homepage": "https://wordpress.org/plugins/contact-form-7/"
+        },
+        {
+            "name": "wpackagist-plugin/redirection",
+            "version": "5.4.2",
+            "source": {
+                "type": "svn",
+                "url": "https://plugins.svn.wordpress.org/redirection/",
+                "reference": "tags/5.4.2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://downloads.wordpress.org/plugin/redirection.5.4.2.zip"
+            },
+            "require": {
+                "composer/installers": "^1.0 || ^2.0"
+            },
+            "type": "wordpress-plugin",
+            "homepage": "https://wordpress.org/plugins/redirection/"
         },
         {
             "name": "wpackagist-plugin/svg-support",
