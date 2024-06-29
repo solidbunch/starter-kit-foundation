@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cb355a69d17775b9f1c02af339e9ecba",
+    "content-hash": "88d760839d6ec402e949c364b4fbf434",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -1018,10 +1018,10 @@
         },
         {
             "name": "solidbunch/wordpress-core",
-            "version": "6.5.4",
+            "version": "6.5.5",
             "dist": {
                 "type": "zip",
-                "url": "https://wordpress.org/wordpress-6.5.4.zip"
+                "url": "https://wordpress.org/wordpress-6.5.5.zip"
             },
             "type": "laravel-library"
         },
