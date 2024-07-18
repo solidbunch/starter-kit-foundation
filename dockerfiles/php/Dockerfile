@@ -1,7 +1,7 @@
-FROM php:8.1-fpm-alpine3.19
+FROM php:8.1-fpm-alpine3.20
 
-ENV XDEBUG_VERSION 3.1.4
-ENV IMAGICK_VERSION 3.7.0
+ENV XDEBUG_VERSION=3.1.4
+ENV IMAGICK_VERSION=3.7.0
 
 ##################################
 #         Adding WP-CLI          #
@@ -19,8 +19,6 @@ RUN set -eux; \
       ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
       imagemagick \
-# Use SMTP relay service
-      ssmtp \
 # Envsubst for operate with env variables in config files
       gettext \
 # Install wp-cli dependencies
