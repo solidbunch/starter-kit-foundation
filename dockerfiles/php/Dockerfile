@@ -7,7 +7,7 @@ ENV IMAGICK_VERSION=3.7.0
 #         Adding WP-CLI          #
 ##################################
 # https://hub.docker.com/_/wordpress
-COPY --from=wordpress:cli-2.10-php8.1 /usr/local/bin/wp /usr/local/bin/wp
+COPY --from=wordpress:cli-2.11-php8.2 /usr/local/bin/wp /usr/local/bin/wp
 
 ##################################
 #     Persistent dependencies    #
