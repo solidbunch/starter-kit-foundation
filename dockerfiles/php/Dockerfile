@@ -13,7 +13,7 @@ COPY --from=wordpress:cli-2.10-php8.1 /usr/local/bin/wp /usr/local/bin/wp
 #     Persistent dependencies    #
 ##################################
 RUN set -eux; \
-    apk update \
+    apk update; \
     apk add --no-cache \
       bash \
 # Ghostscript is required for rendering PDF previews
@@ -59,9 +59,11 @@ RUN set -ex; \
       mysqli \
       zip \
       ; \
-    apk update \
-# Install Xdebug see https://xdebug.org/docs/install
+    apk update; \
+# Install Xdebug see https://xdebug.org/docs/install \
+    apk add --no-cache linux-headers autoconf make g++; \
     pecl install xdebug-${XDEBUG_VERSION}; \
+    apk del autoconf make g++ linux-headers; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
