@@ -37,6 +37,11 @@
         include /etc/nginx/conf.d/config/partials/php.conf;
     }
 
+    # Allow all REST API requests
+    location ~ ^/wp-json/ {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
     # Robots.txt
     location ~ ^/robots.txt {
         expires off;
@@ -57,6 +62,11 @@
         return 404;
     }
 
+    # Close main theme screenshot.png
+    location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/screenshot\.png$ {
+        return 404;
+    }
+
     # Process all allowed static files including images, fonts, media, documents, etc.
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif|bmp|tiff|mp3|mp4|ogg|wav|webm|pdf|doc|docx|ppt|pptx|xls|xlsx|zip|rar|7z|woff|woff2|ttf|otf|eot)$ {
         expires max;
@@ -74,7 +84,7 @@
     }
 
     # Deny access to all other files
-    location ~* \.(.*)$ {
+    location ~* /[^/]*\.[^/]*$ {
         return 404;
     }
 

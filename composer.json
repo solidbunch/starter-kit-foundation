@@ -35,31 +35,31 @@
       "package": {
         "name": "solidbunch/wordpress-core",
         "type": "laravel-library",
-        "version": "6.5.5",
+        "version": "6.6.2",
         "dist": {
           "type": "zip",
-          "url": "https://wordpress.org/wordpress-6.5.5.zip"
+          "url": "https://wordpress.org/wordpress-6.6.2.zip"
         }
       }
     },
     {
-      "type": "git",
+      "type": "vcs",
       "url": "git@github.com:solidbunch/starter-kit-theme.git"
     }
   ],
   "require": {
     "php": ">=8.1",
-    "solidbunch/wordpress-core": "6.5.5",
+    "solidbunch/wordpress-core": "6.6.2",
     "composer/installers": "2.2.0",
     "solidbunch/starter-kit-theme": "dev-develop",
-    "wpackagist-plugin/contact-form-7":"5.9.6",
-    "wpackagist-plugin/redirection":"5.4.2",
-    "wpackagist-plugin/svg-support": "2.5.5"
+    "wpackagist-plugin/contact-form-7":"5.9.8",
+    "wpackagist-plugin/redirection":"5.5.0",
+    "wpackagist-plugin/svg-support":"2.5.8"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
     "wpackagist-plugin/rewrite-rules-inspector": "1.4.0",
-    "wpackagist-plugin/query-monitor": "3.16.3"
+    "wpackagist-plugin/query-monitor": "3.16.4"
   },
   "config": {
     "optimize-autoloader": true,
