@@ -13,10 +13,11 @@ resource "aws_instance" "develop-server" {
     Environment   = "DEV"
   }
 
-  root_block_device {
-    volume_type = "gp2"  # General Purpose SSD
-    volume_size = 20     # Size in GB
-  }
+  # need to remove - costs
+  #root_block_device {
+  #  volume_type = "gp2"  # General Purpose SSD
+  #  volume_size = 20     # Size in GB
+  #}
 
   # Ensure the instance stops rather than terminates on OS shutdown
   instance_initiated_shutdown_behavior = "stop"
