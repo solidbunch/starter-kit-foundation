@@ -1,8 +1,7 @@
-# Run from original node image
-FROM node:18-alpine3.20
+FROM alpine:3.20
 
-RUN apk add --no-cache \
-    bash
+RUN apk update && \
+    apk add --no-cache bash certbot
 
 ##################################
 #   Prepare and run entrypoint   #
@@ -11,4 +10,4 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD [ "node" ]
+CMD ["certbot"]

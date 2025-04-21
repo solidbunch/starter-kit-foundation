@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   composer:
@@ -21,8 +19,6 @@ services:
       - ./logs/wordpress:/var/log/wordpress
       # PHP ini config
       - ./config/php:/usr/local/etc/php
-      # SSMTP config
-      - ./config/ssmtp:/etc/ssmtp/templates:ro
       # Share shell scripts
       - ./sh:/shell:ro
 
@@ -58,6 +54,31 @@ services:
       PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       UPLOAD_LIMIT: 500M
 
+  certbot:
+    image: "${APP_CERTBOT_IMAGE}"
+    container_name: "${APP_NAME}_certbot"
+    restart: no
+    env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+    volumes:
+      # SSL certificate files
+      - ./config/ssl:/etc/letsencrypt
+      # Web root folder
+      - ./web/wp-core:/srv/web
+      # Logs folder
+      - ./logs/letsencrypt:/var/log/letsencrypt
+
+  mailhog:
+      image: "${APP_MAILHOG_IMAGE}"
+      container_name: "${APP_NAME}_mailhog"
+      restart: no
+      ports:
+        - "8025:8025"
+        - "1025:1025"
+
 networks:
   project_network:
+    driver: bridge
     external: true

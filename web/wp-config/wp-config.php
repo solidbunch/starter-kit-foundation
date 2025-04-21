@@ -174,7 +174,7 @@ define('WP_MAX_MEMORY_LIMIT', getenv_docker('WP_MAX_MEMORY_LIMIT', '512M'));
 /**
  * Better to use server cron
  *
- * Look to ./config/crontabs snd ./logs/cron
+ * Look to ./config/cron/crontabs snd ./logs/cron
  */
 define('DISABLE_WP_CRON', !!getenv_docker('WP_DISABLE_WP_CRON', true));
 
@@ -189,6 +189,16 @@ define('AUTOMATIC_UPDATER_DISABLED', !!getenv_docker('AUTOMATIC_UPDATER_DISABLED
  * Set the default theme to the built-in project-theme
  */
 define('WP_DEFAULT_THEME', getenv_docker('WP_DEFAULT_THEME', ''));
+
+/**
+ * Set the SMTP settings
+ */
+define('SMTP_HOST', getenv_docker('SMTP_HOST', ''));
+define('SMTP_PORT', getenv_docker('SMTP_PORT', ''));
+define('SMTP_USER', getenv_docker('SMTP_USER', ''));
+define('SMTP_PASS', getenv_docker('SMTP_PASS', ''));
+define('SMTP_SECURE', getenv_docker('SMTP_SECURE', ''));
+define('SMTP_DEBUG', getenv_docker('SMTP_DEBUG', 0));
 
 
 /* Add any custom values between this line and the "stop editing" line. */

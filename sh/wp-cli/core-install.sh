@@ -7,7 +7,11 @@ source /shell/utils/colors
 # Stop when error
 set -e
 
+wp core verify-checksums
+
 if wp core is-installed; then
+  wp cache flush
+  wp rewrite flush
   echo -e "${CYAN}[Info]${NOCOLOR} WordPress is already installed"; exit 0;
 fi
 
@@ -18,9 +22,7 @@ if [ -z "$WP_HOME" ]; then
   echo -e "${LIGHTRED}[Error]${NOCOLOR} WP_HOME is not defined in wp-config.php"; exit 1;
 fi
 
-WP_ADMIN_PASSWORD=$(tr -dc 'A-Za-z0-9_' </dev/urandom | head -c 25)
-
-# Use WP_HOME, WP_ADMIN_USER, WP_ADMIN_EMAIL from .env
+# Using WP_HOME, WP_ADMIN_USER, WP_ADMIN_EMAIL, WP_ADMIN_PASSWORD from .env.secret file
 # Run the wp core install command and capture its output in a variable
 wp core install \
   --url="$WP_HOME" \
@@ -29,8 +31,11 @@ wp core install \
   --admin_password="$WP_ADMIN_PASSWORD" \
   --admin_email="$WP_ADMIN_EMAIL"
 
-wp rewrite structure '/%postname%/' --hard
+wp plugin activate --all
+
+wp rewrite structure '/%postname%/'
 
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin username: ${LIGHTYELLOW}$WP_ADMIN_USER${NOCOLOR}"
 echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Admin password: ${LIGHTYELLOW}$WP_ADMIN_PASSWORD${NOCOLOR}"
+echo -e "${CYAN}[Info]${NOCOLOR} You can find this credentials in 'config/environment/.env.secret' file"
 echo -e "${LIGHTYELLOW}[Warning]${NOCOLOR} Store your password in safe place"

@@ -22,7 +22,7 @@ fi
 if [ "$1" != "" ]; then
   OUTPUT_FILE="$1"
 else
-  OUTPUT_FILE="$DATABASE_CONTAINER"-"$MYSQL_DATABASE"-"$ENVIRONMENT_TYPE"-$(date +%Y-%m-%d).sql
+  OUTPUT_FILE="$DATABASE_CONTAINER"-"$MYSQL_DATABASE"-"$ENVIRONMENT_TYPE"-"$APP_DOMAIN"-$(date +%Y-%m-%d).sql
 fi
 
 echo "Exporting local database to '${OUTPUT_FILE}'. It can take more than a few minutes. Please wait."

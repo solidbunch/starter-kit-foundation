@@ -113,7 +113,14 @@ jobs:
             --exclude "web/wp-content/uploads" \
             --include "web/wp-content/cache" \
             ./ ${{ inputs.SSH_HOST_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
-          ssh ${{ inputs.SSH_HOST_ALIAS }} " \
-            cd ${{ inputs.DEPLOY_PATH_DESTINATION }} && \
-            make secret && \
-            make recreate ${{ inputs.ENVIRONMENT_TYPE }}"
+          ssh ${{ inputs.SSH_HOST_ALIAS }} "
+            set -e
+            cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
+            make secret;
+            bash ./sh/env/init.sh '${ENVIRONMENT_TYPE}';
+            make ssl;
+            make down;
+            make up '${ENVIRONMENT_TYPE}';
+            bash ./sh/database/check.sh;
+            make core-install"
+
