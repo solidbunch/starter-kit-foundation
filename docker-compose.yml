@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   mariadb:
@@ -36,8 +34,6 @@ services:
       - ./logs/wordpress:/var/log/wordpress
       # PHP ini config
       - ./config/php:/usr/local/etc/php
-      # SSMTP config
-      - ./config/ssmtp:/etc/ssmtp/templates:ro
       # Share shell scripts
       - ./sh:/shell:ro
 

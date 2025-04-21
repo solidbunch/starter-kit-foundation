@@ -1,26 +1,25 @@
-FROM php:8.1-fpm-alpine3.19
+FROM php:8.2-fpm-alpine3.20
 
-ENV XDEBUG_VERSION 3.1.4
-ENV IMAGICK_VERSION 3.7.0
+ENV XDEBUG_VERSION=3.3.2
+ENV IMAGICK_VERSION=3.7.0
 
 ##################################
 #         Adding WP-CLI          #
 ##################################
 # https://hub.docker.com/_/wordpress
-COPY --from=wordpress:cli-2.10-php8.1 /usr/local/bin/wp /usr/local/bin/wp
+COPY --from=wordpress:cli-2.11-php8.2 /usr/local/bin/wp /usr/local/bin/wp
 
 ##################################
 #     Persistent dependencies    #
 ##################################
 RUN set -eux; \
+    apk update; \
     apk add --no-cache \
       bash \
 # Ghostscript is required for rendering PDF previews
       ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
       imagemagick \
-# Use SMTP relay service
-      ssmtp \
 # Envsubst for operate with env variables in config files
       gettext \
 # Install wp-cli dependencies
@@ -41,6 +40,8 @@ RUN set -ex; \
       libjpeg-turbo-dev \
       libpng-dev \
       libwebp-dev \
+      libavif-dev \
+      aom-dev \
       libzip-dev \
     ; \
     \
@@ -48,6 +49,7 @@ RUN set -ex; \
       --with-freetype \
       --with-jpeg \
       --with-webp \
+      --with-avif \
     ; \
     docker-php-ext-install -j "$(nproc)" \
       bcmath \
@@ -56,9 +58,12 @@ RUN set -ex; \
       intl \
       mysqli \
       zip \
-    ; \
-# Install Xdebug see https://xdebug.org/docs/install
+      ; \
+    apk update; \
+# Install Xdebug see https://xdebug.org/docs/install \
+    apk add --no-cache linux-headers autoconf make g++; \
     pecl install xdebug-${XDEBUG_VERSION}; \
+    apk del autoconf make g++ linux-headers; \
 #
 # WARNING: imagick is likely not supported on Alpine: https://github.com/Imagick/imagick/issues/328
 # https://pecl.php.net/package/imagick
@@ -99,7 +104,7 @@ RUN mkdir -p /var/log/wordpress
 ##################################
 RUN mkdir /docker-entrypoint.d
 
-COPY docker-entrypoint.sh /
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 COPY ./docker-entrypoint.d/* /docker-entrypoint.d
 
 RUN chmod +x /docker-entrypoint.sh
