@@ -25,9 +25,12 @@ endif
 #  CURRENT_UID="${DEFAULT_UID}"
 #fi
 
+# Share current project folder path
+CURRENT_PATH := $(CURDIR)
 
 export CURRENT_UID
 export CURRENT_GID
+export CURRENT_PATH
 
 export DOCKER_BUILDKIT=1
 
@@ -57,6 +60,9 @@ install:
 	# Setup WordPress database
 	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
 
+i:
+	$(MAKE) install
+
 # Generate .env.secret file
 secret:
 	$(LOGO_SH)
@@ -65,6 +71,12 @@ secret:
 env:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
+
+certbot:
+	bash ./sh/certbot.sh $(PARAMS)
+
+ssl:
+	$(MAKE) certbot
 
 core-install:
 	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)

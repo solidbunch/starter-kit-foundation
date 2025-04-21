@@ -1,8 +1,8 @@
 # Do not edit .conf file, it will override by script.
 # Edit .conf.template file to change settings
 
-    ssl_certificate /etc/nginx/ssl/${APP_DOMAIN}/cert.pem;
-    ssl_certificate_key /etc/nginx/ssl/${APP_DOMAIN}/privkey.pem;
+    ssl_certificate /etc/nginx/ssl/live/${APP_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/live/${APP_DOMAIN}/privkey.pem;
 
     ssl_protocols TLSv1.2 TLSv1.3;
 

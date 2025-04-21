@@ -74,15 +74,20 @@ services:
       - mariadb
       - php
     env_file: .env
+    environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+      CURRENT_PATH: ${CURRENT_PATH:-$DEFAULT_PATH}
+    working_dir: /app
     volumes:
       # Share docker socket to allow cron run scenarios inside other containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Share crontabs files into tmp folder
-      - ./config/crontabs:/tmp/crontabs
+      - ./config/cron/crontabs:/tmp/crontabs
       # Backups folder
       - ./backups:/srv/backups
-      # Share shell scripts
-      - ./sh:/shell:ro
+      # Share all app files
+      - ./:/app
 
 networks:
   project_network:
