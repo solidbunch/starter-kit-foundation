@@ -1,6 +1,8 @@
 # Do not edit .conf file, it will override by script.
 # Edit .conf.template file to change settings
 
+# Run "nginx -T" to debug config rules
+
 # Common config with all rules
 
     # Follow all errors to WordPress index.php
@@ -32,7 +34,7 @@
 
     # Check and include Basic Auth config (15-setup-basic-auth.sh)
     include /etc/nginx/conf.d/config/partials/ba_${APP_BA}.conf;
-    location ~ ^/wp-login.php$ {
+    location ~* ^/(wp-admin|wp-login\.php) {
         include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
         include /etc/nginx/conf.d/config/partials/php.conf;
     }
@@ -42,9 +44,18 @@
         try_files $uri $uri/ /index.php?$args;
     }
 
-    # Robots.txt
+    # robots.txt
     location ~ ^/robots.txt {
+        allow all;
         expires off;
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Sitemap
+    location ~ ^/(.*sitemap.*\.(xml|xsl))$ {
+        allow all;
+        expires off;
+        try_files $uri $uri/ /index.php?$args;
     }
 
     # Deny all php scripts in uploads folder
@@ -67,9 +78,17 @@
         return 404;
     }
 
-    # Process all allowed static files including images, fonts, media, documents, etc.
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif|bmp|tiff|mp3|mp4|ogg|wav|webm|pdf|doc|docx|ppt|pptx|xls|xlsx|zip|rar|7z|woff|woff2|ttf|otf|eot)$ {
+    # Process all allowed static asset files including images, fonts, media, etc.
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif|bmp|tiff|mp3|mp4|ogg|wav|webm|woff|woff2|ttf|otf|eot)$ {
         expires max;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        log_not_found off;
+    }
+
+    # Process allowed documents and archives
+    location ~* \.(pdf|doc|docx|ppt|pptx|xls|xlsx|zip|rar|7z)$ {
+        expires 1d;
+        add_header Cache-Control "private, max-age=86400";
         log_not_found off;
     }
 
