@@ -68,15 +68,15 @@
         return 404;
     }
 
-    # Close main theme style.css file for security reasons
-    location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/style\.css$ {
-        return 404;
-    }
+    # Restrict access to the main theme’s style.css file for strict security reasons
+    #location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/style\.css$ {
+    #    return 404;
+    #}
 
-    # Close main theme screenshot.png
-    location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/screenshot\.png$ {
-        return 404;
-    }
+    # Restrict access to the main theme’s screenshot.png file for strict security reasons
+    #location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/screenshot\.png$ {
+    #    return 404;
+    #}
 
     # Process all allowed static asset files including images, fonts, media, etc.
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif|bmp|tiff|mp3|mp4|ogg|wav|webm|woff|woff2|ttf|otf|eot)$ {
