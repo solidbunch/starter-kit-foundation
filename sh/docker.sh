@@ -83,9 +83,10 @@ if [ "$MODE" == "push" ]; then
   # Step 1: Login to Container Registry (CR)
 
   echo -e "${CYAN}[Info]${NOCOLOR} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${NOCOLOR} "
-  docker login ghcr.io -u USERNAME -p "$CR_TOKEN"
+  export "$(grep -v '^#' .env | xargs)"
+  echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
   #docker login ghcr.io
-  #docker login registry.gitlab.com -u USERNAME -p "$CR_TOKEN"
+  #echo "$CR_TOKEN" | docker login registry.gitlab.com -u USERNAME --password-stdin
 
   # Step 2: Create a New Builder Instance
 
