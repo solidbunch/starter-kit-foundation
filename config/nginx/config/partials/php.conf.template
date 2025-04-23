@@ -14,5 +14,8 @@
         #fastcgi_buffer_size 16k;
         #fastcgi_buffers 16 16k;
         #fastcgi_busy_buffers_size 32k;
+
+        # Hide X-Powered-By header
+        fastcgi_hide_header X-Powered-By;
     }
 
