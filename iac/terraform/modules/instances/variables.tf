@@ -23,6 +23,21 @@ variable "public_key_path" {
   type        = string
 }
 
+variable "instance_initiated_shutdown_behavior" {
+  description = "Ensure the instance stops rather than terminates on OS shutdown"
+  type        = string
+}
+
+variable "disable_api_termination" {
+  description = "Enable termination protection"
+  type        = bool
+}
+
+variable "disable_api_stop" {
+  description = "Enables stop protection"
+  type        = bool
+}
+
 variable "tags" {
   description = "Tags to assign to the EC2 instance"
   type        = map(string)
