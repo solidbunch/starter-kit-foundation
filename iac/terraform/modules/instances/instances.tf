@@ -1,17 +1,11 @@
-# Create an EC2 instances
-# If you have 'Error: collecting instance settings: couldn't find resource' just check AMI id, it changes time to time
+# Create EC2 instance
+resource "aws_instance" "this" {
+  ami                         = var.instance_ami
+  instance_type               = var.instance_type
+  vpc_security_group_ids      = var.security_group_ids
+  key_name                    = aws_key_pair.deploy.key_name
 
-resource "aws_instance" "develop-server" {
-  provider               = aws.frankfurt # Refer to the aliased provider
-  ami                    = "ami-04bd057ffbd865312" # Debian 12 (HVM), arm64, SSD Volume Type, user 'admin', become 'sudo'
-  instance_type          = "t4g.nano"
-  vpc_security_group_ids = [aws_security_group.allow_http_s.id, aws_security_group.allow_ssh.id]
-  key_name               = aws_key_pair.deploy.key_name
-
-  tags = {
-    Name          = "develop.starter-kit.io"
-    Environment   = "DEV"
-  }
+  tags = var.tags
 
   # need to remove - costs
   #root_block_device {
@@ -25,6 +19,22 @@ resource "aws_instance" "develop-server" {
   # Enable termination protection
   disable_api_termination = true
 }
+
+# Upload SSH public key to AWS
+resource "aws_key_pair" "deploy" {
+  key_name   = var.public_key_name
+  public_key = file(var.public_key_path)
+}
+
+# Output public IP of the instance
+output "public_ip" {
+  value = aws_instance.this.public_ip
+}
+
+# Create an EC2 instances
+# If you have 'Error: collecting instance settings: couldn't find resource' just check AMI id, it changes time to time
+
+#"ami-04bd057ffbd865312" # Debian 12 (HVM), arm64, SSD Volume Type, user 'admin', become 'sudo'
 
 /*resource "aws_instance" "production-server" {
   provider               = aws.frankfurt # Refer to the aliased provider
@@ -60,6 +70,13 @@ output "develop_ip_addr" {
 /*output "prod_ip_addr" {
   value = aws_instance.production-server.public_ip
 }*/
+
+# Define deploy key
+resource "aws_key_pair" "deploy" {
+  key_name   = "deploy-key"
+  public_key = file("./public_keys/id_rsa_starter_kit_deploy.pub")
+  # make terraform import aws_key_pair.deploy deploy-key
+}
 
 /**
  * If IP address was renew, follow this steps:
