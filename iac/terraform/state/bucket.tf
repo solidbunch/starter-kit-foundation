@@ -1,17 +1,6 @@
-terraform {
-  # Configure backend to store Terraform state in an S3 bucket and use DynamoDB for locking
-  backend "s3" {
-    bucket         = "your-unique-bucket-name"  # Name of the S3 bucket where Terraform state will be stored
-    key            = "terraform/state/terraform.tfstate"  # Path to the state file in the bucket
-    region         = "us-west-2"  # AWS region where the S3 bucket is located
-    dynamodb_table = "terraform-locks"  # DynamoDB table for state locking to prevent conflicts
-    encrypt        = true  # Enable server-side encryption for the state file
-  }
-}
-
 # Create an S3 bucket to store Terraform state
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "your-unique-bucket-name"  # Unique name of the S3 bucket
+  bucket = "starter-kit-io-terraform-state-storage"  # Unique name of the S3 bucket
 }
 
 # Configure public access block to restrict public access to the S3 bucket
@@ -45,3 +34,5 @@ resource "aws_dynamodb_table" "terraform_locks" {
     type = "S"  # LockID is a string type attribute
   }
 }
+
+# ToDo add Lifecycle Policies
