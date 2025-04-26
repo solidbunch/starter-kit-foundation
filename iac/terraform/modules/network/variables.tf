@@ -21,7 +21,12 @@ variable "enable_dns_hostnames" {
   default     = true
 }
 
+variable "subnet_cidr_blocks" {
+  description = "List of CIDR blocks for subnets"
+  type        = list(string)
+}
+
 variable "vpc_name" {
-  description = "Name tag for the VPC"
+  description = "Tag name of the VPC (used also for subnet tags)"
   type        = string
 }

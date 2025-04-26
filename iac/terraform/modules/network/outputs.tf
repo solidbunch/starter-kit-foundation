@@ -3,11 +3,7 @@ output "vpc_id" {
 }
 
 output "subnet_ids" {
-  value = [
-    aws_subnet.subnet_a.id,
-    aws_subnet.subnet_b.id,
-    aws_subnet.subnet_c.id
-  ]
+  value = aws_subnet.subnets[*].id
 }
 
 output "internet_gateway_id" {
