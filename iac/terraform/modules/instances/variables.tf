@@ -43,6 +43,16 @@ variable "disable_api_stop" {
   type        = bool
 }
 
+variable "associate_public_ip_address" {
+  description = "Associate a public IPv4 address with the instance"
+  type        = bool
+}
+
+variable "ipv6_address_count" {
+  description = "Number of IPv6 addresses to assign to the instance"
+  type        = number
+}
+
 variable "tags" {
   description = "Tags to assign to the EC2 instance"
   type        = map(string)

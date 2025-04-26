@@ -1,6 +1,3 @@
-# Fetch available zones
-data "aws_availability_zones" "available" {}
-
 # Upload SSH public key to AWS
 resource "aws_key_pair" "deploy" {
   key_name   = var.public_key_name
@@ -18,7 +15,10 @@ resource "aws_instance" "this" {
   key_name                             = aws_key_pair.deploy.key_name
 
   vpc_security_group_ids               = var.security_group_ids
-  subnet_id                            = var.subnet_ids[0]   # Use the first available subnet
+  subnet_id                            = var.subnet_ids[0]
+
+  associate_public_ip_address          = var.associate_public_ip_address
+  ipv6_address_count                   = var.ipv6_address_count
 
   tags = var.tags
 }
