@@ -1,10 +1,10 @@
 resource "aws_vpc" "main_vpc" {
-  cidr_block                       = "10.0.0.0/16"
-  assign_generated_ipv6_cidr_block = true
-  enable_dns_support               = true
-  enable_dns_hostnames             = true
+  cidr_block                       = var.vpc_cidr
+  assign_generated_ipv6_cidr_block = var.assign_generated_ipv6
+  enable_dns_support               = var.enable_dns_support
+  enable_dns_hostnames             = var.enable_dns_hostnames
 
   tags = {
-    Name = "main_vpc"
+    Name = var.vpc_name
   }
 }
