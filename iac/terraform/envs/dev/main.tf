@@ -1,7 +1,11 @@
-# Create VPC and network infrastructure
-module "network" {
-  source   = "../../modules/network"
-  vpc_cidr = var.vpc_cidr
+# Fetch VPC and subnets from shared network
+data "terraform_remote_state" "shared" {
+  backend = "s3"
+  config = {
+    bucket = "starter-kit-io-terraform-state-storage"
+    key    = "envs/shared/network.tfstate"
+    region = "eu-west-1"
+  }
 }
 
 # Create security groups
@@ -21,6 +25,8 @@ module "instances" {
   disable_api_termination              = true                                             # Enable termination protection
   disable_api_stop                     = false                                            # Enables stop protection
 
+  subnet_ids = data.terraform_remote_state.shared.outputs.subnet_ids
+
   security_group_ids = [
     module.security_groups.allow_http_s_id,
     module.security_groups.allow_ssh_id
@@ -30,5 +36,4 @@ module "instances" {
     Name        = "develop.starter-kit.io"
     Environment = "DEV"
   }
-
 }

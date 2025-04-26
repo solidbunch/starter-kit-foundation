@@ -1,20 +1,26 @@
+# Fetch available zones
+data "aws_availability_zones" "available" {}
+
+# Upload SSH public key to AWS
+resource "aws_key_pair" "deploy" {
+  key_name   = var.public_key_name
+  public_key = file(var.public_key_path)
+}
+
 # Create EC2 instance
 resource "aws_instance" "this" {
   ami                                  = var.instance_ami
   instance_type                        = var.instance_type
-  vpc_security_group_ids               = var.security_group_ids
-  key_name                             = aws_key_pair.deploy.key_name
   instance_initiated_shutdown_behavior = var.instance_initiated_shutdown_behavior
   disable_api_termination              = var.disable_api_termination
   disable_api_stop                     = var.disable_api_stop
 
-  tags = var.tags
-}
+  key_name                             = aws_key_pair.deploy.key_name
 
-# Upload SSH public key to AWS
-resource "aws_key_pair" "deploy" {
-  key_name = var.public_key_name
-  public_key = file(var.public_key_path)
+  vpc_security_group_ids               = var.security_group_ids
+  subnet_id                            = var.subnet_ids[0]   # Use the first available subnet
+
+  tags = var.tags
 }
 
 # Output public IP of the instance

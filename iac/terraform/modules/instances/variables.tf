@@ -13,6 +13,11 @@ variable "security_group_ids" {
   type        = list(string)
 }
 
+variable "subnet_ids" {
+  description = "List of subnet IDs"
+  type        = list(string)
+}
+
 variable "public_key_name" {
   description = "Name of the SSH public key"
   type        = string

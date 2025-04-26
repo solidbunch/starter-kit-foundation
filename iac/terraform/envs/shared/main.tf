@@ -1,3 +1,4 @@
+# Create VPC and network common infrastructure
 module "network" {
   source = "../../modules/network"
 
