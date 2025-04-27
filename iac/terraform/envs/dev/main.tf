@@ -10,7 +10,10 @@ data "terraform_remote_state" "shared" {
 
 # Create security groups
 module "security_groups" {
-  source = "../../modules/security_groups"
+  source      = "../../modules/security_groups"
+  environment = "DEV"
+  web_ports   = [80, 443]
+  ssh_ports   = [22]
 }
 
 # Launch EC2 instances
