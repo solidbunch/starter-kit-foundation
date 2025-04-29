@@ -6,7 +6,7 @@ module "network" {
   assign_generated_ipv6 = true
   enable_dns_support    = true
   enable_dns_hostnames  = true
-  vpc_name              = "Main VPC"
+  vpc_name              = "VPC with IPv6"
 
   subnet_cidr_blocks = [
     "10.0.1.0/24",
