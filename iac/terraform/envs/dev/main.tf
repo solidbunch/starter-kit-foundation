@@ -21,15 +21,15 @@ module "instances" {
   source = "../../modules/instances"
 
   # Instance configuration
-  instance_ami                         = "ami-04bd057ffbd865312"                          # Debian 12 (HVM), arm64, SSD Volume Type, user 'admin', become 'sudo'
-  instance_type                        = "t4g.nano"                                       # 500MB RAM, 2 CPU, 8GB EBS
-  public_key_name                      = "id-rsa-starter-kit-deploy"                      # Name of the SSH public key
-  public_key_path                      = "./public_keys/id_rsa_starter_kit_deploy.pub"    # Path to the public SSH key file
+  instance_ami                         = "ami-0393eeb161ec86a1a"                              # Debian 12 (HVM), arm64, SSD Volume Type, user 'admin', become 'sudo'
+  instance_type                        = "t4g.nano"                                           # 500MB RAM, 2 CPU, 8GB EBS
+  public_key_name                      = "id-rsa-starter-kit-deploy"                          # Name of the SSH public key
+  public_key_path                      = "../../public_keys/id_rsa_starter_kit_deploy.pub"    # Path to the public SSH key file
 
   # Instance termination and shutdown behavior
-  instance_initiated_shutdown_behavior = "stop"                                           # Ensure the instance stops rather than terminates on OS shutdown
-  disable_api_termination              = true                                             # Enable termination protection
-  disable_api_stop                     = false                                            # Enables stop protection
+  instance_initiated_shutdown_behavior = "stop"                                              # Ensure the instance stops rather than terminates on OS shutdown
+  disable_api_termination              = true                                                # Enable termination protection
+  disable_api_stop                     = false                                               # Enables stop protection
 
   # Network VPC configuration
   subnet_ids = data.terraform_remote_state.shared.outputs.subnet_ids     # List of subnet IDs to launch the instance in
