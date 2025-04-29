@@ -24,8 +24,8 @@ resource "aws_instance" "this" {
 }
 
 # Output public IP of the instance
-output "public_ip" {
-  value = aws_instance.this.public_ip
+output "ipv6" {
+  value = aws_instance.this.ipv6_addresses[0]
 }
 
 # Create an EC2 instances
