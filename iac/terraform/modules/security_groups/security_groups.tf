@@ -2,6 +2,7 @@
 resource "aws_security_group" "allow_http_s" {
   name        = "${var.environment}-allow-web"
   description = "Allow web inbound traffic for ${var.environment}"
+  vpc_id      = var.vpc_id
 
   dynamic "ingress" {
     for_each = var.web_ports
@@ -24,7 +25,7 @@ resource "aws_security_group" "allow_http_s" {
   }
 
   tags = {
-    Name = "${var.environment}-Allow Web"
+    Name = "${var.environment} Allow Web"
   }
 }
 
@@ -54,6 +55,6 @@ resource "aws_security_group" "allow_ssh" {
   }
 
   tags = {
-    Name = "${var.environment}-Allow SSH"
+    Name = "${var.environment} Allow SSH"
   }
 }

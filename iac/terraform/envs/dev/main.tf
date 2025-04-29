@@ -12,6 +12,7 @@ data "terraform_remote_state" "shared" {
 module "security_groups" {
   source      = "../../modules/security_groups"
   environment = "DEV"
+  vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
   web_ports   = [80, 443]
   ssh_ports   = [22]
 }

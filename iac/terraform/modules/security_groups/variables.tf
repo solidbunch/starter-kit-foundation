@@ -3,6 +3,11 @@ variable "environment" {
   type        = string
 }
 
+variable "vpc_id" {
+  description = "VPC ID where security groups will be created"
+  type        = string
+}
+
 variable "web_ports" {
   description = "List of ports to open for web (HTTP/HTTPS)"
   type        = list(number)
