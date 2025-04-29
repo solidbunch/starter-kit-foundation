@@ -33,6 +33,7 @@ resource "aws_security_group" "allow_http_s" {
 resource "aws_security_group" "allow_ssh" {
   name        = "${var.environment}-allow-ssh"
   description = "Allow SSH inbound traffic for ${var.environment}"
+  vpc_id      = var.vpc_id
 
   dynamic "ingress" {
     for_each = var.ssh_ports
