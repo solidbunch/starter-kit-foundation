@@ -46,7 +46,7 @@ logs/**/*.out
 .env.*secret
 /config/ssl/
 !/config/ssl/readme.txt
-iac/terraform/public_keys
+iac/terraform/public_keys/*
 !iac/terraform/public_keys/.gitkeep
 
 
