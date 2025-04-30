@@ -39,7 +39,7 @@ module "instances" {
     module.security_groups.allow_ssh_id         # Allow SSH traffic
   ]
 
-  associate_public_ip_address = false   # Associate a public IPv4 address with the instance
+  associate_public_ip_address = true   # Associate a public IPv4 address with the instance
   ipv6_address_count          = 1       # Number of IPv6 addresses to assign to the instance
 
   # Tags for the instance
