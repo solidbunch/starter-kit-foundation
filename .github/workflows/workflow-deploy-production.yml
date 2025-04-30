@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/job-deploy.yml
     secrets:
       SSH_KEY: ${{ secrets.SSH_KEY }}
-      SSH_CONFIG: ${{ variables.SSH_CONFIG }}
+      SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
       COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
     with:
       SSH_HOST_ALIAS: starter-kit.io
