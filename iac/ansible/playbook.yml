@@ -1,7 +1,6 @@
 - name: Install required packages and settings on Debian/Ubuntu Server
   hosts:
     - development
-    - staging
     - production
   become: yes
   tasks:

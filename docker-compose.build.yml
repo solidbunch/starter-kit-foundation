@@ -2,7 +2,7 @@ services:
 
   composer:
     image: "${APP_COMPOSER_IMAGE}"
-    container_name: "${APP_NAME}_composer"
+    container_name: "${APP_NAME}-composer"
     restart: no
     env_file: .env
     environment:
@@ -24,7 +24,7 @@ services:
 
   node:
     image: "${APP_NODE_IMAGE}"
-    container_name: "${APP_NAME}_node"
+    container_name: "${APP_NAME}-node"
     restart: no
     env_file: .env
     environment:
@@ -42,7 +42,7 @@ services:
 
   phpmyadmin:
     image: "${APP_PHPMYADMIN_IMAGE}"
-    container_name: "${APP_NAME}_phpmyadmin"
+    container_name: "${APP_NAME}-phpmyadmin"
     restart: no
     ports:
       - ${PMA_EXT_PORT}:80
@@ -56,7 +56,7 @@ services:
 
   certbot:
     image: "${APP_CERTBOT_IMAGE}"
-    container_name: "${APP_NAME}_certbot"
+    container_name: "${APP_NAME}-certbot"
     restart: no
     env_file: .env
     environment:
@@ -72,7 +72,7 @@ services:
 
   mailhog:
       image: "${APP_MAILHOG_IMAGE}"
-      container_name: "${APP_NAME}_mailhog"
+      container_name: "${APP_NAME}-mailhog"
       restart: no
       ports:
         - "8025:8025"

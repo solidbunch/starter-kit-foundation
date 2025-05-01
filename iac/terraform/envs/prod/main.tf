@@ -11,7 +11,7 @@ data "terraform_remote_state" "shared" {
 # Create security groups
 module "security_groups" {
   source      = "../../modules/security_groups"
-  environment = "DEV"
+  environment = "PROD"
   vpc_id      = data.terraform_remote_state.shared.outputs.vpc_id
   web_ports   = [80, 443]
   ssh_ports   = [22]
@@ -30,7 +30,7 @@ module "instances" {
   # Instance termination and shutdown behavior
   instance_initiated_shutdown_behavior = "stop"                                              # Ensure the instance stops rather than terminates on OS shutdown
   disable_api_termination              = true                                                # Enable termination protection
-  disable_api_stop                     = false                                               # Enables stop protection
+  disable_api_stop                     = true                                                # Enables stop protection
 
   # Network VPC configuration
   subnet_ids = data.terraform_remote_state.shared.outputs.subnet_ids     # List of subnet IDs to launch the instance in
@@ -42,9 +42,14 @@ module "instances" {
   associate_public_ip_address = true   # Associate a public IPv4 address with the instance
   ipv6_address_count          = 1       # Number of IPv6 addresses to assign to the instance
 
+  #root_block_device {
+  #  volume_type = "gp2"  # General Purpose SSD
+  #  volume_size = 25     # Size in GB
+  #}
+
   # Tags for the instance
   tags = {
-    Name        = "develop.starter-kit.io"
-    Environment = "DEV"
+    Name        = "starter-kit.io"
+    Environment = "PROD"
   }
 }

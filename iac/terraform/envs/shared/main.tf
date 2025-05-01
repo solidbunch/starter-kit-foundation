@@ -14,3 +14,10 @@ module "network" {
     "10.0.3.0/24"
   ]
 }
+
+# Upload SSH public key to AWS
+resource "aws_key_pair" "deploy" {
+  key_name   = "id-rsa-starter-kit-deploy"                                # Name of the SSH key pair
+  public_key = file("../../public_keys/id_rsa_starter_kit_deploy.pub")    # Path to the public SSH key file
+}
+

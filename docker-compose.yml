@@ -2,7 +2,7 @@ services:
 
   mariadb:
     image: "${APP_DATABASE_IMAGE}"
-    container_name: "${APP_NAME}_mariadb"
+    container_name: "${APP_NAME}-mariadb"
     restart: unless-stopped
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
@@ -16,7 +16,7 @@ services:
 
   php:
     image: "${APP_PHP_IMAGE}"
-    container_name: "${APP_NAME}_php"
+    container_name: "${APP_NAME}-php"
     restart: unless-stopped
     depends_on:
       - mariadb
@@ -39,7 +39,7 @@ services:
 
   nginx:
     image: "${APP_NGINX_IMAGE}"
-    container_name: "${APP_NAME}_nginx"
+    container_name: "${APP_NAME}-nginx"
     restart: unless-stopped
     depends_on:
       - mariadb
@@ -68,7 +68,7 @@ services:
 
   cron:
     image: "${APP_CRON_IMAGE}"
-    container_name: "${APP_NAME}_cron"
+    container_name: "${APP_NAME}-cron"
     restart: unless-stopped
     depends_on:
       - mariadb

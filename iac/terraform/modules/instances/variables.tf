@@ -18,13 +18,8 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-variable "public_key_name" {
-  description = "Name of the SSH public key"
-  type        = string
-}
-
-variable "public_key_path" {
-  description = "Path to the SSH public key file"
+variable "key_name" {
+  description = "The name of an existing SSH key pair in AWS"
   type        = string
 }
 
