@@ -1,9 +1,3 @@
-# Upload SSH public key to AWS
-resource "aws_key_pair" "deploy" {
-  key_name   = var.public_key_name
-  public_key = file(var.public_key_path)
-}
-
 # Create EC2 instance
 resource "aws_instance" "this" {
   ami                                  = var.instance_ami
@@ -12,7 +6,7 @@ resource "aws_instance" "this" {
   disable_api_termination              = var.disable_api_termination
   disable_api_stop                     = var.disable_api_stop
 
-  key_name                             = aws_key_pair.deploy.key_name
+  key_name                             = var.key_name
 
   vpc_security_group_ids               = var.security_group_ids
   subnet_id                            = var.subnet_ids[0]
