@@ -21,6 +21,26 @@ resource "aws_s3_bucket_versioning" "versioning" {
   }
 }
 
+# Configure lifecycle rules to delete noncurrent object versions older than 1 year
+resource "aws_s3_bucket_lifecycle_configuration" "lifecycle" {
+  bucket = aws_s3_bucket.terraform_state.id
+
+  rule {
+    id     = "expire-noncurrent-versions"
+    status = "Enabled"
+
+
+    filter {
+      prefix = ""  # apply to all objects in the bucket
+      # prefix = "envs/dev/" # apply to objects in the envs/dev/ directory
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 365  # Delete noncurrent versions older than 365 days
+    }
+  }
+}
+
 # Create a DynamoDB table to implement state locking to avoid race conditions
 resource "aws_dynamodb_table" "terraform_locks" {
   name         = "terraform-locks"
