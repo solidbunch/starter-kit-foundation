@@ -24,7 +24,7 @@ Before applying Terraform:
 - Make sure the folder `terraform/public_keys/` exists.
 - Place your **public SSH key** inside it.
 
-This key will be uploaded to AWS and used for EC2 access.
+This key will be uploaded to Hosting provider and used for Instance access.
 
 Use your **private key** locally to connect to the instances after deployment.
 
@@ -134,4 +134,12 @@ terraform/
 
 ```hcl
 assign_ipv6_address_on_creation = true
+```
+
+## Destroy
+
+To destroy the infrastructure, run in the needs infrastructure folder:
+
+```bash
+terraform destroy
 ```
