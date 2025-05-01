@@ -1,0 +1,36 @@
+# Do not edit .conf file, it will override by script.
+# Edit .conf.template file to change settings
+
+    # Security Headers
+
+    # Prevents Clickjacking attacks by blocking iframes
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    # Prevents MIME-type sniffing to avoid security risks
+    add_header X-Content-Type-Options nosniff always;
+
+    # Forces HTTPS and protects against Man-in-the-Middle (MITM) attacks
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Controls how referrer information is sent to other websites
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Restricts access to browser features like geolocation, microphone, camera, etc.
+    #add_header Permissions-Policy "accelerometer=(), autoplay=(), camera=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), usb=(), vr=(), screen-wake-lock=(), web-share=()" always;
+
+    # Defines which content sources are allowed to load
+    #add_header Content-Security-Policy "default-src 'self'; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:; font-src 'self' https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';" always;
+
+    # Isolate content from other tabs. Disable if not use WebAssembly/SharedArrayBuffer
+    #add_header Cross-Origin-Embedder-Policy "require-corp" always;
+
+    add_header Cross-Origin-Opener-Policy "same-origin"  always;
+
+    add_header Cross-Origin-Resource-Policy "same-origin" always;
+
+    add_header X-Permitted-Cross-Domain-Policies "none" always;
+
+    add_header X-DNS-Prefetch-Control "off" always;
+
+    # Hide Nginx version
+    server_tokens off;

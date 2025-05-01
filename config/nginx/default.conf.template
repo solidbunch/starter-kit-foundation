@@ -5,6 +5,12 @@
 
 server_names_hash_bucket_size 128;
 
+# Headers setup
+include /etc/nginx/conf.d/config/partials/headers.conf;
+
+# Gzip compression
+include /etc/nginx/conf.d/config/partials/gzip.conf;
+
 # Nginx logs
 include /etc/nginx/conf.d/config/partials/logs.conf;
 

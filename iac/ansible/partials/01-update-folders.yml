@@ -1,0 +1,14 @@
+# Update folders
+
+  - name: Ensure ansible_user owns the deploy folder
+    file:
+      path: /srv
+      owner: "{{ ansible_user }}"
+      state: directory
+      recurse: yes
+
+  - name: Create a directory for site data
+    ansible.builtin.file:
+      path: "/srv/{{ inventory_hostname }}"
+      state: directory
+      owner: "{{ ansible_user }}"

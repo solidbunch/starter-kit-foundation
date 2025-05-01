@@ -25,8 +25,8 @@ if [ "$2" ]; then
 fi
 
 # Define the services and images arrays
-SERVICES=("mariadb"             "php"              "nginx"              "cron"              "composer"              "node")
-IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}")
+SERVICES=("mariadb"             "php"              "nginx"              "cron"              "composer"              "node"              "certbot")
+IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}" "${APP_CERTBOT_IMAGE}")
 
 PLATFORMS=linux/amd64,linux/arm64
 
@@ -82,9 +82,11 @@ if [ "$MODE" == "push" ]; then
 
   # Step 1: Login to Container Registry (CR)
 
-  echo -e "${CYAN}[Info]${NOCOLOR} Use your PAT and 'USERNAME' placeholder to login to Container Registry ${NOCOLOR} "
-  #docker login ghcr.io -u USERNAME -p "$CR_TOKEN"
-  docker login ghcr.io
+  echo -e "${CYAN}[Info]${NOCOLOR} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${NOCOLOR} "
+  export "$(grep -v '^#' .env | xargs)"
+  echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
+  #docker login ghcr.io
+  #echo "$CR_TOKEN" | docker login registry.gitlab.com -u USERNAME --password-stdin
 
   # Step 2: Create a New Builder Instance
 

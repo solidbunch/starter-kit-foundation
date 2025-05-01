@@ -1,0 +1,17 @@
+# Prepare packages
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      apt:
+        name: "{{ packages }}"
+      vars:
+        packages:
+          - ca-certificates
+          - curl
+          - gnupg
+          - make
+          - rsync
