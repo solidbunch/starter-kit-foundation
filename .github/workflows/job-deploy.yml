@@ -108,7 +108,7 @@ jobs:
             --exclude ".env" \
             --exclude ".env.*override" \
             --exclude ".env.*secret" \
-            --exclude "config/ssl/*/" \
+            --exclude "config/ssl/*" \
             --exclude "web/wp-content/languages" \
             --exclude "web/wp-content/uploads" \
             --include "web/wp-content/cache" \
@@ -117,10 +117,10 @@ jobs:
             set -e
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
             make secret;
-            bash ./sh/env/init.sh '${ENVIRONMENT_TYPE}';
+            bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
             make down;
-            make up '${ENVIRONMENT_TYPE}';
+            make up '${{ inputs.ENVIRONMENT_TYPE }}';
             bash ./sh/database/check.sh;
             make core-install"
 
