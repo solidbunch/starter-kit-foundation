@@ -54,5 +54,3 @@ resource "aws_dynamodb_table" "terraform_locks" {
     type = "S"  # LockID is a string type attribute
   }
 }
-
-# ToDo add Lifecycle Policies

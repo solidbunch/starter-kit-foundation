@@ -136,6 +136,25 @@ terraform/
 assign_ipv6_address_on_creation = true
 ```
 
+### ⚙️ What to do if the instance IP address has changed
+
+If the instance was recreated or its public IP was renewed, follow these steps to ensure everything keeps working smoothly:
+
+1. **Update DNS records**  
+   Update the DNS A or/and AAAA records for the affected domains to point to the new IP address.
+
+
+2. **Update SSH configuration**  
+   Update your local SSH configuration: `~/.ssh/config.d/<project_ssh>/config` or `~/.ssh/config` file
+
+
+3. **Update SSH_CONFIG variable in Git**  
+   Use same SSH Config for updating the `SSH_CONFIG` variable in your Git deployment pipeline or CI/CD system.
+
+
+4. **Check Ansible inventory**  
+   Check the Ansible inventory. Usually, it contains an alias or domain name, so you often don’t need to update the IP directly — but it’s important to verify.
+
 ## Destroy
 
 To destroy the infrastructure, run in the needs infrastructure folder:
