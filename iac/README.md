@@ -5,7 +5,7 @@ This project creates AWS infrastructure using Terraform:
 - Subnets with IPv6 CIDR blocks
 - Internet Gateway and routing for IPv6
 - Security Groups for HTTP(S) and SSH
-- EC2 instances with IPv6 addresses and no public IPv4
+- EC2 instances with public IPv6 and/or IPv4 addresses
 
 ---
 
@@ -22,7 +22,7 @@ This project creates AWS infrastructure using Terraform:
 Before applying Terraform:
 
 - Make sure the folder `terraform/public_keys/` exists.
-- Place your **public SSH key** inside it
+- Place your **public SSH key** inside it.
 
 This key will be uploaded to AWS and used for EC2 access.
 
@@ -62,7 +62,7 @@ terraform apply
 
 Confirm with `yes` when prompted.
 
-### 3. Deploy the production environment (instances)
+### 4. Deploy the production environment (instances)
 
 ```bash
 cd ../prod
@@ -77,21 +77,36 @@ Confirm with `yes` when prompted.
 ## Result
 
 - A new S3 bucket for Terraform state
-- New VPC with IPv4 and automatically generated IPv6 block
-- Three subnets, each with a dedicated IPv6 CIDR block
+- New VPC with both IPv4 and IPv6
+- Three subnets, each with a dedicated IPv4 and IPv6 CIDR block
 - Internet access for both IPv4 and IPv6
 - Security Groups allowing HTTP, HTTPS, and SSH over both IPv4 and IPv6
-- EC2 instance running with a public IPv6 address
+- EC2 instances running with public IPv4 and/or IPv6 addresses
 
-After deployment, Terraform will output the IPv6 address of the created instance.
+After deployment, Terraform will output the public IP addresses of the created instances.
 
-Connect using:
+### SSH access
+
+Configure your `~/.ssh/config.d/<project_ssh>/config` or `~/.ssh/config` file like this:
+
+```
+Host my-host-alias
+    HostName <instance_ip_address>
+    User admin
+    IdentityFile ~/.ssh/<your_private_key>
+```
+You can use any alias you prefer (for example, `my-host-alias`) or a real hostname like `example.com`.  
+You can use either the IPv4 or IPv6 address in `<instance_ip_address>`.
+
+### Connect using SSH
 
 ```bash
-ssh -i path_to_private_key.pem admin@[INSTANCE_IPV6_ADDRESS]
+ssh my-host-alias
 ```
 
-Replace `path_to_private_key.pem` with your private key and `[INSTANCE_IPV6_ADDRESS]` with the actual IPv6 address.
+**Notes:**
+- Replace `<instance_ip_address>` with the actual IPv4 or IPv6 address from the Terraform output.
+- Replace `<your_private_key>` with the filename of your private SSH key.
 
 ---
 
