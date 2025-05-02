@@ -9,15 +9,6 @@ all:
             size: 2G
             swappiness: 20
 
-    staging:
-      hosts:
-        staging.starter-kit.io:
-          os: debian
-          ansible_user: admin
-          swap_vars:
-            size: 2G
-            swappiness: 20
-
     production:
       hosts:
         starter-kit.io:
