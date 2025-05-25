@@ -122,6 +122,9 @@ export:
 replace:
 	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
+migrate:
+	bash ./sh/database/migrate.sh $(PARAMS)
+
 # Run phpMyAdmin docker container
 pma:
 	docker compose -f docker-compose.build.yml run --service-ports --rm --build phpmyadmin
