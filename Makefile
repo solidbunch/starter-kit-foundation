@@ -40,7 +40,10 @@ LOGO_SH=bash ./sh/logo.sh
 # https://stackoverflow.com/questions/6273608/how-to-pass-argument-to-makefile-from-command-line/6273809#6273809
 # $(MAKECMDGOALS) is the list of targets passed to make
 PARAMS = $(filter-out $@,$(MAKECMDGOALS))
-
+GOAL := $(word 1 $(PARAMS))
+PARAM1 := $(word 2, $(PARAMS))
+PARAM2 := $(word 3, $(PARAMS))
+PARAM3 := $(word 4, $(PARAMS))
 # Go!
 # Install project. Generate secrets, run composer and npm dependencies install
 # `make install dev composer` - will run only composer update
@@ -123,7 +126,7 @@ replace:
 	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
 migrate:
-	bash ./sh/database/migrate.sh $(PARAMS)
+	bash ./sh/database/migrate.sh -s $(PARAM1) -d $(PARAM2)
 
 # Run phpMyAdmin docker container
 pma:

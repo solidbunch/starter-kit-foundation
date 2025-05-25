@@ -39,30 +39,34 @@ if [[ -z "$AVAILABLE_ENVS" ]]; then
 fi
 
 # Parse CLI arguments
-if [ "$1" != "" ]; then
-  SRC="$1"
-else
-  echo -e "${LIGHTRED}[Error]${NOCOLOR} Source environment not specified. Usage: $0 <source_env> <dest_env>"
-  echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${NOCOLOR}"
-  exit 1;
-fi
+while getopts "s:d:h" opt; do
+  case $opt in
+    s) SRC="$OPTARG" ;;
+    d) DST="$OPTARG" ;;
+    h) echo "Usage: $0 -s <source_env> -d <dest_env>"; echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${NOCOLOR}"; exit 0 ;;
+    *) echo "Invalid option. Use -h for help"; exit 1 ;;
+  esac
+done
 
-if [ "$2" != "" ]; then
-  DST="$2"
-else
-  echo -e "${LIGHTRED}[Error]${NOCOLOR} Destination environment not specified. Usage: $0 <source_env> <dest_env>"
-  echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${NOCOLOR}"
-  exit 1;
-fi
+echo SRC: "$SRC"
+#
+#if [ "$1" != "" ]; then
+#  SRC="$1"
+#else
+#  echo -e "${LIGHTRED}[Error]${NOCOLOR} Source environment not specified. Usage: $0 <source_env> <dest_env>"
+#  echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${NOCOLOR}"
+#  exit 1;
+#fi
 
-#while getopts "s:d:h" opt; do
-#  case $opt in
-#    s) SRC="$OPTARG" ;;
-#    d) DST="$OPTARG" ;;
-#    h) echo "Usage: $0 -s <source_env> -d <dest_env>"; exit 0 ;;
-#    *) echo "Invalid option"; exit 1 ;;
-#  esac
-#done
+#if [ "$2" != "" ]; then
+#  DST="$2"
+#else
+#  echo -e "${LIGHTRED}[Error]${NOCOLOR} Destination environment not specified. Usage: $0 <source_env> <dest_env>"
+#  echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${NOCOLOR}"
+#  exit 1;
+#fi
+
+
 
 
 # Validate source and destination
@@ -114,23 +118,21 @@ cleanup() {
   [[ "$DST" != "$LOCAL_ENV" ]] && ssh "$DST" "rm -rf $REMOTE_TMP"
   rm -f "$TMP_DIR/$DUMP_FILE" "$TMP_DIR/$UPLOADS_ARCHIVE"
 }
-trap cleanup EXIT
+#trap cleanup EXIT
 
 echo -e "${CYAN}[Info]${NOCOLOR} Migrating from ${YELLOW} $SRC_DOMAIN ($SRC)${NOCOLOR} to ${YELLOW}$DST_DOMAIN ($DST)${NOCOLOR}"
 
 # Step 1: Export from source
 echo "📤 Exporting from source ($SRC)..."
 
-DUMP_FILE="$MYSQL_HOST"-"$MYSQL_DATABASE"-"$ENVIRONMENT_TYPE"-"$APP_DOMAIN"-$(date +%Y-%m-%d).sql
+DUMP_FILE="$MYSQL_HOST"-"$MYSQL_DATABASE"-"$SRC"-"$APP_DOMAIN"-migration-$(date +%Y-%m-%d).sql
 
 if [[ "$SRC" == "$LOCAL_ENV" ]]; then
   mkdir -p "$REMOTE_TMP"
   # shellcheck source=config/environment/.env.type.ENV_NAME
   source "$SRC_ENV"
-  bash sh/database/export.sh /$DUMP_FILE
-  tar -czf "$REMOTE_TMP/$UPLOADS_ARCHIVE" -C web/wp-content uploads
-  cp "$REMOTE_TMP/$DUMP_FILE" "$TMP_DIR/"
-  cp "$REMOTE_TMP/$UPLOADS_ARCHIVE" "$TMP_DIR/"
+  bash sh/database/export.sh "$TMP_DIR/$DUMP_FILE"
+  tar -czf "$TMP_DIR/$UPLOADS_ARCHIVE" -C web/wp-content uploads
 else
   ssh "$SRC" "mkdir -p $REMOTE_TMP && cd /app && source $SRC_ENV && sh sh/database/export.sh > $REMOTE_TMP/$DUMP_FILE && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
   scp "$SRC:$REMOTE_TMP/$DUMP_FILE" "$TMP_DIR/"
