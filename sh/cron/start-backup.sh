@@ -68,17 +68,10 @@ docker exec "$DATABASE_CONTAINER" \
 # Make uploads and languages folders archive
 #docker exec "$WORDPRESS_CONTAINER" \
 #  tar -cf - -C /srv/web/wp-content/ uploads languages > "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
-
-docker exec "$WORDPRESS_CONTAINER" sh -c "\
-  if [ -d /srv/web/wp-content/uploads ] && [ -d /srv/web/wp-content/languages ]; then \
-    tar -cf - -C /srv/web/wp-content/ uploads languages; \
-  elif [ -d /srv/web/wp-content/uploads ]; then \
-    tar -cf - -C /srv/web/wp-content/ uploads; \
-  elif [ -d /srv/web/wp-content/languages ]; then \
-    tar -cf - -C /srv/web/wp-content/ languages; \
-  else \
-    echo 'Neither uploads nor languages directory exists'; \
-  fi" > "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
+docker exec "$WORDPRESS_CONTAINER" sh -c '\
+  cd /srv/web/wp-content && \
+  tar -cf - $(ls -d uploads languages 2>/dev/null)' \
+  > "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
 
 # Combine all in one archive
 cd "$BACKUPS_DIR"/"$MODE"/
