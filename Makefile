@@ -40,7 +40,7 @@ LOGO_SH=bash ./sh/logo.sh
 # https://stackoverflow.com/questions/6273608/how-to-pass-argument-to-makefile-from-command-line/6273809#6273809
 # $(MAKECMDGOALS) is the list of targets passed to make
 PARAMS = $(filter-out $@,$(MAKECMDGOALS))
-GOAL := $(word 1 $(PARAMS))
+GOAL := $(word 1, $(PARAMS))
 PARAM1 := $(word 2, $(PARAMS))
 PARAM2 := $(word 3, $(PARAMS))
 PARAM3 := $(word 4, $(PARAMS))
@@ -119,7 +119,7 @@ import:
 
 # Run database export script with first argument as file name and second as database name
 export:
-	bash ./sh/database/export.sh $(PARAMS)
+	bash ./sh/database/export.sh
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:

@@ -131,7 +131,8 @@ if [[ "$SRC" == "$LOCAL_ENV" ]]; then
   mkdir -p "$REMOTE_TMP"
   # shellcheck source=config/environment/.env.type.ENV_NAME
   source "$SRC_ENV"
-  bash sh/database/export.sh "$TMP_DIR/$DUMP_FILE"
+  # Export database dump without users and usermeta tables
+  bash sh/database/export.sh -f "$TMP_DIR/$DUMP_FILE" -i true
   tar -czf "$TMP_DIR/$UPLOADS_ARCHIVE" -C web/wp-content uploads
 else
   ssh "$SRC" "mkdir -p $REMOTE_TMP && cd /app && source $SRC_ENV && sh sh/database/export.sh > $REMOTE_TMP/$DUMP_FILE && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
