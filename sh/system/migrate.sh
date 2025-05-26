@@ -2,7 +2,7 @@
 # migrate.sh - Transfer WordPress DB and uploads between environments.
 #
 # Usage:
-#   sh/migrate.sh -s <source_env> -d <dest_env>
+#   sh/system/migrate.sh -s <source_env> -d <dest_env>
 # Environments are auto-detected from config/environment/.env.type.*
 #
 # Requirements:
@@ -28,7 +28,8 @@ REMOTE_TMP="/tmp/migrate"
 DUMP_FILE="db.sql"
 # Take database hostname from .env file
 #DUMP_FILE="$MYSQL_HOST"-"$MYSQL_DATABASE"-"$ENVIRONMENT_TYPE"-"$APP_DOMAIN"-$(date +%Y-%m-%d).sql
-UPLOADS_ARCHIVE="uploads.tar.gz"
+FILES_ARCHIVE="uploads.tar.gz"
+WORDPRESS_CONTAINER_HOSTNAME="php"
 
 # Discover available environments
 AVAILABLE_ENVS=$(find "$ENV_DIR" -maxdepth 1 -type f -name '.env.type.*' ! -name '*.override' \
@@ -128,17 +129,21 @@ echo "📤 Exporting from source ($SRC)..."
 DUMP_FILE="$MYSQL_HOST"-"$MYSQL_DATABASE"-"$SRC"-"$APP_DOMAIN"-migration-$(date +%Y-%m-%d).sql
 
 if [[ "$SRC" == "$LOCAL_ENV" ]]; then
-  mkdir -p "$REMOTE_TMP"
-  # shellcheck source=config/environment/.env.type.ENV_NAME
-  source "$SRC_ENV"
   # Export database dump without users and usermeta tables
   bash sh/database/export.sh -f "$TMP_DIR/$DUMP_FILE" -i true
-  tar -czf "$TMP_DIR/$UPLOADS_ARCHIVE" -C web/wp-content uploads
+  # Create archive of uploads and languages directories
+  docker compose exec "${WORDPRESS_CONTAINER_HOSTNAME}" sh -c '\
+    cd /srv/web/wp-content && \
+    tar -cf - $(ls -d uploads languages 2>/dev/null)' \
+    > "${TMP_DIR}/${FILES_ARCHIVE}.tar"
+
 else
-  ssh "$SRC" "mkdir -p $REMOTE_TMP && cd /app && source $SRC_ENV && sh sh/database/export.sh > $REMOTE_TMP/$DUMP_FILE && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
+  ssh "$SRC" "mkdir -p $REMOTE_TMP && cd /app && bash sh/database/export.sh -f "$REMOTE_TMP/$DUMP_FILE" -i true && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
   scp "$SRC:$REMOTE_TMP/$DUMP_FILE" "$TMP_DIR/"
   scp "$SRC:$REMOTE_TMP/$UPLOADS_ARCHIVE" "$TMP_DIR/"
 fi
+
+exit 0
 
 # Step 2: Import into destination
 echo "📥 Importing into destination ($DST)..."

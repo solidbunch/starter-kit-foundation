@@ -51,7 +51,7 @@ jobs:
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
-          bash ./sh/install.sh yes
+          bash ./sh/system/install.sh yes
 
       - name: Build Cache - save
         if: steps.build-cache-restore.outputs.cache-hit != 'true'
