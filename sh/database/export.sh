@@ -11,17 +11,14 @@ source ./sh/utils/colors
 # Stop when error
 set -e
 
+# Database container name
+DATABASE_CONTAINER="${APP_NAME}-mariadb"
+
 # Define the table prefix, using a default value 'wp_' if MYSQL_DB_PREFIX is not set
 DB_PREFIX=${MYSQL_DB_PREFIX:-wp_}
 
-# Set IGNORED_TABLES based on the first argument
-IGNORED_TABLES=""
-
-# Take database hostname from .env file
-DATABASE_CONTAINER="$MYSQL_HOST"
-
 # Default output file name
-OUTPUT_FILE="$DATABASE_CONTAINER"-"$MYSQL_DATABASE"-"$WP_ENVIRONMENT_TYPE"-"$APP_DOMAIN"-$(date +%Y-%m-%d).sql
+OUTPUT_FILE="${DATABASE_CONTAINER}"-"${MYSQL_DATABASE}"-"${WP_ENVIRONMENT_TYPE}"-"${APP_DOMAIN}"-$(date +%Y-%m-%d).sql
 
 # Parse CLI arguments
 while getopts "f:i:h" opt; do
@@ -33,24 +30,39 @@ while getopts "f:i:h" opt; do
   esac
 done
 
-# File name inside database container
-CONTAINER_OUTPUT_FILE="/tmp/db.sql"
-echo $IGNORE_USERS
-# Exclude users and usermeta tables while exporting the database, if need to leave old password on import
-if [ "$IGNORE_USERS" == "true" ]; then
-  IGNORED_TABLES="--ignore-table=${MYSQL_DATABASE}.${DB_PREFIX}users --ignore-table=${MYSQL_DATABASE}.${DB_PREFIX}usermeta"
-fi
-echo $IGNORED_TABLES
-
 echo "Exporting local database to '${OUTPUT_FILE}'. It can take more than a few minutes. Please wait."
 
-# Export data to sql file
-docker compose exec "${DATABASE_CONTAINER}" bash -c "mariadb-dump -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${IGNORED_TABLES} ${MYSQL_DATABASE} > ${CONTAINER_OUTPUT_FILE}"
+# Check database health and wait for it to be ready
+for i in {1..3}
+do
+    if (docker exec "${DATABASE_CONTAINER}" mariadb-admin -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" ping > /dev/null 2>&1); then
+        break
+    fi
+    sleep 3
+    if [ "$i" = 3 ]; then
+        echo "[Cron][Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
+    fi
+done
 
-# Copy dump from container
-docker compose cp "${DATABASE_CONTAINER}":"${CONTAINER_OUTPUT_FILE}" "${OUTPUT_FILE}"
+# Build mariadb-dump arguments as an array
+DUMP_ARGS=(-u "${MYSQL_USER}" --password="${MYSQL_PASSWORD}")
 
-if [ -n "${IGNORED_TABLES}" ]; then
+# Add --ignore-table flags if IGNORE_USERS is not empty
+if [ -n "${IGNORE_USERS}" ]; then
+  # Exclude users and usermeta tables while exporting the database, if need to leave old password on import
+   DUMP_ARGS+=("--ignore-table=${MYSQL_DATABASE}.${DB_PREFIX}users")
+   DUMP_ARGS+=("--ignore-table=${MYSQL_DATABASE}.${DB_PREFIX}usermeta")
+fi
+
+# Append database name as the final argument
+DUMP_ARGS+=("${MYSQL_DATABASE}")
+
+# ToDo add pv progress bar
+# Run the dump inside the container, redirect output to local file
+docker exec "${DATABASE_CONTAINER}" mariadb-dump "${DUMP_ARGS[@]}" > "${OUTPUT_FILE}"
+
+
+if [ -n "${IGNORE_USERS}" ]; then
   echo "The ${DB_PREFIX}users and ${DB_PREFIX}usermeta tables were excluded from the dump."
 fi
 
