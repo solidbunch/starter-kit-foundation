@@ -65,4 +65,4 @@ gzip -f "$BACKUPS_DIR"/"$MODE"/"$MODE"-"$CURRENT_DATE".tar
 # Check old files to delete
 find "$BACKUPS_DIR"/"$MODE"/"$MODE"-* -mtime +$MODE_TIMER -delete
 
-echo "[Cron][Success] [$MODE] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"
+echo -e "${LIGHTGREEN}[Success]${RESET} [$MODE] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"

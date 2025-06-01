@@ -15,10 +15,11 @@ set -e
 DATABASE_CONTAINER="${APP_NAME}-mariadb"
 
 # Define the table prefix, using a default value 'wp_' if MYSQL_DB_PREFIX is not set
-DB_PREFIX=${MYSQL_DB_PREFIX:-wp_}
+DB_PREFIX="${MYSQL_DB_PREFIX:-wp_}"
 
 # Default output file name
-OUTPUT_FILE="${DATABASE_CONTAINER}"-"${MYSQL_DATABASE}"-"${WP_ENVIRONMENT_TYPE}"-"${APP_DOMAIN}"-$(date +%Y-%m-%d).sql
+OUTPUT_DIR="./tmp"
+OUTPUT_FILE="${OUTPUT_DIR}/${DATABASE_CONTAINER}-${MYSQL_DATABASE}-${WP_ENVIRONMENT_TYPE}-${APP_DOMAIN}-$(date +%Y-%m-%d).sql"
 
 # Parse CLI arguments
 while getopts "f:i:h" opt; do
@@ -30,7 +31,10 @@ while getopts "f:i:h" opt; do
   esac
 done
 
-echo "Exporting local database to '${OUTPUT_FILE}'. It can take more than a few minutes. Please wait."
+# Create output directory if it does not exist
+mkdir -p "$(dirname "$OUTPUT_FILE")"
+
+echo "Exporting database '${MYSQL_DATABASE}'. It can take more than a few minutes. Please wait."
 
 # Check database health and wait for it to be ready
 for i in {1..3}
@@ -66,4 +70,4 @@ if [ -n "${IGNORE_USERS}" ]; then
   echo "The ${DB_PREFIX}users and ${DB_PREFIX}usermeta tables were excluded from the dump."
 fi
 
-echo -e "${LIGHTGREEN}[Success]${RESET} Database export done"
+echo -e "${LIGHTGREEN}[Success]${RESET} Database export done to '${BOLD}${OUTPUT_FILE}${RESET}'"
