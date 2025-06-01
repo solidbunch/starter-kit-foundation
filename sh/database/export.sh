@@ -6,7 +6,7 @@
 source ./.env
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 # Stop when error
 set -e
@@ -40,7 +40,7 @@ do
     fi
     sleep 3
     if [ "$i" = 3 ]; then
-        echo "[Cron][Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
+        echo -e "${LIGHTRED}[Error]${RESET} Database container '$DATABASE_CONTAINER' is down"; exit 1;
     fi
 done
 
@@ -66,4 +66,4 @@ if [ -n "${IGNORE_USERS}" ]; then
   echo "The ${DB_PREFIX}users and ${DB_PREFIX}usermeta tables were excluded from the dump."
 fi
 
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Database export done"
+echo -e "${LIGHTGREEN}[Success]${RESET} Database export done"

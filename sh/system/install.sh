@@ -4,7 +4,7 @@
 set -e
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 source ./.env
 
@@ -12,10 +12,10 @@ if [ "$1" ]; then
     CONFIRMED="$1"
 fi
 
-echo -e "${CYAN}[Info]${NOCOLOR} Installing project with \
-WP_DEFAULT_THEME ${LIGHTYELLOW}'$WP_DEFAULT_THEME'${NOCOLOR}, \
-WP_ENVIRONMENT_TYPE ${LIGHTYELLOW}'$WP_ENVIRONMENT_TYPE'${NOCOLOR}, \
-and APP_BUILD_MODE ${LIGHTYELLOW}'$APP_BUILD_MODE'${NOCOLOR}";
+echo -e "${CYAN}[Info]${RESET} Installing project with \
+WP_DEFAULT_THEME ${LIGHTYELLOW}'$WP_DEFAULT_THEME'${RESET}, \
+WP_ENVIRONMENT_TYPE ${LIGHTYELLOW}'$WP_ENVIRONMENT_TYPE'${RESET}, \
+and APP_BUILD_MODE ${LIGHTYELLOW}'$APP_BUILD_MODE'${RESET}";
 
 if [ "$CONFIRMED" != "yes" ]; then
   read -rp "Are you sure? (y/n): " choice

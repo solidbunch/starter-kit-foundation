@@ -9,7 +9,7 @@
 set -e
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 source ./.env
 
@@ -40,12 +40,12 @@ CreateBuilder() {
     # Check if the builder already exists
     if ! docker buildx ls | grep -q $BUILDER_NAME; then
       # Builder does not exist, so create it
-      echo -e "${CYAN}[Info]${NOCOLOR} Creating new builder instance named $BUILDER_NAME..."
+      echo -e "${CYAN}[Info]${RESET} Creating new builder instance named $BUILDER_NAME..."
       docker buildx create --name $BUILDER_NAME --bootstrap --use
     else
       # Builder exists, no action needed
       docker buildx use ${BUILDER_NAME}
-      echo -e "${CYAN}[Info]${NOCOLOR} Builder $BUILDER_NAME already exists."
+      echo -e "${CYAN}[Info]${RESET} Builder $BUILDER_NAME already exists."
     fi
 }
 
@@ -61,7 +61,7 @@ if [ "$MODE" == "build" ]; then
       continue
     fi
 
-    echo -e "${CYAN}[Info]${NOCOLOR} Building ${YELLOW}${SERVICES[i]}${NOCOLOR}"
+    echo -e "${CYAN}[Info]${RESET} Building ${YELLOW}${SERVICES[i]}${RESET}"
 
     docker build \
       --build-arg \
@@ -69,7 +69,7 @@ if [ "$MODE" == "build" ]; then
       -t "${IMAGES[i]}" \
       "./dockerfiles/${SERVICES[i]}" \
 
-    echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR}"
+    echo -e "${LIGHTGREEN}[Success]${RESET} Build done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${RESET}"
     echo -e "-----------------------------------------------------------------"
     echo ""
   done
@@ -82,7 +82,7 @@ if [ "$MODE" == "push" ]; then
 
   # Step 1: Login to Container Registry (CR)
 
-  echo -e "${CYAN}[Info]${NOCOLOR} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${NOCOLOR} "
+  echo -e "${CYAN}[Info]${RESET} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${RESET} "
   export "$(grep -v '^#' .env | xargs)"
   echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
   #docker login ghcr.io
@@ -101,10 +101,10 @@ if [ "$MODE" == "push" ]; then
     fi
 
     # Ask for user confirmation before building
-    echo -e "Do you want to push ${LIGHTYELLOW}${SERVICES[i]}${NOCOLOR} image (${YELLOW}${IMAGES[i]}${NOCOLOR})? (y/n)"
+    echo -e "Do you want to push ${LIGHTYELLOW}${SERVICES[i]}${RESET} image (${YELLOW}${IMAGES[i]}${RESET})? (y/n)"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      echo -e "${CYAN}[Info]${NOCOLOR} Building and Pushing ${YELLOW}${SERVICES[i]}${NOCOLOR} [${PLATFORMS}]"
+      echo -e "${CYAN}[Info]${RESET} Building and Pushing ${YELLOW}${SERVICES[i]}${RESET} [${PLATFORMS}]"
 
       # Building image and pushing it into registry
       # APP_PHP_IMAGE needed for composer image only
@@ -117,11 +117,11 @@ if [ "$MODE" == "push" ]; then
         --output "type=image,name=target,annotation-index.org.opencontainers.image.description=Docker ${SERVICES[i]} [linux/amd64;linux/arm64] image,annotation-index.org.opencontainers.image.licenses=MIT License" \
         --push
 
-      echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${NOCOLOR} [${PLATFORMS}]"
+      echo -e "${LIGHTGREEN}[Success]${RESET} Push done for ${YELLOW}${SERVICES[i]} ${IMAGES[i]}${RESET} [${PLATFORMS}]"
       echo -e "-----------------------------------------------------------------"
       echo ""
     else
-      echo -e "${CYAN}[Info]${NOCOLOR} Skipping push for ${YELLOW}${SERVICES[i]}${NOCOLOR}"
+      echo -e "${CYAN}[Info]${RESET} Skipping push for ${YELLOW}${SERVICES[i]}${RESET}"
       echo -e "-----------------------------------------------------------------"
       echo ""
     fi

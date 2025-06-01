@@ -1,8 +1,6 @@
 #!/usr/bin/make
 .SILENT:
 
-include ./sh/utils/colors
-
 include ./config/environment/.env.main
 
 SHELL = /bin/sh

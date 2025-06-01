@@ -6,7 +6,7 @@
 source ./.env
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 # Take database hostname from .env file
 DATABASE_CONTAINER="$MYSQL_HOST"
@@ -27,7 +27,7 @@ if [ "$2" != "" ]; then
   MYSQL_DATABASE="$2"
 fi
 
-echo -e "${LIGHTYELLOW}[Warning]${NOCOLOR} Current database '${MYSQL_DATABASE}' data will be replaced"
+echo -e "${LIGHTYELLOW}[Warning]${RESET} Current database '${MYSQL_DATABASE}' data will be replaced"
 read -rp "Are you sure? (y/n): " choice
 if [[ ! $choice =~ ^[Yy](es)?$ ]]; then
   echo "Not confirmed. Exiting."
@@ -47,7 +47,7 @@ docker compose cp "${DUMP_FILE}" "${DATABASE_CONTAINER}":/tmp/"${DUMP_FILE}"
 # Import data from sql file with pv
 docker compose exec "${DATABASE_CONTAINER}" bash -c "pv /tmp/${DUMP_FILE} | mariadb -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE}"
 
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Database import done"
+echo -e "${LIGHTGREEN}[Success]${RESET} Database import done"
 
 # Run database domains replacement
 docker compose exec "${WP_CONTAINER}" su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"

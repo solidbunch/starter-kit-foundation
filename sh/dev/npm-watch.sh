@@ -4,7 +4,7 @@
 set -e
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 source ./.env
 
