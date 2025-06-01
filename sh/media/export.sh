@@ -36,7 +36,7 @@ else
   OUTPUT_FILE="${OUTPUT_FILE%.gz}"
 fi
 
-echo "Exporting files from '${WEB_CONTAINER}' to '${OUTPUT_FILE}'..."
+echo "Exporting files from '${WEB_CONTAINER}' ..."
 
 # Perform export with fallback if some folders don't exist
 docker exec "$WEB_CONTAINER" sh -c "\

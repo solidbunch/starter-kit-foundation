@@ -2,10 +2,8 @@
 
 # This script exports a database dump from the current database.
 
-# Source the .env file
+# Load environment and colors
 source ./.env
-
-# Colors
 source ./sh/utils/colors.sh
 
 # Stop when error

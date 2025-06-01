@@ -23,13 +23,14 @@ set -o pipefail
 
 ENV_DIR="./config/environment"
 LOCAL_ENV="local"
-TMP_DIR="./tmp"
+CURRENT_DATE=$(date +%Y-%m-%d)
+
+TMP_DIR=$(mktemp -d "./tmp/migration-${CURRENT_DATE}-XXXXXXXX")
+
 REMOTE_TMP="/tmp/migrate"
-DUMP_FILE="db.sql"
-# Take database hostname from .env file
-#DUMP_FILE="$MYSQL_HOST"-"$MYSQL_DATABASE"-"$ENVIRONMENT_TYPE"-"$APP_DOMAIN"-$(date +%Y-%m-%d).sql
-FILES_ARCHIVE="uploads.tar.gz"
-WORDPRESS_CONTAINER_HOSTNAME="php"
+
+DUMP_FILE="${MYSQL_HOST}-${MYSQL_DATABASE}-${CURRENT_DATE}.sql"
+MEDIA_ARCHIVE="media-${CURRENT_DATE}.tar"
 
 # Discover available environments
 AVAILABLE_ENVS=$(find "$ENV_DIR" -maxdepth 1 -type f -name '.env.type.*' ! -name '*.override' \
@@ -48,27 +49,6 @@ while getopts "s:d:h" opt; do
     *) echo "Invalid option. Use -h for help"; exit 1 ;;
   esac
 done
-
-echo SRC: "$SRC"
-#
-#if [ "$1" != "" ]; then
-#  SRC="$1"
-#else
-#  echo -e "${LIGHTRED}[Error]${RESET} Source environment not specified. Usage: $0 <source_env> <dest_env>"
-#  echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${RESET}"
-#  exit 1;
-#fi
-
-#if [ "$2" != "" ]; then
-#  DST="$2"
-#else
-#  echo -e "${LIGHTRED}[Error]${RESET} Destination environment not specified. Usage: $0 <source_env> <dest_env>"
-#  echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${RESET}"
-#  exit 1;
-#fi
-
-
-
 
 # Validate source and destination
 if [[ -z "$SRC" || -z "$DST" ]]; then
@@ -117,7 +97,7 @@ cleanup() {
   echo "🧹 Cleaning up..."
   [[ "$SRC" != "$LOCAL_ENV" ]] && ssh "$SRC" "rm -rf $REMOTE_TMP"
   [[ "$DST" != "$LOCAL_ENV" ]] && ssh "$DST" "rm -rf $REMOTE_TMP"
-  rm -f "$TMP_DIR/$DUMP_FILE" "$TMP_DIR/$UPLOADS_ARCHIVE"
+  rm -f "$TMP_DIR/$DUMP_FILE" "$TMP_DIR/$MEDIA_ARCHIVE"
 }
 #trap cleanup EXIT
 
@@ -125,20 +105,26 @@ echo -e "${CYAN}[Info]${RESET} Migrating from ${YELLOW} $SRC_DOMAIN ($SRC)${RESE
 
 # Step 1: Export from source
 echo "📤 Exporting from source ($SRC)..."
-
-DUMP_FILE="$MYSQL_HOST"-"$MYSQL_DATABASE"-"$SRC"-"$APP_DOMAIN"-migration-$(date +%Y-%m-%d).sql
+echo "Using temp dir: $TMP_DIR"
 
 if [[ "$SRC" == "$LOCAL_ENV" ]]; then
-  # Export database dump without users and usermeta tables
-  bash sh/database/export.sh -f "$TMP_DIR/$DUMP_FILE" -i true
-  # Create archive of uploads and languages directories
-  docker compose exec "${WORDPRESS_CONTAINER_HOSTNAME}" sh -c '\
-    cd /srv/web/wp-content && \
-    tar -cf - $(ls -d uploads languages 2>/dev/null)' \
-    > "${TMP_DIR}/${FILES_ARCHIVE}.tar"
+  # Step 1: Export database dump without users and usermeta tables
+  bash sh/database/export.sh -f "${TMP_DIR}/${DUMP_FILE}" -i true
+
+  # Step 2: Export media files without compression (uploads and languages)
+  bash ./sh/media/export.sh -f "${TMP_DIR}/${MEDIA_ARCHIVE}" -n
+
+  # Step 3: Combine into one .tar archive
+  tar -cf "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar" -C "${TMP_DIR}" "$(basename "$MEDIA_ARCHIVE")" "$(basename "$DUMP_FILE")"
+
+  # Step 4: Remove individual files
+  rm "${TMP_DIR}/${DUMP_FILE}" "${TMP_DIR}/${MEDIA_ARCHIVE}"
+
+  # Step 5: Compress the final archive
+  gzip -f "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar"
 
 else
-  ssh "$SRC" "mkdir -p $REMOTE_TMP && cd /app && bash sh/database/export.sh -f "$REMOTE_TMP/$DUMP_FILE" -i true && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
+  ssh "$SRC_DOMAIN" "mkdir -p $REMOTE_TMP && cd /app && bash sh/database/export.sh -f "$REMOTE_TMP/$DUMP_FILE" -i true && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
   scp "$SRC:$REMOTE_TMP/$DUMP_FILE" "$TMP_DIR/"
   scp "$SRC:$REMOTE_TMP/$UPLOADS_ARCHIVE" "$TMP_DIR/"
 fi
