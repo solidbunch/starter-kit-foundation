@@ -25,9 +25,8 @@ ENV_DIR="./config/environment"
 LOCAL_ENV="local"
 CURRENT_DATE=$(date +%Y-%m-%d)
 
-TMP_DIR=$(mktemp -d "./tmp/migration-${CURRENT_DATE}-XXXXXXXX")
-
-REMOTE_TMP="/tmp/migrate"
+# Attention: relative path to the tmp directory used on local and remote servers
+TMP_DIR=$(mktemp -d "tmp/migration-${CURRENT_DATE}-XXXXXXXX")
 
 DUMP_FILE="${MYSQL_HOST}-${MYSQL_DATABASE}-${CURRENT_DATE}.sql"
 MEDIA_ARCHIVE="media-${CURRENT_DATE}.tar"
@@ -89,9 +88,6 @@ fi
 
 ## Start migration process
 
-# Create temporary directory
-mkdir -p "$TMP_DIR"
-
 # Cleanup on exit
 cleanup() {
   echo "🧹 Cleaning up..."
@@ -105,9 +101,10 @@ echo -e "${CYAN}[Info]${RESET} Migrating from ${YELLOW} $SRC_DOMAIN ($SRC)${RESE
 
 # Step 1: Export from source
 echo "📤 Exporting from source ($SRC)..."
-echo "Using temp dir: $TMP_DIR"
 
 if [[ "$SRC" == "$LOCAL_ENV" ]]; then
+  echo "Using temp dir: $TMP_DIR"
+
   # Step 1: Export database dump without users and usermeta tables
   bash sh/database/export.sh -f "${TMP_DIR}/${DUMP_FILE}" -i true
 
@@ -124,9 +121,21 @@ if [[ "$SRC" == "$LOCAL_ENV" ]]; then
   gzip -f "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar"
 
 else
-  ssh "$SRC_DOMAIN" "mkdir -p $REMOTE_TMP && cd /app && bash sh/database/export.sh -f "$REMOTE_TMP/$DUMP_FILE" -i true && tar -czf $REMOTE_TMP/$UPLOADS_ARCHIVE -C web/wp-content uploads"
-  scp "$SRC:$REMOTE_TMP/$DUMP_FILE" "$TMP_DIR/"
-  scp "$SRC:$REMOTE_TMP/$UPLOADS_ARCHIVE" "$TMP_DIR/"
+  echo "Using temp dir: ${SRC_DOMAIN}:/srv/${SRC_DOMAIN}/${TMP_DIR}"
+  # Remote source export
+  ssh "$SRC_DOMAIN" "
+    set -e
+    cd /srv/${SRC_DOMAIN}
+    mkdir -p ${TMP_DIR}
+    bash sh/database/export.sh -f ${TMP_DIR}/${DUMP_FILE} -i true
+    bash sh/media/export.sh -f ${TMP_DIR}/${MEDIA_ARCHIVE} -n
+    tar -cf ${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar -C ${TMP_DIR} $(basename $MEDIA_ARCHIVE) $(basename $DUMP_FILE)
+    rm ${TMP_DIR}/${DUMP_FILE} ${TMP_DIR}/${MEDIA_ARCHIVE}
+    gzip -f ${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar
+  "
+
+  scp "${SRC_DOMAIN}:/srv/${SRC_DOMAIN}/${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz" "${TMP_DIR}/"
+
 fi
 
 exit 0
