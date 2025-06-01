@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Source the .env file
+source ./.env
+
+# Colors
+source ./sh/utils/colors.sh
+
 # Stop when error
 set -e
 
@@ -12,11 +18,10 @@ if [ ! "$APP_NAME" ]; then
 fi
 
 # Default values
-DATABASE_CONTAINER="${APP_NAME}-mariadb"
 WORDPRESS_CONTAINER="${APP_NAME}-php"
 MODE="daily"
 MODE_TIMER=6
-BACKUPS_DIR=/srv/backups
+BACKUPS_DIR=./backups
 CURRENT_DATE=$(date +%Y-%m-%d)
 
 # Parse args
@@ -38,32 +43,8 @@ fi
 mkdir -p "$BACKUPS_DIR"
 mkdir -p "$BACKUPS_DIR"/"$MODE"
 
-# Wait 3 times
-for i in {1..3}
-do
-    if (docker exec "$DATABASE_CONTAINER" mariadb-admin -u "$MYSQL_ROOT_USER" --password="${MYSQL_ROOT_PASSWORD}" ping > /dev/null 2>&1); then
-        break
-    fi
-    sleep 3
-    if [ "$i" = 3 ]; then
-        echo "[Cron][Fail] Database container '$DATABASE_CONTAINER' is down"; exit 1;
-    fi
-done
-
-# Make database backup
-docker exec "$DATABASE_CONTAINER" \
-  mariadb-dump -u "$MYSQL_ROOT_USER" --password="$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" \
-  > "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
-
-# You can add more databases or use --all-databases parameter to archive all databases in one file
-#docker exec "$DATABASE_CONTAINER" \
-#  mariadb-dump -u "$MYSQL_ROOT_USER" --password="$MYSQL_ROOT_PASSWORD" <database_name> \
-#  > "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
-#
-#docker exec "$DATABASE_CONTAINER" \
-#  mariadb-dump -u "$MYSQL_ROOT_USER" --password="$MYSQL_ROOT_PASSWORD" --all-databases \
-#  > "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
-
+bash ./sh/database/export.sh -f "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
+# ToDo add all databases with mysql, information_schema, performance_schema, sys to backup
 
 # Make uploads and languages folders archive
 #docker exec "$WORDPRESS_CONTAINER" \
@@ -74,13 +55,11 @@ docker exec "$WORDPRESS_CONTAINER" sh -c '\
   > "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
 
 # Combine all in one archive
-cd "$BACKUPS_DIR"/"$MODE"/
+tar -rf "$BACKUPS_DIR"/"$MODE"/"$MODE"-"$CURRENT_DATE".tar "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
 
-tar -rf "$MODE"-"$CURRENT_DATE".tar database-"$CURRENT_DATE".sql
+rm "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
 
-rm database-"$CURRENT_DATE".sql
-
-gzip -f "$MODE"-"$CURRENT_DATE".tar
+gzip -f "$BACKUPS_DIR"/"$MODE"/"$MODE"-"$CURRENT_DATE".tar
 
 
 # Check old files to delete
