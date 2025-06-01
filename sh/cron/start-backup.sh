@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Source the .env file
-source ./.env
+# Script to backup WordPress database and media files
 
-# Colors
+# Load environment and colors
+source ./.env
 source ./sh/utils/colors.sh
 
 # Stop when error
@@ -13,12 +13,11 @@ set -e
 command -v gzip >/dev/null 2>&1 || { echo "[Cron][Error] Please install gzip"; exit 1; }
 
 # Check app name
-if [ ! "$APP_NAME" ]; then
+if [ -z "$APP_NAME" ]; then
     echo "[Cron][Fail] APP_NAME not found in .env"; exit 1;
 fi
 
 # Default values
-WORDPRESS_CONTAINER="${APP_NAME}-php"
 MODE="daily"
 MODE_TIMER=6
 BACKUPS_DIR=./backups
@@ -33,36 +32,35 @@ if [ "$MODE" == "weekly" ]; then
     MODE_TIMER=30
 fi
 
-
-# Check is backup enable
-if [ ! "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" == 0 ]; then
-    echo "[Cron][Fail] Backup is disabled in .env file"; exit 1;
+# Check if backup is enabled
+if [ -z "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" = 0 ]; then
+    echo "[Cron][Fail] Backup is disabled in .env file"; exit 1
 fi
 
-# Create backups directory (if not exist)
-mkdir -p "$BACKUPS_DIR"
-mkdir -p "$BACKUPS_DIR"/"$MODE"
+# Create backup directory
+mkdir -p "$BACKUPS_DIR/$MODE"
 
-bash ./sh/database/export.sh -f "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
+DB_DUMP="$BACKUPS_DIR/$MODE/database-$CURRENT_DATE.sql"
+MEDIA_ARCHIVE="$BACKUPS_DIR/$MODE/media-$CURRENT_DATE.tar"
+
+# Step 1: Export database
+bash ./sh/database/export.sh -f "$DB_DUMP"
 # ToDo add all databases with mysql, information_schema, performance_schema, sys to backup
 
-# Make uploads and languages folders archive
-#docker exec "$WORDPRESS_CONTAINER" \
-#  tar -cf - -C /srv/web/wp-content/ uploads languages > "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
-docker exec "$WORDPRESS_CONTAINER" sh -c '\
-  cd /srv/web/wp-content && \
-  tar -cf - $(ls -d uploads languages 2>/dev/null)' \
-  > "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
+# Step 2: Export media files (without compression)
+bash ./sh/media/export.sh -f "$MEDIA_ARCHIVE" -n
 
-# Combine all in one archive
-tar -rf "$BACKUPS_DIR"/"$MODE"/"$MODE"-"$CURRENT_DATE".tar "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
+# Step 3: Combine into one .tar archive
+tar -cf "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar" -C "$BACKUPS_DIR/$MODE" "$(basename "$MEDIA_ARCHIVE")" "$(basename "$DB_DUMP")"
 
-rm "$BACKUPS_DIR"/"$MODE"/database-"$CURRENT_DATE".sql
+# Step 4: Remove individual files
+rm "$DB_DUMP" "$MEDIA_ARCHIVE"
 
-gzip -f "$BACKUPS_DIR"/"$MODE"/"$MODE"-"$CURRENT_DATE".tar
+# Step 5: Compress the final archive
+gzip -f "$BACKUPS_DIR/$MODE/$MODE-$CURRENT_DATE.tar"
 
+# Step 6: Cleanup old backups
+find "$BACKUPS_DIR/$MODE" -name "$MODE-*" -mtime +$MODE_TIMER -delete
 
-# Check old files to delete
-find "$BACKUPS_DIR"/"$MODE"/"$MODE"-* -mtime +$MODE_TIMER -delete
-
+# Done
 echo -e "${LIGHTGREEN}[Success]${RESET} [$MODE] Backup done $(date +%Y'-'%m'-'%d' '%H':'%M)"
