@@ -2,7 +2,13 @@
 # migrate.sh - Transfer WordPress DB and uploads between environments.
 #
 # Usage:
-#   sh/system/migrate.sh -s <source_env> -d <dest_env>
+#   sh/system/migrate.sh -s <source_env> -d <dest_env> [-t]
+# Options:
+#   -s <source_env>  Source environment (e.g., local, staging, production)
+#   -d <dest_env>    Destination environment (e.g., local, staging, production)
+#   -t                Use TTY for progress visualization (requires pv)
+#   -h                Show this help message
+#
 # Environments are auto-detected from config/environment/.env.type.*
 #
 # Requirements:
@@ -30,6 +36,10 @@ TMP_DIR=$(mktemp -d "tmp/migration-${CURRENT_DATE}-XXXXXXXX")
 DUMP_FILE="${MYSQL_HOST}-${MYSQL_DATABASE}-${CURRENT_DATE}.sql"
 MEDIA_ARCHIVE="media-${CURRENT_DATE}.tar"
 
+# Use TTY for pv progress visualization
+USE_TTY=false
+TTY_FLAG=""
+
 # Discover available environments
 AVAILABLE_ENVS=$(find "$ENV_DIR" -maxdepth 1 -type f -name '.env.type.*' ! -name '*.override' \
   -exec basename {} \; | sed 's/\.env\.type\.//' | tr '\n' ' ' | xargs)
@@ -39,11 +49,24 @@ if [[ -z "$AVAILABLE_ENVS" ]]; then
 fi
 
 # Parse CLI arguments
-while getopts "s:d:h" opt; do
+while getopts "s:d:th" opt; do
   case $opt in
-    s) SRC="$OPTARG" ;;
-    d) DST="$OPTARG" ;;
-    h) echo "Usage: $0 -s <source_env> -d <dest_env>"; echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${RESET}"; exit 0 ;;
+    s) SRC="$OPTARG" ;;            # source environment
+    d) DST="$OPTARG" ;;            # destination environment
+    t)
+      USE_TTY=true                 # use TTY for pv
+      TTY_FLAG="-t"
+      ;;
+    h)
+      echo "Usage: $0 -s <source_env> -d <dest_env> [-t]";
+      echo "Options:";
+      echo "  -s <source_env>  : Source environment (e.g., local, staging, production)"
+      echo "  -d <dest_env>    : Destination environment (e.g., local, staging, production)"
+      echo "  -t               : Use TTY for progress visualization (requires pv)"
+      echo "  -h               : Show this help message"
+      echo -e "Available environments: ${YELLOW}$AVAILABLE_ENVS${RESET}"
+      exit 0
+      ;;
     *) echo "Invalid option. Use -h for help"; exit 1 ;;
   esac
 done
@@ -122,7 +145,7 @@ if [[ "$SRC" == "$LOCAL_ENV" ]]; then
 
 else
   # Remote source export
-  ssh "$SRC_DOMAIN" "
+  ssh ${TTY_FLAG} "$SRC_DOMAIN" "
     set -e
     cd /srv/${SRC_DOMAIN}
     mkdir -p ${TMP_DIR}
@@ -153,7 +176,7 @@ if [[ "$DST" == "$LOCAL_ENV" ]]; then
   tar -xzf "$TMP_DIR/migration-${SRC}-${CURRENT_DATE}.tar.gz" -C "$TMP_DIR"
 
   # Import database
-  bash sh/database/import.sh -f "$TMP_DIR/$DUMP_FILE" -y
+  bash sh/database/import.sh -f "${TMP_DIR}/${DUMP_FILE}" -y ${TTY_FLAG}
 
   # Replace wp-content/uploads with extracted media
   rm -rf web/wp-content/uploads
@@ -166,10 +189,9 @@ if [[ "$DST" == "$LOCAL_ENV" ]]; then
 
 else
 
-  ssh "$DST_DOMAIN" "
+  ssh ${TTY_FLAG} "$DST_DOMAIN" "
     set -e
-    cd /srv/${DST_DOMAIN}
-    mkdir -p ${TMP_DIR}
+    mkdir -p /srv/${DST_DOMAIN}/${TMP_DIR}
   "
 
   echo -e "${CYAN}[Info]${RESET} Transferring migration archive to destination (${DST_DOMAIN})..."
@@ -178,22 +200,21 @@ else
   scp "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz" "${DST_DOMAIN}:/srv/${DST_DOMAIN}/${TMP_DIR}/"
 
   # Remote execution
-  ssh "$DST_DOMAIN" "
+  ssh ${TTY_FLAG} "$DST_DOMAIN" "
     set -e
-    cd /srv/${DST_DOMAIN}/${TMP_DIR}
-
-    # Extract archive contents
-    tar -xzf migration-${SRC}-${CURRENT_DATE}.tar.gz
-
-    # Import database
     cd /srv/${DST_DOMAIN}
 
-    bash sh/database/import.sh -f $TMP_DIR/$DUMP_FILE -y
+    # Extract archive contents
+    tar -xzf ${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz
+    tar -xzf \"${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz\" -C \"${TMP_DIR}\"
+
+    # Import database
+    bash sh/database/import.sh -f \"${TMP_DIR}/${DUMP_FILE}\" -y ${TTY_FLAG}
 
     # Replace wp-content/uploads with extracted media
     rm -rf web/wp-content/uploads
     rm -rf web/wp-content/languages
-    tar -xf $TMP_DIR/$MEDIA_ARCHIVE -C /srv/${DST_DOMAIN}/web/wp-content
+    tar -xf \"${TMP_DIR}/${MEDIA_ARCHIVE}\" -C web/wp-content
 
     # Run search-replace
     docker compose exec php su -c \"bash /shell/wp-cli/search-replace.sh\" ${DEFAULT_USER}

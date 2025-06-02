@@ -1,7 +1,7 @@
 #!/bin/bash
 # import.sh - Import a database dump into the current database
 #
-# Usage: ./sh/database/import.sh -f <dump_file.sql> [-d <database_name>] [-y] [-t]
+# Usage: sh/database/import.sh -f <dump_file.sql> [-d <database_name>] [-y] [-t]
 # Options:
 #   -f <dump_file.sql>  : Path to the SQL dump file to import
 #   -d <database_name>  : Database to import into (default: ${MYSQL_DATABASE})
@@ -32,7 +32,7 @@ USE_TTY=false
 # Parse args
 while getopts "f:d:yth" opt; do
   case $opt in
-    f) DUMP_FILE="$OPTARG" ;;
+    f) DUMP_FILE="$OPTARG" ;;      # dump file to import
     d) MYSQL_DATABASE="$OPTARG" ;; # override database
     y) CONFIRM=false ;;            # skip confirmation
     t) USE_TTY=true ;;             # use TTY for pv
@@ -42,6 +42,7 @@ while getopts "f:d:yth" opt; do
       echo "  -d <database_name>  : Database to import into (default: '${MYSQL_DATABASE}')"
       echo "  -y                  : Skip confirmation prompt"
       echo "  -t                  : Use TTY for pv (useful for large files)"
+      echo "  -h                  : Show this help message"
       exit 0
       ;;
     *) echo "Invalid option. Use -h for help"; exit 1 ;;

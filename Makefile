@@ -125,7 +125,7 @@ replace:
 	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
 migrate:
-	bash ./sh/system/migrate.sh -s $(PARAM1) -d $(PARAM2)
+	bash ./sh/system/migrate.sh -s $(PARAM1) -d $(PARAM2) -t
 
 # Run phpMyAdmin docker container
 pma:
