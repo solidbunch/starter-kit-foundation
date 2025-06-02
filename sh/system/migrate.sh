@@ -119,7 +119,7 @@ cleanup() {
 }
 #trap cleanup EXIT
 
-echo -e "${CYAN}[Info]${RESET} Migrating from ${YELLOW} $SRC_DOMAIN ($SRC)${RESET} to ${YELLOW}$DST_DOMAIN ($DST)${RESET}"
+echo -e "${CYAN}[Info]${RESET} Migrating from ${YELLOW}$SRC_DOMAIN ($SRC)${RESET} to ${YELLOW}$DST_DOMAIN ($DST)${RESET}"
 
 # Step 1: Export from source
 echo "----------------------------------------------------------------------------"
@@ -173,7 +173,7 @@ echo "--------------------------------------------------------------------------
 if [[ "$DST" == "$LOCAL_ENV" ]]; then
 
   # Extract full migration archive
-  tar -xzf "$TMP_DIR/migration-${SRC}-${CURRENT_DATE}.tar.gz" -C "$TMP_DIR"
+  tar -xzf "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz" -C "${TMP_DIR}"
 
   # Import database
   bash sh/database/import.sh -f "${TMP_DIR}/${DUMP_FILE}" -y ${TTY_FLAG}
@@ -181,10 +181,9 @@ if [[ "$DST" == "$LOCAL_ENV" ]]; then
   # Replace wp-content/uploads with extracted media
   rm -rf web/wp-content/uploads
   rm -rf web/wp-content/languages
-  tar -xf "$TMP_DIR/$MEDIA_ARCHIVE" -C web/wp-content
+  tar -xf "${TMP_DIR}/${MEDIA_ARCHIVE}" -C web/wp-content
 
   # Run search-replace
-  bash sh/wp-cli/search-replace.sh "$SRC_DOMAIN" "$DST_DOMAIN"
   docker compose exec php su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"
 
 else
@@ -205,7 +204,6 @@ else
     cd /srv/${DST_DOMAIN}
 
     # Extract archive contents
-    tar -xzf ${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz
     tar -xzf \"${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz\" -C \"${TMP_DIR}\"
 
     # Import database
@@ -217,7 +215,7 @@ else
     tar -xf \"${TMP_DIR}/${MEDIA_ARCHIVE}\" -C web/wp-content
 
     # Run search-replace
-    docker compose exec php su -c \"bash /shell/wp-cli/search-replace.sh\" ${DEFAULT_USER}
+    docker compose exec php su -c \"bash /shell/wp-cli/search-replace.sh\" \"${DEFAULT_USER}\"
   "
 fi
 
