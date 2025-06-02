@@ -24,8 +24,9 @@
 
 
 # Backup database and media
-15 3 * * * bash /app/sh/cron/start-backup.sh daily >> /var/log/cron.log 2>&1
-15 4 * * 1 bash /app/sh/cron/start-backup.sh weekly >> /var/log/cron.log 2>&1
+15 3 * * * cd /app && NO_COLOR=1 bash ./sh/cron/start-backup.sh daily >> /var/log/cron.log 2>&1
+
+15 4 * * 1 cd /app && NO_COLOR=1 bash ./sh/cron/start-backup.sh weekly >> /var/log/cron.log 2>&1
 
 # SSL certificate renew by Certbot
 # Need to share $CURRENT_PATH because docker use host path inside cron container

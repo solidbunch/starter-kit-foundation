@@ -1,8 +1,6 @@
 #!/usr/bin/make
 .SILENT:
 
-include ./sh/utils/colors
-
 include ./config/environment/.env.main
 
 SHELL = /bin/sh
@@ -35,12 +33,15 @@ export CURRENT_PATH
 export DOCKER_BUILDKIT=1
 
 # Default values
-LOGO_SH=bash ./sh/logo.sh
+LOGO_SH=bash ./sh/utils/logo.sh
 
 # https://stackoverflow.com/questions/6273608/how-to-pass-argument-to-makefile-from-command-line/6273809#6273809
 # $(MAKECMDGOALS) is the list of targets passed to make
 PARAMS = $(filter-out $@,$(MAKECMDGOALS))
-
+GOAL := $(word 1, $(PARAMS))
+PARAM1 := $(word 2, $(PARAMS))
+PARAM2 := $(word 3, $(PARAMS))
+PARAM3 := $(word 4, $(PARAMS))
 # Go!
 # Install project. Generate secrets, run composer and npm dependencies install
 # `make install dev composer` - will run only composer update
@@ -52,7 +53,7 @@ install:
 	# Init root .env file
 	bash ./sh/env/init.sh $(PARAMS)
 	# Composer and npm build
-	bash ./sh/install.sh
+	bash ./sh/system/install.sh
 	# Run main project docker containers
 	docker compose up -d
 	# Check database is up
@@ -73,7 +74,7 @@ env:
 	bash ./sh/env/init.sh $(PARAMS)
 
 certbot:
-	bash ./sh/certbot.sh $(PARAMS)
+	bash ./sh/system/certbot.sh $(PARAMS)
 
 ssl:
 	$(MAKE) certbot
@@ -84,7 +85,7 @@ core-install:
 # Run mix watch with browserSync
 watch:
 	$(LOGO_SH)
-	bash ./sh/npm-watch.sh $(PARAMS)
+	bash ./sh/dev/npm-watch.sh $(PARAMS)
 
 # Regular docker compose up with root .env file concatenation
 up:
@@ -112,15 +113,19 @@ recreate:
 
 # Run database import script with first argument as file name and second as database name
 import:
-	bash ./sh/database/import.sh $(PARAMS)
+	bash ./sh/database/import.sh -f $(PARAM1) -t
+	docker compose exec php su -c "bash /shell/wp-cli/search-replace.sh" $(DEFAULT_USER)
 
 # Run database export script with first argument as file name and second as database name
 export:
-	bash ./sh/database/export.sh $(PARAMS)
+	bash ./sh/database/export.sh
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
 	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
+
+migrate:
+	bash ./sh/system/migrate.sh -s $(PARAM1) -d $(PARAM2) -t
 
 # Run phpMyAdmin docker container
 pma:
@@ -134,11 +139,11 @@ log:
 
 run:
 	$(LOGO_SH)
-	bash ./sh/run.sh run $(PARAMS)
+	bash ./sh/dev/run.sh run $(PARAMS)
 
 exec:
 	$(LOGO_SH)
-	bash ./sh/run.sh exec $(PARAMS)
+	bash ./sh/dev/run.sh exec $(PARAMS)
 
 lint:
 	docker compose -f docker-compose.build.yml run -it --rm --build composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
@@ -153,7 +158,7 @@ ansible:
 
 # docker build|docker push|docker clean
 docker:
-	bash ./sh/docker.sh $(PARAMS)
+	bash ./sh/system/docker.sh $(PARAMS)
 
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run

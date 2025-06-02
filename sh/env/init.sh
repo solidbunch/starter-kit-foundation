@@ -4,7 +4,7 @@
 set -e
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 # We have no root .env yet, need to connect main env to generate root .env file
 source ./config/environment/.env.main
@@ -20,7 +20,7 @@ fi
 
 # Check .env.type.${ENVIRONMENT_TYPE} file exist
 if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
-    echo -e "${LIGHTRED}[Error]${NOCOLOR} .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
+    echo -e "${LIGHTRED}[Error]${RESET} .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
 fi
 
 # Concatenate root .env file
@@ -33,4 +33,4 @@ if [ -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override ]; then
 
 fi
 
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} root .env ready for '${ENVIRONMENT_TYPE}'"
+echo -e "${LIGHTGREEN}[Success]${RESET} root .env ready for '${ENVIRONMENT_TYPE}'"

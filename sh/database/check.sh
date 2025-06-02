@@ -4,7 +4,7 @@
 set -e
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 source ./.env
 
@@ -21,6 +21,6 @@ do
       break
     fi
     if [ "$i" = 10 ]; then
-        echo -e "${LIGHTRED}[Error]${NOCOLOR} Database container '${DATABASE_CONTAINER}' is down"; exit 1;
+        echo -e "${LIGHTRED}[Error]${RESET} Database container '${DATABASE_CONTAINER}' is down"; exit 1;
     fi
 done
