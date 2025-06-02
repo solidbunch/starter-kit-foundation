@@ -6,8 +6,8 @@
 source ./.env
 source ./sh/utils/colors.sh
 
-# Stop when error
-set -e
+# Stop on any error and fail on pipe errors
+set -e -o pipefail
 
 WEB_CONTAINER="${APP_NAME}-php"
 OUTPUT_DIR="./tmp"

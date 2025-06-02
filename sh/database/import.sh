@@ -2,54 +2,83 @@
 
 # This script imports a database dump into the current database.
 
-# Source the .env file
+# Load environment and colors
 source ./.env
-
-# Colors
 source ./sh/utils/colors.sh
 
-# Take database hostname from .env file
-DATABASE_CONTAINER="$MYSQL_HOST"
-WP_CONTAINER="php"
+# Stop on any error and fail on pipe errors
+set -e -o pipefail
 
-# Stop when error
-set -e
+DATABASE_CONTAINER="${APP_NAME}-mariadb"
 
-if [ "$1" != "" ]; then
-  DUMP_FILE="$1"
-else
-  echo "ERROR: Enter dump file name as the first parameter"
-  exit 1
+# Defaults
+DUMP_FILE=""
+CONFIRM=true
+
+# Parse args
+while getopts "f:d:yh" opt; do
+  case $opt in
+    f) DUMP_FILE="$OPTARG" ;;
+    d) MYSQL_DATABASE="$OPTARG" ;; # override database
+    y) CONFIRM=false ;;            # skip confirmation
+    h)
+      echo "Usage: $0 -f <dump_file.sql> [-d <database>] [-y (skip confirm)]"
+      exit 0
+      ;;
+    *) echo "Invalid option. Use -h for help"; exit 1 ;;
+  esac
+done
+
+if [ -z "$DUMP_FILE" ]; then
+  echo -e "${LIGHTRED}[Error]${RESET} Missing dump file (-f <dump_file.sql>)"; exit 1
 fi
 
-# Read parameter 2, using $MYSQL_DATABASE from .env file by default
-if [ "$2" != "" ]; then
-  MYSQL_DATABASE="$2"
+if [ ! -f "$DUMP_FILE" ]; then
+  echo -e "${LIGHTRED}[Error]${RESET} File '$DUMP_FILE' does not exist"; exit 1
 fi
 
-echo -e "${LIGHTYELLOW}[Warning]${RESET} Current database '${MYSQL_DATABASE}' data will be replaced"
-read -rp "Are you sure? (y/n): " choice
-if [[ ! $choice =~ ^[Yy](es)?$ ]]; then
-  echo "Not confirmed. Exiting."
-  exit 0
+echo -e "${LIGHTYELLOW}[Warning]${RESET} This will replace data in database '${MYSQL_DATABASE}'"
+
+if [ "$CONFIRM" = true ]; then
+  read -rp "Are you sure? (y/n): " choice
+  if [[ ! $choice =~ ^[Yy](es)?$ ]]; then
+    echo "Cancelled."
+    exit 0
+  fi
 fi
 
-echo "Importing '${DUMP_FILE}' to local database '${MYSQL_DATABASE}'. It can take more than few minutes. Pls wait."
-
-# Copy dump to container
-docker compose cp "${DUMP_FILE}" "${DATABASE_CONTAINER}":/tmp/"${DUMP_FILE}"
+echo "Importing '$DUMP_FILE' into '${MYSQL_DATABASE}'..."
 
 # ToDo Create database if not exists
 #echo "Creating database '${MYSQL_DATABASE}' if not exists"
 #docker compose exec "${DATABASE_CONTAINER}" mariadb -e "CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};"
 #wp-cli db create
 
+#docker exec -i "$DATABASE_CONTAINER" sh -c "pv | mariadb -u \"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\"" < "$DUMP_FILE"
+
+DUMP_BASENAME=$(basename "$DUMP_FILE")
+
+docker cp "$DUMP_FILE" "$DATABASE_CONTAINER":/tmp/"$DUMP_BASENAME"
+
+docker exec -it "$DATABASE_CONTAINER" bash -c "pv /tmp/$DUMP_BASENAME | mariadb -u \"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\""
+
+docker exec "$DATABASE_CONTAINER" rm -f /tmp/"$DUMP_BASENAME"
+
+
+
 # Import data from sql file with pv
-docker compose exec "${DATABASE_CONTAINER}" bash -c "pv /tmp/${DUMP_FILE} | mariadb -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE}"
+#if docker exec "$DATABASE_CONTAINER" command -v pv >/dev/null 2>&1; then
+
+#else
+#  docker exec -i "$DATABASE_CONTAINER" mariadb -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < "$DUMP_FILE"
+#fi
+
 
 echo -e "${LIGHTGREEN}[Success]${RESET} Database import done"
 
+
+
 # Run database domains replacement
-docker compose exec "${WP_CONTAINER}" su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"
+#docker compose exec "${WP_CONTAINER}" su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"
 
 

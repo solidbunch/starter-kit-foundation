@@ -13,13 +13,12 @@
 #       - sh/wp-cli/search-replace.sh
 #   - .env.type.* files inside config/environment/
 
-# Source the .env file
+# Load environment and colors
 source ./.env
-
-# Colors
 source ./sh/utils/colors.sh
 
-set -o pipefail
+# Stop on any error and fail on pipe errors
+set -e -o pipefail
 
 ENV_DIR="./config/environment"
 LOCAL_ENV="local"
@@ -138,24 +137,55 @@ else
 
 fi
 
-exit 0
-
 # Step 2: Import into destination
-echo "📥 Importing into destination ($DST)..."
-
 if [[ "$DST" == "$LOCAL_ENV" ]]; then
-  source "$DST_ENV"
-  sh sh/database/import.sh < "$TMP_DIR/$DUMP_FILE"
+
+  # Extract full migration archive
+  tar -xzf "$TMP_DIR/migration-${SRC}-${CURRENT_DATE}.tar.gz" -C "$TMP_DIR"
+
+  # Import database
+  bash sh/database/import.sh -f "$TMP_DIR/$DUMP_FILE" -y
+
+  # Replace wp-content/uploads with extracted media
   rm -rf web/wp-content/uploads
-  tar -xzf "$TMP_DIR/$UPLOADS_ARCHIVE" -C web/wp-content
-  sh sh/wp-cli/search-replace.sh "$SRC_DOMAIN" "$DST_DOMAIN"
+  rm -rf web/wp-content/languages
+  tar -xf "$TMP_DIR/$MEDIA_ARCHIVE" -C web/wp-content
+
+  # Run search-replace
+  bash sh/wp-cli/search-replace.sh "$SRC_DOMAIN" "$DST_DOMAIN"
+  docker compose exec php su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"
+
 else
-  ssh "$DST" "mkdir -p $REMOTE_TMP"
-  scp "$TMP_DIR/$DUMP_FILE" "$DST:$REMOTE_TMP/"
-  scp "$TMP_DIR/$UPLOADS_ARCHIVE" "$DST:$REMOTE_TMP/"
-  ssh "$DST" "cd /app && source $DST_ENV && sh sh/database/import.sh < $REMOTE_TMP/$DUMP_FILE"
-  ssh "$DST" "rm -rf /app/web/wp-content/uploads && tar -xzf $REMOTE_TMP/$UPLOADS_ARCHIVE -C /app/web/wp-content"
-  ssh "$DST" "cd /app && source $DST_ENV && sh sh/wp-cli/search-replace.sh '$SRC_DOMAIN' '$DST_DOMAIN'"
+  ssh "$DST_DOMAIN" "
+    set -e
+    cd /srv/${DST_DOMAIN}
+    mkdir -p ${TMP_DIR}
+  "
+
+  # Transfer archive to remote
+  scp "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz" "${DST_DOMAIN}:/srv/${DST_DOMAIN}/${TMP_DIR}/"
+
+  # Remote execution
+  ssh "$DST_DOMAIN" "
+    set -e
+    cd /srv/${DST_DOMAIN}/${TMP_DIR}
+
+    # Extract archive contents
+    tar -xzf migration-${SRC}-${CURRENT_DATE}.tar.gz
+
+    # Import database
+    cd /srv/${DST_DOMAIN}
+
+    bash sh/database/import.sh -f $TMP_DIR/$DUMP_FILE -y
+
+    # Replace wp-content/uploads with extracted media
+    rm -rf web/wp-content/uploads
+    rm -rf web/wp-content/languages
+    tar -xf $TMP_DIR/$MEDIA_ARCHIVE -C /app/web/wp-content
+
+    # Run search-replace
+    docker compose exec php su -c \"bash /shell/wp-cli/search-replace.sh\" ${DEFAULT_USER}
+  "
 fi
 
 echo -e "${LIGHTGREEN}[Success]${RESET} ✅ Migration complete!"
