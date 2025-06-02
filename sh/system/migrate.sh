@@ -99,10 +99,11 @@ cleanup() {
 echo -e "${CYAN}[Info]${RESET} Migrating from ${YELLOW} $SRC_DOMAIN ($SRC)${RESET} to ${YELLOW}$DST_DOMAIN ($DST)${RESET}"
 
 # Step 1: Export from source
-echo "📤 Exporting from source ($SRC)..."
+echo "----------------------------------------------------------------------------"
+echo -e "${CYAN}[Info]${RESET} Using $SRC environment for source export (${SRC_DOMAIN})"
+echo "----------------------------------------------------------------------------"
 
 if [[ "$SRC" == "$LOCAL_ENV" ]]; then
-  echo "Using temp dir: $TMP_DIR"
 
   # Step 1: Export database dump without users and usermeta tables
   bash sh/database/export.sh -f "${TMP_DIR}/${DUMP_FILE}" -i true
@@ -120,7 +121,6 @@ if [[ "$SRC" == "$LOCAL_ENV" ]]; then
   gzip -f "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar"
 
 else
-  echo "Using temp dir: ${SRC_DOMAIN}:/srv/${SRC_DOMAIN}/${TMP_DIR}"
   # Remote source export
   ssh "$SRC_DOMAIN" "
     set -e
@@ -133,9 +133,18 @@ else
     gzip -f ${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar
   "
 
+  echo -e "${CYAN}[Info]${RESET} Transferring migration archive from source (${SRC_DOMAIN}) to local..."
+
+  # Transfer archive to local
   scp "${SRC_DOMAIN}:/srv/${SRC_DOMAIN}/${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz" "${TMP_DIR}/"
 
 fi
+
+echo "----------------------------------------------------------------------------"
+echo -e "${LIGHTGREEN}[Success]${RESET} ✅ Source $SRC export complete! Archive saved to: ${BOLD}${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz${RESET}"
+echo "----------------------------------------------------------------------------"
+echo -e "${CYAN}[Info]${RESET} Connecting to $DST environment (${DST_DOMAIN}) and preparing for import..."
+echo "----------------------------------------------------------------------------"
 
 # Step 2: Import into destination
 if [[ "$DST" == "$LOCAL_ENV" ]]; then
@@ -156,11 +165,14 @@ if [[ "$DST" == "$LOCAL_ENV" ]]; then
   docker compose exec php su -c "bash /shell/wp-cli/search-replace.sh" "${DEFAULT_USER}"
 
 else
+
   ssh "$DST_DOMAIN" "
     set -e
     cd /srv/${DST_DOMAIN}
     mkdir -p ${TMP_DIR}
   "
+
+  echo -e "${CYAN}[Info]${RESET} Transferring migration archive to destination (${DST_DOMAIN})..."
 
   # Transfer archive to remote
   scp "${TMP_DIR}/migration-${SRC}-${CURRENT_DATE}.tar.gz" "${DST_DOMAIN}:/srv/${DST_DOMAIN}/${TMP_DIR}/"
@@ -181,11 +193,13 @@ else
     # Replace wp-content/uploads with extracted media
     rm -rf web/wp-content/uploads
     rm -rf web/wp-content/languages
-    tar -xf $TMP_DIR/$MEDIA_ARCHIVE -C /app/web/wp-content
+    tar -xf $TMP_DIR/$MEDIA_ARCHIVE -C /srv/${DST_DOMAIN}/web/wp-content
 
     # Run search-replace
     docker compose exec php su -c \"bash /shell/wp-cli/search-replace.sh\" ${DEFAULT_USER}
   "
 fi
 
+echo "----------------------------------------------------------------------------"
 echo -e "${LIGHTGREEN}[Success]${RESET} ✅ Migration complete!"
+echo "----------------------------------------------------------------------------"

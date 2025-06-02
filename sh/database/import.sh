@@ -60,7 +60,10 @@ DUMP_BASENAME=$(basename "$DUMP_FILE")
 
 docker cp "$DUMP_FILE" "$DATABASE_CONTAINER":/tmp/"$DUMP_BASENAME"
 
-docker exec -it "$DATABASE_CONTAINER" bash -c "pv /tmp/$DUMP_BASENAME | mariadb -u \"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\""
+#docker exec -it "$DATABASE_CONTAINER" bash -c "pv /tmp/$DUMP_BASENAME | mariadb -u \"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\""
+#docker exec "$DATABASE_CONTAINER" bash -c "pv --force /tmp/$DUMP_BASENAME | mariadb -u \"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\""
+docker exec -t "$DATABASE_CONTAINER" bash -c "pv /tmp/$DUMP_BASENAME | mariadb -u \"$MYSQL_USER\" -p\"$MYSQL_PASSWORD\" \"$MYSQL_DATABASE\""
+
 
 docker exec "$DATABASE_CONTAINER" rm -f /tmp/"$DUMP_BASENAME"
 
