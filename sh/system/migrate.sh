@@ -31,6 +31,7 @@ LOCAL_ENV="local"
 CURRENT_DATE=$(date +%Y-%m-%d)
 
 # Attention: relative path to the tmp directory used on local and remote servers
+mkdir -p tmp
 TMP_DIR=$(mktemp -d "tmp/migration-${CURRENT_DATE}-XXXXXXXX")
 
 DUMP_FILE="${MYSQL_HOST}-${MYSQL_DATABASE}-${CURRENT_DATE}.sql"
@@ -108,16 +109,9 @@ if [[ ! $choice =~ ^[Yy](es)?$ ]]; then
   exit 0
 fi
 
-## Start migration process
-
-# Cleanup on exit
-cleanup() {
-  echo "🧹 Cleaning up..."
-  [[ "$SRC" != "$LOCAL_ENV" ]] && ssh "$SRC" "rm -rf $REMOTE_TMP"
-  [[ "$DST" != "$LOCAL_ENV" ]] && ssh "$DST" "rm -rf $REMOTE_TMP"
-  rm -f "$TMP_DIR/$DUMP_FILE" "$TMP_DIR/$MEDIA_ARCHIVE"
-}
-#trap cleanup EXIT
+#############################################################
+#               Start migration process
+#############################################################
 
 echo -e "${CYAN}[Info]${RESET} Migrating from ${YELLOW}$SRC_DOMAIN ($SRC)${RESET} to ${YELLOW}$DST_DOMAIN ($DST)${RESET}"
 
@@ -146,7 +140,7 @@ if [[ "$SRC" == "$LOCAL_ENV" ]]; then
 else
   # Remote source export
   ssh ${TTY_FLAG} "$SRC_DOMAIN" "
-    set -e
+    set -e -o pipefail
     cd /srv/${SRC_DOMAIN}
     mkdir -p ${TMP_DIR}
     bash sh/database/export.sh -f ${TMP_DIR}/${DUMP_FILE} -i true
@@ -189,7 +183,7 @@ if [[ "$DST" == "$LOCAL_ENV" ]]; then
 else
 
   ssh ${TTY_FLAG} "$DST_DOMAIN" "
-    set -e
+    set -e -o pipefail
     mkdir -p /srv/${DST_DOMAIN}/${TMP_DIR}
   "
 
@@ -200,7 +194,7 @@ else
 
   # Remote execution
   ssh ${TTY_FLAG} "$DST_DOMAIN" "
-    set -e
+    set -e -o pipefail
     cd /srv/${DST_DOMAIN}
 
     # Extract archive contents
@@ -222,3 +216,25 @@ fi
 echo "----------------------------------------------------------------------------"
 echo -e "${LIGHTGREEN}[Success]${RESET} ✅ Migration complete!"
 echo "----------------------------------------------------------------------------"
+
+
+# Cleanup temporary files and remote data after migration
+cleanup() {
+  echo "🧹 Cleaning up..."
+
+  # Remove temporary files from source server if it's remote
+  if [[ "$SRC" != "$LOCAL_ENV" ]]; then
+    ssh "$SRC_DOMAIN" "rm -rf /srv/${SRC_DOMAIN}/${TMP_DIR}" || echo -e "${YELLOW}[Warning]${RESET} Failed to clean up on source ($SRC)"
+  fi
+
+  # Remove temporary files from destination server if it's remote
+  if [[ "$DST" != "$LOCAL_ENV" ]]; then
+    ssh "$DST_DOMAIN" "rm -rf /srv/${DST_DOMAIN}/${TMP_DIR}" || echo -e "${YELLOW}[Warning]${RESET} Failed to clean up on destination ($DST)"
+  fi
+
+  # Remove local temporary files
+  rm -rf "${TMP_DIR}"
+
+  echo -e "${LIGHTGREEN}[Success]${RESET} Temporary files cleaned up successfully!"
+}
+trap cleanup EXIT
