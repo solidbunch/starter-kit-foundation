@@ -113,7 +113,7 @@ recreate:
 
 # Run database import script with first argument as file name and second as database name
 import:
-	bash ./sh/database/import.sh -f $(PARAM1)
+	bash ./sh/database/import.sh -f $(PARAM1) -t
 	docker compose exec php su -c "bash /shell/wp-cli/search-replace.sh" $(DEFAULT_USER)
 
 # Run database export script with first argument as file name and second as database name
