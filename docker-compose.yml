@@ -84,8 +84,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Share crontabs files into tmp folder
       - ./config/cron/crontabs:/tmp/crontabs
-      # Backups folder
-      - ./backups:/srv/backups
       # Share all app files
       - ./:/app
 

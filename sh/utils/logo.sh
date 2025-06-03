@@ -4,7 +4,7 @@
 set -e
 
 # Colors
-source ./sh/utils/colors
+source ./sh/utils/colors.sh
 
 # Show Logo
 # https://patorjk.com/software/taag/#p=display&f=Chunky&t=STARTER%20KIT%0A%20%20Foundation

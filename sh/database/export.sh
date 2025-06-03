@@ -2,35 +2,70 @@
 
 # This script exports a database dump from the current database.
 
-# Source the .env file
+# Load environment and colors
 source ./.env
+source ./sh/utils/colors.sh
 
-# Colors
-source ./sh/utils/colors
+# Stop on any error and fail on pipe errors
+set -e -o pipefail
 
-# Take database hostname from .env file
-DATABASE_CONTAINER="$MYSQL_HOST"
+# Database container name
+DATABASE_CONTAINER="${APP_NAME}-mariadb"
 
-# Stop when error
-set -e
+# Define the table prefix, using a default value 'wp_' if MYSQL_DB_PREFIX is not set
+DB_PREFIX="${MYSQL_DB_PREFIX:-wp_}"
 
-# Read parameter 2, using $MYSQL_DATABASE from .env file by default
-if [ "$2" != "" ]; then
-  MYSQL_DATABASE="$2"
+# Default output file name
+OUTPUT_DIR="./tmp"
+OUTPUT_FILE="${OUTPUT_DIR}/${DATABASE_CONTAINER}-${MYSQL_DATABASE}-${WP_ENVIRONMENT_TYPE}-${APP_DOMAIN}-$(date +%Y-%m-%d).sql"
+
+# Parse CLI arguments
+while getopts "f:i:h" opt; do
+  case $opt in
+    f) OUTPUT_FILE="$OPTARG" ;;
+    i) IGNORE_USERS="$OPTARG" ;;
+    h) echo "Usage: $0 -f <output_file> -i <ignore_users_table>"; exit 0 ;;
+    *) echo "Invalid option. Use -h for help"; exit 1 ;;
+  esac
+done
+
+# Create output directory if it does not exist
+mkdir -p "$(dirname "$OUTPUT_FILE")"
+
+echo "Exporting database '${MYSQL_DATABASE}'. It can take more than a few minutes. Please wait."
+
+# Check database health and wait for it to be ready
+for i in {1..3}
+do
+    if (docker exec "${DATABASE_CONTAINER}" mariadb-admin -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" ping > /dev/null 2>&1); then
+        break
+    fi
+    sleep 3
+    if [ "$i" = 3 ]; then
+        echo -e "${LIGHTRED}[Error]${RESET} Database container '$DATABASE_CONTAINER' is down"; exit 1;
+    fi
+done
+
+# Build mariadb-dump arguments as an array
+DUMP_ARGS=(-u "${MYSQL_USER}" --password="${MYSQL_PASSWORD}")
+
+# Add --ignore-table flags if IGNORE_USERS is not empty
+if [ -n "${IGNORE_USERS}" ]; then
+  # Exclude users and usermeta tables while exporting the database, if need to leave old password on import
+   DUMP_ARGS+=("--ignore-table=${MYSQL_DATABASE}.${DB_PREFIX}users")
+   DUMP_ARGS+=("--ignore-table=${MYSQL_DATABASE}.${DB_PREFIX}usermeta")
 fi
 
-if [ "$1" != "" ]; then
-  OUTPUT_FILE="$1"
-else
-  OUTPUT_FILE="$DATABASE_CONTAINER"-"$MYSQL_DATABASE"-"$ENVIRONMENT_TYPE"-"$APP_DOMAIN"-$(date +%Y-%m-%d).sql
+# Append database name as the final argument
+DUMP_ARGS+=("${MYSQL_DATABASE}")
+
+# ToDo add pv progress bar
+# Run the dump inside the container, redirect output to local file
+docker exec "${DATABASE_CONTAINER}" mariadb-dump "${DUMP_ARGS[@]}" > "${OUTPUT_FILE}"
+
+
+if [ -n "${IGNORE_USERS}" ]; then
+  echo "The ${DB_PREFIX}users and ${DB_PREFIX}usermeta tables were excluded from the dump."
 fi
 
-echo "Exporting local database to '${OUTPUT_FILE}'. It can take more than a few minutes. Please wait."
-
-# Export data to sql file
-docker compose exec "${DATABASE_CONTAINER}" bash -c "mariadb-dump -u ${MYSQL_USER} -p${MYSQL_PASSWORD} ${MYSQL_DATABASE} > /tmp/${OUTPUT_FILE}"
-
-# Copy dump from container
-docker compose cp "${DATABASE_CONTAINER}":/tmp/"${OUTPUT_FILE}" "${OUTPUT_FILE}"
-
-echo -e "${LIGHTGREEN}[Success]${NOCOLOR} Database export done"
+echo -e "${LIGHTGREEN}[Success]${RESET} Database export done to '${BOLD}${OUTPUT_FILE}${RESET}'"
