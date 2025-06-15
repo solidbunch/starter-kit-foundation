@@ -65,6 +65,7 @@ services:
     volumes:
       # SSL certificate files
       - ./config/ssl:/etc/letsencrypt
+      - ./config/certbot/cli.ini:/etc/letsencrypt/cli.ini
       # Web root folder
       - ./web/wp-core:/srv/web
       # Logs folder

@@ -33,15 +33,18 @@
 30 3 * * *  cd /app && \
             docker run --rm --name certbot \
              -v "${CURRENT_PATH}/config/ssl:/etc/letsencrypt" \
+             -v "${CURRENT_PATH}/config/certbot/cli.ini:/etc/letsencrypt/cli.ini" \
              -v "${CURRENT_PATH}/web/wp-core:/srv/web" \
              -v "${CURRENT_PATH}/logs/letsencrypt:/var/log/letsencrypt" \
              --env-file=/app/.env \
              -e CURRENT_UID=${CURRENT_UID:-$DEFAULT_UID} \
              -e CURRENT_GID=${CURRENT_GID:-$DEFAULT_GID} \
              "${APP_CERTBOT_IMAGE}" \
-             su -c "certbot renew --webroot --webroot-path=/srv/web" \
+             su -c "certbot renew" \
              "${DEFAULT_USER}" && \
            docker restart ${APP_NAME}-nginx >> /var/log/cron.log 2>&1
 
+# Remove old SSL logs
+35 3 * * * ls -t /app/logs/letsencrypt/letsencrypt.log.* | tail -n +12 | xargs -r rm -f
 
 # An empty line is required at the end of this file for a valid cron file
