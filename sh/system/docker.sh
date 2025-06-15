@@ -131,7 +131,7 @@ fi
 
 ## Clean
 # Full docker cleanup
-if [ "$MODE" == "clean" ]; then
+if [ "$MODE" == "clean" ] || [ "$MODE" == "prune" ]; then
   docker container prune
   docker image prune -a
   docker volume prune

@@ -91,13 +91,13 @@ watch:
 up:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up -d --build
+	docker compose up -d
 
 # docker compose up with root .env file concatenation without `-d`
 upd:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up --build
+	docker compose up
 
 # Just docker compose down
 down:
@@ -109,7 +109,7 @@ restart:
 
 recreate:
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up -d --build --force-recreate
+	docker compose up -d --force-recreate
 
 # Run database import script with first argument as file name and second as database name
 import:
@@ -122,14 +122,14 @@ export:
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
-	docker compose run --rm --build php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
+	docker compose run --rm php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
 migrate:
 	bash ./sh/system/migrate.sh -s $(PARAM1) -d $(PARAM2) -t
 
 # Run phpMyAdmin docker container
 pma:
-	docker compose -f docker-compose.build.yml run --service-ports --rm --build phpmyadmin
+	docker compose -f docker-compose.build.yml run --service-ports --rm phpmyadmin
 
 mailhog:
 	docker-compose -f docker-compose.build.yml run --service-ports --rm --name mailhog mailhog
@@ -146,8 +146,8 @@ exec:
 	bash ./sh/dev/run.sh exec $(PARAMS)
 
 lint:
-	docker compose -f docker-compose.build.yml run -it --rm --build composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
-	docker compose -f docker-compose.build.yml run -it --rm --build node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
+	docker compose -f docker-compose.build.yml run -it --rm composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
+	docker compose -f docker-compose.build.yml run -it --rm node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
 
 # IasC
 terraform:
