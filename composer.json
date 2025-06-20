@@ -63,7 +63,7 @@
   "require-dev": {
     "roave/security-advisories": "dev-latest",
     "wpackagist-plugin/rewrite-rules-inspector": "1.4.0",
-    "wpackagist-plugin/query-monitor": "3.17.2"
+    "wpackagist-plugin/query-monitor": "3.18.0"
   },
   "config": {
     "optimize-autoloader": true,
