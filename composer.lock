@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c80d5f92ab3bba436b7f11ba833faf50",
+    "content-hash": "459549820bd67abce304b84b3a0f0d96",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -203,16 +203,16 @@
         },
         {
             "name": "htmlburger/carbon-fields",
-            "version": "v3.6.2",
+            "version": "v3.6.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/htmlburger/carbon-fields.git",
-                "reference": "ecf71b45389a06c25f0fb2bc12b29eae1dff70e7"
+                "reference": "b18f8e2a2cc4cc976306eb867ad1d740a8e7c1d9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/htmlburger/carbon-fields/zipball/ecf71b45389a06c25f0fb2bc12b29eae1dff70e7",
-                "reference": "ecf71b45389a06c25f0fb2bc12b29eae1dff70e7",
+                "url": "https://api.github.com/repos/htmlburger/carbon-fields/zipball/b18f8e2a2cc4cc976306eb867ad1d740a8e7c1d9",
+                "reference": "b18f8e2a2cc4cc976306eb867ad1d740a8e7c1d9",
                 "shasum": ""
             },
             "require": {
@@ -339,7 +339,7 @@
                 "issues": "https://github.com/htmlburger/carbon-fields/issues",
                 "source": "https://github.com/htmlburger/carbon-fields"
             },
-            "time": "2023-11-13T14:58:28+00:00"
+            "time": "2024-07-31T08:17:38+00:00"
         },
         {
             "name": "laminas/laminas-config-aggregator",
@@ -921,20 +921,20 @@
         },
         {
             "name": "solidbunch/starter-kit-theme",
-            "version": "dev-master",
+            "version": "dev-develop",
             "source": {
                 "type": "git",
                 "url": "https://github.com/solidbunch/starter-kit-theme.git",
-                "reference": "99615d2d21449124fbb9fa3c17d98f460417ec01"
+                "reference": "d9ca0174a0ea1d943a60ca49fe0241602f1133c9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/solidbunch/starter-kit-theme/zipball/99615d2d21449124fbb9fa3c17d98f460417ec01",
-                "reference": "99615d2d21449124fbb9fa3c17d98f460417ec01",
+                "url": "https://api.github.com/repos/solidbunch/starter-kit-theme/zipball/d9ca0174a0ea1d943a60ca49fe0241602f1133c9",
+                "reference": "d9ca0174a0ea1d943a60ca49fe0241602f1133c9",
                 "shasum": ""
             },
             "require": {
-                "htmlburger/carbon-fields": "3.6.2",
+                "htmlburger/carbon-fields": "3.6.5",
                 "laminas/laminas-config-aggregator": "1.14.0",
                 "monolog/monolog": "3.5.0",
                 "php": ">=8.1",
@@ -943,13 +943,12 @@
             },
             "require-dev": {
                 "dealerdirect/phpcodesniffer-composer-installer": "1.0.0",
-                "filp/whoops": "2.15.4",
+                "filp/whoops": "2.17.0",
                 "phpcompatibility/phpcompatibility-wp": "2.1.4",
                 "phpunit/phpunit": "10.5.3",
                 "roave/security-advisories": "dev-latest",
                 "squizlabs/php_codesniffer": "3.7.2"
             },
-            "default-branch": true,
             "type": "wordpress-theme",
             "autoload": {
                 "psr-4": {
@@ -1016,14 +1015,18 @@
             "description": "WordPress starter theme with a modern development stack for launching projects faster and easily",
             "homepage": "https://starter-kit.io",
             "keywords": [
+                "boilerplate",
+                "environment",
+                "solidbunch",
                 "starter",
+                "starter-kit",
                 "theme",
                 "wordpress"
             ],
             "support": {
                 "issues": "https://github.com/solidbunch/starter-kit-theme/issues"
             },
-            "time": "2024-06-06T12:43:43+00:00"
+            "time": "2025-06-20T22:29:16+00:00"
         },
         {
             "name": "solidbunch/wordpress-core",
