@@ -18,9 +18,13 @@
     }
   ],
   "keywords": [
+    "solidbunch",
     "wordpress",
     "starter",
-    "boilerplate"
+    "starter-kit",
+    "boilerplate",
+    "environment",
+    "template"
   ],
   "support": {
     "issues": "https://github.com/solidbunch/starter-kit-foundation/issues"
@@ -44,13 +48,14 @@
     },
     {
       "type": "vcs",
-      "url": "git@github.com:solidbunch/starter-kit-theme.git"
+      "url": "https://github.com/solidbunch/starter-kit-theme.git",
+      "no-api": true
     }
   ],
   "require": {
     "php": ">=8.1",
     "solidbunch/wordpress-core": "6.8.1",
-    "composer/installers": "2.2.0",
+    "composer/installers": "2.3.0",
     "solidbunch/starter-kit-theme": "dev-develop",
     "wpackagist-plugin/contact-form-7":"6.0.6",
     "wpackagist-plugin/redirection":"5.5.2",
@@ -59,11 +64,14 @@
   "require-dev": {
     "roave/security-advisories": "dev-latest",
     "wpackagist-plugin/rewrite-rules-inspector": "1.4.0",
-    "wpackagist-plugin/query-monitor": "3.17.2"
+    "wpackagist-plugin/query-monitor": "3.18.0"
   },
   "config": {
     "optimize-autoloader": true,
-    "preferred-install": "dist",
+    "preferred-install": {
+      "solidbunch/starter-kit-theme": "source",
+      "*": "dist"
+    },
     "sort-packages": true,
     "discard-changes": false,
     "allow-plugins": {
@@ -91,13 +99,13 @@
       "composer install"
     ],
     "install-prod": [
-      "composer install --no-dev --no-interaction --optimize-autoloader"
+      "composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader"
     ],
     "update-dev": [
       "composer update"
     ],
     "update-prod": [
-      "composer update --no-dev --no-interaction --optimize-autoloader"
+      "composer update --no-dev --prefer-dist --no-interaction --optimize-autoloader"
     ],
     "post-install-cmd": [
       "@post-script"

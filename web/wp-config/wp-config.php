@@ -200,6 +200,11 @@ define('SMTP_PASS', getenv_docker('SMTP_PASS', ''));
 define('SMTP_SECURE', getenv_docker('SMTP_SECURE', ''));
 define('SMTP_DEBUG', getenv_docker('SMTP_DEBUG', 0));
 
+/**
+ * Set post revisions limit
+ */
+define( 'WP_POST_REVISIONS', getenv_docker('WP_POST_REVISIONS', 10) );
+
 
 /* Add any custom values between this line and the "stop editing" line. */
 
