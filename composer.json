@@ -18,6 +18,7 @@
     }
   ],
   "keywords": [
+    "solidbunch",
     "wordpress",
     "starter",
     "starter-kit",
@@ -55,7 +56,7 @@
     "php": ">=8.1",
     "solidbunch/wordpress-core": "6.8.1",
     "composer/installers": "2.3.0",
-    "solidbunch/starter-kit-theme": "dev-master",
+    "solidbunch/starter-kit-theme": "dev-develop",
     "wpackagist-plugin/contact-form-7":"6.0.6",
     "wpackagist-plugin/redirection":"5.5.2",
     "wpackagist-plugin/svg-support":"2.5.14"
