@@ -1,0 +1,11 @@
+[Output]
+    name         loki
+    match        *
+    url          ${LOKI_URL}
+    labels       job=fluentbit,container=${tag}
+    auto_kubernetes_labels false
+
+    # Output reliability
+    tls.verify          off
+    retry_limit         30
+    storage.total_limit_size 500MB

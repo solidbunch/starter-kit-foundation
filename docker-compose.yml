@@ -9,6 +9,8 @@ services:
       options:
         fluentd-address: "${FLUENTD_ADDR}"
         tag: "${APP_NAME}-mariadb"
+    depends_on:
+      - fluent-bit
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
@@ -29,6 +31,7 @@ services:
         fluentd-address: "${FLUENTD_ADDR}"
         tag: "${APP_NAME}-php"
     depends_on:
+      - fluent-bit
       - mariadb
     working_dir: /srv/web
     env_file: .env
@@ -57,6 +60,7 @@ services:
         fluentd-address: "${FLUENTD_ADDR}"
         tag: "${APP_NAME}-nginx"
     depends_on:
+      - fluent-bit
       - mariadb
       - php
     working_dir: /srv/web
@@ -91,6 +95,7 @@ services:
         fluentd-address: "${FLUENTD_ADDR}"
         tag: "${APP_NAME}-cron"
     depends_on:
+      - fluent-bit
       - mariadb
       - php
     env_file: .env
@@ -108,22 +113,16 @@ services:
       - ./:/app
 
   fluent-bit:
-    image: grafana/fluent-bit-plugin-loki:latest
+    image: "${APP_FLUENT_IMAGE}"
     container_name: "${APP_NAME}-fluent-bit"
     restart: unless-stopped
     logging:
-      driver: ${LOG_DRIVER}
-      options:
-        fluentd-address: "${FLUENTD_ADDR}"
-        tag: "${APP_NAME}-fluent-bit"
+      driver: local
     env_file: .env
-    environment:
-      - LOKI_URL=${LOKI_URL}
     ports:
       - "2020:2020"
     volumes:
-      - ./config/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
-    command: -c /fluent-bit/etc/fluent-bit.conf
+      - ./config/fluent-bit:/fluent-bit/etc/templates:ro
 
 networks:
   project_network:
