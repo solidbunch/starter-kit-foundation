@@ -4,6 +4,11 @@ services:
     image: "${APP_DATABASE_IMAGE}"
     container_name: "${APP_NAME}-mariadb"
     restart: unless-stopped
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        fluentd-address: "${FLUENTD_ADDR}"
+        tag: "${APP_NAME}-mariadb"
     env_file: .env
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
@@ -18,6 +23,11 @@ services:
     image: "${APP_PHP_IMAGE}"
     container_name: "${APP_NAME}-php"
     restart: unless-stopped
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        fluentd-address: "${FLUENTD_ADDR}"
+        tag: "${APP_NAME}-php"
     depends_on:
       - mariadb
     working_dir: /srv/web
@@ -41,6 +51,11 @@ services:
     image: "${APP_NGINX_IMAGE}"
     container_name: "${APP_NAME}-nginx"
     restart: unless-stopped
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        fluentd-address: "${FLUENTD_ADDR}"
+        tag: "${APP_NAME}-nginx"
     depends_on:
       - mariadb
       - php
@@ -70,6 +85,11 @@ services:
     image: "${APP_CRON_IMAGE}"
     container_name: "${APP_NAME}-cron"
     restart: unless-stopped
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        fluentd-address: "${FLUENTD_ADDR}"
+        tag: "${APP_NAME}-cron"
     depends_on:
       - mariadb
       - php
@@ -86,6 +106,24 @@ services:
       - ./config/cron/crontabs:/tmp/crontabs
       # Share all app files
       - ./:/app
+
+  fluent-bit:
+    image: grafana/fluent-bit-plugin-loki:latest
+    container_name: "${APP_NAME}-fluent-bit"
+    restart: unless-stopped
+    logging:
+      driver: ${LOG_DRIVER}
+      options:
+        fluentd-address: "${FLUENTD_ADDR}"
+        tag: "${APP_NAME}-fluent-bit"
+    env_file: .env
+    environment:
+      - LOKI_URL=${LOKI_URL}
+    ports:
+      - "2020:2020"
+    volumes:
+      - ./config/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+    command: -c /fluent-bit/etc/fluent-bit.conf
 
 networks:
   project_network:
