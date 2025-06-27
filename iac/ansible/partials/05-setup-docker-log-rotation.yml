@@ -1,0 +1,27 @@
+# This Ansible playbook sets up Docker log rotation on a host.
+
+    - name: Ensure /etc/docker directory exists
+      file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+
+    - name: Configure daemon.json with log rotation
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "10"
+            }
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart Docker to apply changes
+      systemd:
+        name: docker
+        state: restarted
