@@ -1,50 +1,24 @@
-[Service]
-    flush               1
-    log_level           info
-    daemon              off
-    http_server         true
-    http_listen         0.0.0.0
-    http_port           2020
+[SERVICE]
+    flush         1
+    daemon        Off
+    log_level     info
+    parsers_file  /fluent-bit/etc/parsers.conf
+    http_server   On
+    http_listen   0.0.0.0
+    http_port     2020
+    storage.metrics On
 
-    # Buffer storage settings
-    storage.path                /fluent-bit/buffers
-    storage.sync                normal
-    storage.checksum            off
-    storage.backlog.mem_limit   100MB
+[INPUT]
+    name              tail
+    tag               docker.*
+    path              /var/lib/docker/containers/*/*.log
+    parser            docker
+    DB                /fluent-bit/tail-db/tail-containers.db
+    mem_buf_limit     10MB
+    refresh_interval  5
+    skip_long_lines   On
+    read_from_head    Off
 
-[Input]
-    # Keeps Fluent Bit process alive even if nothing is received
-    name dummy
-    tag keepalive
-    dummy {"message":"keep-alive"}
-
-[Input]
-    name forward
-    listen 0.0.0.0
-    port 24224
-    buffer_chunk_size 1M
-    buffer_max_size   5M
-
-    # Optional: tag everything from forward input with prefix
-    tag docker.*
-
-[Filter]
-    name record_modifier
-    match docker.*
-    record hostname ${HOSTNAME}
-
-[Filter]
-    name parser
-    match docker.*
-    key_name log
-    reserve_data true
-
-# Optional: Add Kubernetes metadata if running in k8s
-# [Filter]
-#     name kubernetes
-#     match docker.*
-#     merge_log on
-#     k8s-logging.parser on
-#     k8s-logging.exclude on
-
-@INCLUDE /fluent-bit/etc/output-${FLB_OUTPUT_MODE}.conf
+[OUTPUT]
+    name    stdout
+    match   *

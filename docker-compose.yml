@@ -4,11 +4,6 @@ services:
     image: "${APP_DATABASE_IMAGE}"
     container_name: "${APP_NAME}-mariadb"
     restart: unless-stopped
-    logging:
-      driver: ${LOG_DRIVER}
-      options:
-        fluentd-address: "${FLUENTD_ADDR}"
-        tag: "${APP_NAME}-mariadb"
     depends_on:
       - fluent-bit
     env_file: .env
@@ -25,11 +20,6 @@ services:
     image: "${APP_PHP_IMAGE}"
     container_name: "${APP_NAME}-php"
     restart: unless-stopped
-    logging:
-      driver: ${LOG_DRIVER}
-      options:
-        fluentd-address: "${FLUENTD_ADDR}"
-        tag: "${APP_NAME}-php"
     depends_on:
       - fluent-bit
       - mariadb
@@ -54,11 +44,6 @@ services:
     image: "${APP_NGINX_IMAGE}"
     container_name: "${APP_NAME}-nginx"
     restart: unless-stopped
-    logging:
-      driver: ${LOG_DRIVER}
-      options:
-        fluentd-address: "${FLUENTD_ADDR}"
-        tag: "${APP_NAME}-nginx"
     depends_on:
       - fluent-bit
       - mariadb
@@ -89,11 +74,6 @@ services:
     image: "${APP_CRON_IMAGE}"
     container_name: "${APP_NAME}-cron"
     restart: unless-stopped
-    logging:
-      driver: ${LOG_DRIVER}
-      options:
-        fluentd-address: "${FLUENTD_ADDR}"
-        tag: "${APP_NAME}-cron"
     depends_on:
       - fluent-bit
       - mariadb
@@ -116,13 +96,13 @@ services:
     image: "${APP_FLUENT_IMAGE}"
     container_name: "${APP_NAME}-fluent-bit"
     restart: unless-stopped
-    logging:
-      driver: local
     env_file: .env
     ports:
       - "2020:2020"
     volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./config/fluent-bit:/fluent-bit/etc/templates:ro
+      - ./fluent-bit/tail-db:/fluent-bit/tail-db
 
 networks:
   project_network:
