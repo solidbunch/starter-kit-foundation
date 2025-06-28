@@ -74,6 +74,7 @@ terraform.rc
 #===================================#
 node_modules
 vendor
+modules
 # If we are using custom dependency we should run composer update everywhere
 # to update to last changes without lock file
 #composer.lock
