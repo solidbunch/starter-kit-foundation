@@ -14,7 +14,13 @@ KEY_PATH="./config/ssl/live/${APP_DOMAIN}/privkey.pem"
 
 # Check if the SSL files exist
 if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
-  echo -e "${CYAN}[Info]${RESET} SSL certificate files already exist. Skipping Certbot run."
+  echo -e "${CYAN}[Info]${RESET} SSL certificate files already exist. Trying to renew..."
+
+    docker compose -f docker-compose.build.yml run --rm certbot su -c "\
+        certbot renew" \
+      "${DEFAULT_USER}"
+    docker compose up -d --force-recreate nginx
+
 else
   echo -e "${LIGHTYELLOW}[Warning]${RESET} SSL certificate files not found. Running Certbot..."
 
