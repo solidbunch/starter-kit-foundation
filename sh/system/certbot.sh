@@ -5,8 +5,8 @@
 # Usage:
 #   ./certbot.sh [-c|-r|-h]
 # Options:
-#   -c    : Force create certificate (first run)
-#   -a    : Force renew existing certificate
+#   -c    : Create certificate (first run)
+#   -a    : Renew existing certificate
 #   -h    : Show this help message
 # Run without options to check existing certificates and decide action automatically.
 
@@ -36,8 +36,8 @@ while getopts "cr h" opt; do
     h)
       echo "Usage: $0 [-c|-r]"
       echo "Options:"
-      echo "  -c    : Force create certificate (first run)"
-      echo "  -r    : Force renew existing certificate"
+      echo "  -c    : Create certificate (first run)"
+      echo "  -r    : Renew existing certificate"
       echo "  -h    : Show this help message"
       exit 0
       ;;
@@ -96,7 +96,7 @@ fi
 if [ "$ACTION" == "create" ]; then
   if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
     echo -e "${LIGHTYELLOW}[Warning]${RESET} SSL certificate files already exist at ${CERT_PATH}."
-    echo -e "Use -r option to force renew."
+    echo -e "Use -r option to renew."
     exit 0
   else
     create_cert
