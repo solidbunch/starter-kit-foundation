@@ -118,7 +118,7 @@ jobs:
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
             make secret;
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
-            make ssl;
+            bash ./sh/system/certbot.sh -c;
             make down;
             make up '${{ inputs.ENVIRONMENT_TYPE }}';
             bash ./sh/database/check.sh;
