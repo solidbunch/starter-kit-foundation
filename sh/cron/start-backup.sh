@@ -2,12 +2,12 @@
 
 # Script to backup WordPress database and media files
 
-# Load environment and colors
-source ./.env
-source ./sh/utils/colors.sh
-
 # Stop on any error and fail on pipe errors
 set -e -o pipefail
+
+# Load environment and colors
+source ./sh/utils/colors.sh
+source ./.env
 
 # Default values
 MODE="daily"

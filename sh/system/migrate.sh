@@ -19,12 +19,12 @@
 #       - sh/wp-cli/search-replace.sh
 #   - .env.type.* files inside config/environment/
 
-# Load environment and colors
-source ./.env
-source ./sh/utils/colors.sh
-
 # Stop on any error and fail on pipe errors
 set -e -o pipefail
+
+# Load environment and colors
+source ./sh/utils/colors.sh
+source ./.env
 
 ENV_DIR="./config/environment"
 LOCAL_ENV="local"
