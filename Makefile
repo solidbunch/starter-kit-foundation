@@ -162,7 +162,11 @@ docker:
 
 # Run monitoring scenario
 monitoring:
-	bash ./kit-modules/monitoring-client/sh/monitoring.sh -m $(PARAM1)
+	if [ -f ./kit-modules/monitoring-client/sh/monitoring.sh ]; then \
+		bash ./kit-modules/monitoring-client/sh/monitoring.sh -m $(PARAM1); \
+	else \
+		echo "Monitoring script not found, skipping..."; \
+	fi
 
 mon:
 	$(MAKE) monitoring $(PARAMS)

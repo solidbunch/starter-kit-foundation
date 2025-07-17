@@ -103,24 +103,25 @@ jobs:
             --exclude "*/node_modules/" \
             --exclude "backups/" \
             --exclude "db-data/" \
-            --exclude "logs/*" \
+            --exclude "logs/" \
             --exclude "iac/" \
             --exclude ".env" \
             --exclude ".env.*override" \
             --exclude ".env.*secret" \
-            --exclude "config/ssl/*" \
+            --exclude "config/ssl/" \
             --exclude "web/wp-content/languages" \
             --exclude "web/wp-content/uploads" \
             --include "web/wp-content/cache" \
             ./ ${{ inputs.SSH_HOST_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
           ssh ${{ inputs.SSH_HOST_ALIAS }} "
-            set -e
+            set -e -o pipefail
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
             make secret;
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
             make down;
             make up '${{ inputs.ENVIRONMENT_TYPE }}';
+            make monitoring on;
             bash ./sh/database/check.sh;
             make core-install"
 
