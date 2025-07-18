@@ -114,7 +114,7 @@ jobs:
             --include "web/wp-content/cache" \
             ./ ${{ inputs.SSH_HOST_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
           ssh ${{ inputs.SSH_HOST_ALIAS }} "
-            set -e -o pipefail
+            set -e -o pipefail;
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
             make secret;
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
