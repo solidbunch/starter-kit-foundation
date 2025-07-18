@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5e266ab77e9af1eead27099f6329f566",
+    "content-hash": "ad6fc6d0f4ac07b989a66760d38a7dbc",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -920,21 +920,63 @@
             "time": "2024-09-11T13:17:53+00:00"
         },
         {
+            "name": "solidbunch/composer-installers",
+            "version": "1.0.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/solidbunch/composer-installers.git",
+                "reference": "eafe7a9a9f0ee4ef96ecf5e623f198eeff1076ce"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/solidbunch/composer-installers/zipball/eafe7a9a9f0ee4ef96ecf5e623f198eeff1076ce",
+                "reference": "eafe7a9a9f0ee4ef96ecf5e623f198eeff1076ce",
+                "shasum": ""
+            },
+            "require": {
+                "composer-plugin-api": "^2.0",
+                "composer/installers": "^2.3",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "composer/composer": "^2.0"
+            },
+            "type": "composer-plugin",
+            "extra": {
+                "class": "SolidBunch\\ComposerInstallers\\Plugin"
+            },
+            "autoload": {
+                "psr-4": {
+                    "SolidBunch\\ComposerInstallers\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Custom installer for StarterKit package types",
+            "support": {
+                "issues": "https://github.com/solidbunch/composer-installers/issues",
+                "source": "https://github.com/solidbunch/composer-installers/tree/1.0.7"
+            },
+            "time": "2025-07-18T19:19:17+00:00"
+        },
+        {
             "name": "solidbunch/monitoring-client",
             "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "git@github.com:solidbunch/monitoring-client.git",
-                "reference": "c783336963426343223ec0eac62a473d91604779"
+                "reference": "76761be8144ce93224156748f67fef467e9580ef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/solidbunch/monitoring-client/zipball/c783336963426343223ec0eac62a473d91604779",
-                "reference": "c783336963426343223ec0eac62a473d91604779",
+                "url": "https://api.github.com/repos/solidbunch/monitoring-client/zipball/76761be8144ce93224156748f67fef467e9580ef",
+                "reference": "76761be8144ce93224156748f67fef467e9580ef",
                 "shasum": ""
             },
             "default-branch": true,
-            "type": "laravel-library",
+            "type": "kit-module",
             "license": [
                 "MIT"
             ],
@@ -962,7 +1004,7 @@
             "support": {
                 "issues": "https://github.com/solidbunch/starter-kit-foundation/issues"
             },
-            "time": "2025-07-18T00:00:04+00:00"
+            "time": "2025-07-18T16:28:05+00:00"
         },
         {
             "name": "solidbunch/starter-kit-theme",
@@ -1081,7 +1123,7 @@
                 "type": "zip",
                 "url": "https://wordpress.org/wordpress-6.8.1.zip"
             },
-            "type": "laravel-library"
+            "type": "wordpress-core"
         },
         {
             "name": "vvv3/wp-responsive-images",

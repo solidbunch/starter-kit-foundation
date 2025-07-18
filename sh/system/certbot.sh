@@ -31,6 +31,6 @@ else
   docker compose -f docker-compose.build.yml run --rm -p 80:80 certbot su -c "\
       certbot certonly --standalone --agree-tos --no-eff-email --email admin@${APP_DOMAIN} ${DOMAIN_ARGS}" \
     "${DEFAULT_USER}"
-  docker compose up -d --force-recreate nginx
+  docker compose restart nginx
   echo -e "${LIGHTGREEN}[Success]${RESET} SSL certificate ready in ./config/ssl/live/${APP_DOMAIN}/"
 fi
