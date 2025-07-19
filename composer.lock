@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ad6fc6d0f4ac07b989a66760d38a7dbc",
+    "content-hash": "acd21117cac8481a0ded8eb733dbde0b",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -921,21 +921,20 @@
         },
         {
             "name": "solidbunch/composer-installers",
-            "version": "1.0.7",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/solidbunch/composer-installers.git",
-                "reference": "eafe7a9a9f0ee4ef96ecf5e623f198eeff1076ce"
+                "reference": "af9d7b791260173565f0badac82b67ee2bab6670"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/solidbunch/composer-installers/zipball/eafe7a9a9f0ee4ef96ecf5e623f198eeff1076ce",
-                "reference": "eafe7a9a9f0ee4ef96ecf5e623f198eeff1076ce",
+                "url": "https://api.github.com/repos/solidbunch/composer-installers/zipball/af9d7b791260173565f0badac82b67ee2bab6670",
+                "reference": "af9d7b791260173565f0badac82b67ee2bab6670",
                 "shasum": ""
             },
             "require": {
                 "composer-plugin-api": "^2.0",
-                "composer/installers": "^2.3",
                 "php": ">=8.1"
             },
             "require-dev": {
@@ -957,9 +956,9 @@
             "description": "Custom installer for StarterKit package types",
             "support": {
                 "issues": "https://github.com/solidbunch/composer-installers/issues",
-                "source": "https://github.com/solidbunch/composer-installers/tree/1.0.7"
+                "source": "https://github.com/solidbunch/composer-installers/tree/1.1.0"
             },
-            "time": "2025-07-18T19:19:17+00:00"
+            "time": "2025-07-19T12:46:06+00:00"
         },
         {
             "name": "solidbunch/monitoring-client",
