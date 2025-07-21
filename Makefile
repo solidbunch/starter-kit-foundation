@@ -160,6 +160,17 @@ ansible:
 docker:
 	bash ./sh/system/docker.sh $(PARAMS)
 
+# Run monitoring scenario
+monitoring:
+	if [ -f ./kit-modules/monitoring-client/sh/monitoring.sh ]; then \
+		bash ./kit-modules/monitoring-client/sh/monitoring.sh -m $(PARAM1); \
+	else \
+		echo "Monitoring script not found, skipping..."; \
+	fi
+
+mon:
+	$(MAKE) monitoring $(PARAMS)
+
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run
 %:

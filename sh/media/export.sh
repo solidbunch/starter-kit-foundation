@@ -2,12 +2,12 @@
 
 # This script exports files (e.g., uploads, languages) from a Docker container to a local archive.
 
-# Load environment and colors
-source ./.env
-source ./sh/utils/colors.sh
-
 # Stop on any error and fail on pipe errors
 set -e -o pipefail
+
+# Load environment and colors
+source ./sh/utils/colors.sh
+source ./.env
 
 WEB_CONTAINER="${APP_NAME}-php"
 OUTPUT_DIR="./tmp"

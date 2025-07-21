@@ -1,12 +1,14 @@
 #!/bin/bash
+# certbot.sh - Manage SSL certificates using Certbot
+# This script creates or renews SSL certificates using Certbot in a Docker environment.
 
-# Stop when error
-set -e
+# Stop on any error and fail on pipe errors
+set -e -o pipefail
 
-# Colors
+# Load environment and colors
 source ./sh/utils/colors.sh
-
 source ./.env
+
 
 # Paths to SSL files
 CERT_PATH="./config/ssl/live/${APP_DOMAIN}/fullchain.pem"
@@ -29,6 +31,6 @@ else
   docker compose -f docker-compose.build.yml run --rm -p 80:80 certbot su -c "\
       certbot certonly --standalone --agree-tos --no-eff-email --email admin@${APP_DOMAIN} ${DOMAIN_ARGS}" \
     "${DEFAULT_USER}"
-  docker compose up -d --force-recreate nginx
+  docker compose restart nginx
   echo -e "${LIGHTGREEN}[Success]${RESET} SSL certificate ready in ./config/ssl/live/${APP_DOMAIN}/"
 fi
