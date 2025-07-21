@@ -39,10 +39,10 @@
       "package": {
         "name": "solidbunch/wordpress-core",
         "type": "wordpress-core",
-        "version": "6.8.1",
+        "version": "6.8.2",
         "dist": {
           "type": "zip",
-          "url": "https://wordpress.org/wordpress-6.8.1.zip"
+          "url": "https://wordpress.org/wordpress-6.8.2.zip"
         }
       }
     },
@@ -63,16 +63,16 @@
     "solidbunch/composer-installers": "^1.1",
     "solidbunch/monitoring-client": "dev-main",
     "solidbunch/starter-kit-theme": "dev-master",
-    "solidbunch/wordpress-core": "6.8.1",
-    "wpackagist-plugin/contact-form-7": "6.0.6",
-    "wpackagist-plugin/redirection": "5.5.2",
-    "wpackagist-plugin/svg-support": "2.5.14",
-    "wpackagist-plugin/wordpress-seo": "25.3.1"
+    "solidbunch/wordpress-core": "^6.8.1",
+    "wpackagist-plugin/contact-form-7": "^6.0.6",
+    "wpackagist-plugin/redirection": "^5.5.2",
+    "wpackagist-plugin/svg-support": "^2.5.14",
+    "wpackagist-plugin/wordpress-seo": "^25.3.1"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
-    "wpackagist-plugin/rewrite-rules-inspector": "1.4.0",
-    "wpackagist-plugin/query-monitor": "3.18.0"
+    "wpackagist-plugin/rewrite-rules-inspector": "^1.4.0",
+    "wpackagist-plugin/query-monitor": "^3.18.0"
   },
   "config": {
     "optimize-autoloader": true,

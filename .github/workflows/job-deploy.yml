@@ -119,8 +119,7 @@ jobs:
             make secret;
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
-            make down;
-            make up '${{ inputs.ENVIRONMENT_TYPE }}';
+            make recreate '${{ inputs.ENVIRONMENT_TYPE }}';
             make monitoring on;
             bash ./sh/database/check.sh;
             make core-install"

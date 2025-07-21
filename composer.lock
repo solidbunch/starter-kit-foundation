@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "acd21117cac8481a0ded8eb733dbde0b",
+    "content-hash": "57d7e6f95cef5efa5fd5c23287ef8be4",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -1117,10 +1117,10 @@
         },
         {
             "name": "solidbunch/wordpress-core",
-            "version": "6.8.1",
+            "version": "6.8.2",
             "dist": {
                 "type": "zip",
-                "url": "https://wordpress.org/wordpress-6.8.1.zip"
+                "url": "https://wordpress.org/wordpress-6.8.2.zip"
             },
             "type": "wordpress-core"
         },
@@ -1230,15 +1230,15 @@
         },
         {
             "name": "wpackagist-plugin/contact-form-7",
-            "version": "6.0.6",
+            "version": "6.1",
             "source": {
                 "type": "svn",
                 "url": "https://plugins.svn.wordpress.org/contact-form-7/",
-                "reference": "tags/6.0.6"
+                "reference": "tags/6.1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://downloads.wordpress.org/plugin/contact-form-7.6.0.6.zip"
+                "url": "https://downloads.wordpress.org/plugin/contact-form-7.6.1.zip"
             },
             "require": {
                 "composer/installers": "^1.0 || ^2.0"
@@ -1284,15 +1284,15 @@
         },
         {
             "name": "wpackagist-plugin/wordpress-seo",
-            "version": "25.3.1",
+            "version": "25.5",
             "source": {
                 "type": "svn",
                 "url": "https://plugins.svn.wordpress.org/wordpress-seo/",
-                "reference": "tags/25.3.1"
+                "reference": "tags/25.5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://downloads.wordpress.org/plugin/wordpress-seo.25.3.1.zip"
+                "url": "https://downloads.wordpress.org/plugin/wordpress-seo.25.5.zip"
             },
             "require": {
                 "composer/installers": "^1.0 || ^2.0"
@@ -1308,12 +1308,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Roave/SecurityAdvisories.git",
-                "reference": "5e472fed1bcf8d3a967247576053a20ef3cfefc0"
+                "reference": "2976f12cdae3501980aabb46810cf807f7fdec44"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/5e472fed1bcf8d3a967247576053a20ef3cfefc0",
-                "reference": "5e472fed1bcf8d3a967247576053a20ef3cfefc0",
+                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/2976f12cdae3501980aabb46810cf807f7fdec44",
+                "reference": "2976f12cdae3501980aabb46810cf807f7fdec44",
                 "shasum": ""
             },
             "conflict": {
@@ -1963,6 +1963,7 @@
                 "silverstripe/taxonomy": ">=1.3,<1.3.1|>=2,<2.0.1",
                 "silverstripe/userforms": "<3|>=5,<5.4.2",
                 "silverstripe/versioned-admin": ">=1,<1.11.1",
+                "simogeo/filemanager": "<=2.5",
                 "simple-updates/phpwhois": "<=1",
                 "simplesamlphp/saml2": "<=4.16.15|>=5.0.0.0-alpha1,<=5.0.0.0-alpha19",
                 "simplesamlphp/saml2-legacy": "<=4.16.15",
@@ -2257,7 +2258,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-07-17T21:05:33+00:00"
+            "time": "2025-07-20T17:05:09+00:00"
         },
         {
             "name": "wpackagist-plugin/query-monitor",
