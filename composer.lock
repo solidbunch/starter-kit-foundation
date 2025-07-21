@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "57d7e6f95cef5efa5fd5c23287ef8be4",
+    "content-hash": "607a487582ac255fef7df6651e81170a",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -1001,7 +1001,8 @@
                 "wordpress"
             ],
             "support": {
-                "issues": "https://github.com/solidbunch/starter-kit-foundation/issues"
+                "issues": "https://github.com/solidbunch/starter-kit-foundation/issues",
+                "source": "https://github.com/solidbunch/monitoring-client/tree/main"
             },
             "time": "2025-07-18T16:28:05+00:00"
         },

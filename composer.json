@@ -53,8 +53,7 @@
     },
     {
       "type": "vcs",
-      "url": "git@github.com:solidbunch/monitoring-client.git",
-      "no-api": true
+      "url": "git@github.com:solidbunch/monitoring-client.git"
     }
   ],
   "require": {
