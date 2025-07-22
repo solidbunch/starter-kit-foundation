@@ -24,7 +24,7 @@ ehthumbs.db
 
 
 #===================================#
-#    Log, map files, secret .env    #
+#      Log, map files, cache        #
 #===================================#
 *.log
 *.log.*
@@ -36,6 +36,10 @@ logs/**/*.out
 *.js.map
 *.LICENSE
 *.lck
+/cache/**
+!/cache/**/
+/logs/**
+!/logs/**/
 
 
 #=============================#
@@ -44,11 +48,8 @@ logs/**/*.out
 .env
 .env.*override
 .env.*secret
-/config/ssl/
+/config/ssl/**
 !/config/ssl/readme.txt
-iac/terraform/public_keys/*
-!iac/terraform/public_keys/.gitkeep
-
 
 #=============================#
 #          Terraform          #
@@ -95,7 +96,7 @@ vendor
 /web/wp-content/*
 
 # tmp folder
-tmp/
+tmp/**
 
 
 #===================================#
@@ -109,4 +110,10 @@ tmp/
 #          Backup Files           #
 #===================================#
 /backups
+
+
+# ===================================#
+#          Miscellaneous             #
+# ===================================#
+!**/.gitkeep
 
