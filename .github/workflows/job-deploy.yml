@@ -44,6 +44,7 @@ jobs:
           path: |
             vendor
             web
+            kit-modules
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Install Composer and Node Dependencies
@@ -60,6 +61,7 @@ jobs:
           path: |
             vendor
             web
+            kit-modules
           key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Save Built job
