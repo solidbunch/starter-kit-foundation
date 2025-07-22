@@ -32,6 +32,8 @@ services:
       - ./web/wp-content:/srv/web/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
+      # Cache folder
+      - ./cache/php:/srv/cache
       # PHP ini config
       - ./config/php:/usr/local/etc/php
       # Share shell scripts
