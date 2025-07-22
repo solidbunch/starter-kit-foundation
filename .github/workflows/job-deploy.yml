@@ -102,9 +102,9 @@ jobs:
             --exclude ".git*" \
             --exclude "*/node_modules/" \
             --exclude "backups/" \
-            --exclude "db-data/" \
+            --exclude "**/db-*/" \
+            --exclude="**/tail-db/" \
             --exclude "logs/" \
-            --exclude "iac/" \
             --exclude ".env" \
             --exclude ".env.*override" \
             --exclude ".env.*secret" \
@@ -120,6 +120,7 @@ jobs:
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
             make recreate '${{ inputs.ENVIRONMENT_TYPE }}';
+            make monitoring off;
             make monitoring on;
             bash ./sh/database/check.sh;
             make core-install"
