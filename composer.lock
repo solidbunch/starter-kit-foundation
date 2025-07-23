@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "607a487582ac255fef7df6651e81170a",
+    "content-hash": "a6387e98ac7d82436ad972991da51c58",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -962,7 +962,7 @@
         },
         {
             "name": "solidbunch/monitoring-client",
-            "version": "dev-main",
+            "version": "1.0.2",
             "source": {
                 "type": "git",
                 "url": "git@github.com:solidbunch/monitoring-client.git",
@@ -974,7 +974,6 @@
                 "reference": "460311c4127b2597b0e8266d9734aef4cb35df38",
                 "shasum": ""
             },
-            "default-branch": true,
             "type": "kit-module",
             "license": [
                 "MIT"
@@ -1002,7 +1001,7 @@
             ],
             "support": {
                 "issues": "https://github.com/solidbunch/starter-kit-foundation/issues",
-                "source": "https://github.com/solidbunch/monitoring-client/tree/main"
+                "source": "https://github.com/solidbunch/monitoring-client/tree/1.0.2"
             },
             "time": "2025-07-22T15:05:43+00:00"
         },
@@ -2265,15 +2264,15 @@
         },
         {
             "name": "wpackagist-plugin/query-monitor",
-            "version": "3.18.0",
+            "version": "3.19.0",
             "source": {
                 "type": "svn",
                 "url": "https://plugins.svn.wordpress.org/query-monitor/",
-                "reference": "tags/3.18.0"
+                "reference": "tags/3.19.0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://downloads.wordpress.org/plugin/query-monitor.3.18.0.zip"
+                "url": "https://downloads.wordpress.org/plugin/query-monitor.3.19.0.zip"
             },
             "require": {
                 "composer/installers": "^1.0 || ^2.0"
@@ -2304,7 +2303,6 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "roave/security-advisories": 20,
-        "solidbunch/monitoring-client": 20,
         "solidbunch/starter-kit-theme": 20
     },
     "prefer-stable": false,
