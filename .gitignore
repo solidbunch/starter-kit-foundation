@@ -49,7 +49,7 @@ logs/**/*.out
 .env.*override
 .env.*secret
 /config/ssl/**
-!/config/ssl/readme.txt
+!/config/ssl/readme.md
 
 #=============================#
 #          Terraform          #
