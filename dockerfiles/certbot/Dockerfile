@@ -1,7 +1,7 @@
 FROM alpine:3.20
 
 RUN apk update && \
-    apk add --no-cache bash certbot
+    apk add --no-cache bash certbot openssl
 
 ##################################
 #   Prepare and run entrypoint   #
