@@ -79,7 +79,7 @@ services:
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-      CURRENT_PATH: ${WORKING_DIR:-$DEFAULT_PATH}
+      WORKING_DIR: ${WORKING_DIR:-$DEFAULT_PATH}
     working_dir: ${WORKING_DIR:-$DEFAULT_PATH}
     volumes:
       # Share docker socket to allow cron run scenarios inside other containers
