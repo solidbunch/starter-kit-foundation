@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Script to backup WordPress database and media files
 
 # Stop on any error and fail on pipe errors
@@ -20,16 +19,16 @@ MEDIA_ARCHIVE="$BACKUPS_DIR/$MODE/media-$CURRENT_DATE.tar"
 
 # Parse args
 if [ "$1" ] && { [ "$1" == "daily" ] || [ "$1" == "weekly" ]; }; then
-    MODE="$1"
+  MODE="$1"
 fi
 
 if [ "$MODE" == "weekly" ]; then
-    MODE_TIMER=30
+  MODE_TIMER=30
 fi
 
 # Check if backup is enabled
 if [ -z "$APP_WP_BACKUP_ENABLE" ] || [ "$APP_WP_BACKUP_ENABLE" = 0 ]; then
-    echo "[Cron][Fail] Backup is disabled in .env file"; exit 1
+  echo "[Cron][Fail] Backup is disabled in .env file"; exit 1
 fi
 
 # Step 0: Create backup directory

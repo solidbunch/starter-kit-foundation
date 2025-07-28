@@ -24,11 +24,11 @@ endif
 #fi
 
 # Share current project folder path
-CURRENT_PATH := $(CURDIR)
+WORKING_DIR := $(CURDIR)
 
 export CURRENT_UID
 export CURRENT_GID
-export CURRENT_PATH
+export WORKING_DIR
 
 export DOCKER_BUILDKIT=1
 
@@ -73,11 +73,8 @@ env:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
 
-certbot:
-	bash ./sh/system/certbot.sh $(PARAMS)
-
 ssl:
-	$(MAKE) certbot
+	bash ./sh/system/certbot.sh $(PARAMS)
 
 core-install:
 	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
