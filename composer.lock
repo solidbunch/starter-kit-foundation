@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a6387e98ac7d82436ad972991da51c58",
+    "content-hash": "d643467cf5b20d54b38cc0795191a95c",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -1116,13 +1116,22 @@
             "time": "2025-06-22T18:05:09+00:00"
         },
         {
-            "name": "solidbunch/wordpress-core",
+            "name": "solidbunch/wordpress-core-no-content",
             "version": "6.8.2",
             "dist": {
                 "type": "zip",
-                "url": "https://wordpress.org/wordpress-6.8.2.zip"
+                "url": "https://downloads.wordpress.org/release/wordpress-6.8.2-no-content.zip"
             },
-            "type": "wordpress-core"
+            "require": {
+                "php": ">=7.2"
+            },
+            "type": "wordpress-core",
+            "extra": {
+                "mysql_version": "5.5.5"
+            },
+            "license": [
+                "MIT"
+            ]
         },
         {
             "name": "vvv3/wp-responsive-images",
@@ -1284,15 +1293,15 @@
         },
         {
             "name": "wpackagist-plugin/wordpress-seo",
-            "version": "25.5",
+            "version": "25.6",
             "source": {
                 "type": "svn",
                 "url": "https://plugins.svn.wordpress.org/wordpress-seo/",
-                "reference": "tags/25.5"
+                "reference": "tags/25.6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://downloads.wordpress.org/plugin/wordpress-seo.25.5.zip"
+                "url": "https://downloads.wordpress.org/plugin/wordpress-seo.25.6.zip"
             },
             "require": {
                 "composer/installers": "^1.0 || ^2.0"
@@ -1308,19 +1317,19 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Roave/SecurityAdvisories.git",
-                "reference": "0b1f127d644a2ff8af1c8bd2955dbe3c11812017"
+                "reference": "bbba44089fc15f183516c671398fc1547438c4d6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/0b1f127d644a2ff8af1c8bd2955dbe3c11812017",
-                "reference": "0b1f127d644a2ff8af1c8bd2955dbe3c11812017",
+                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/bbba44089fc15f183516c671398fc1547438c4d6",
+                "reference": "bbba44089fc15f183516c671398fc1547438c4d6",
                 "shasum": ""
             },
             "conflict": {
                 "3f/pygmentize": "<1.2",
                 "adaptcms/adaptcms": "<=1.3",
                 "admidio/admidio": "<4.3.12",
-                "adodb/adodb-php": "<=5.22.8",
+                "adodb/adodb-php": "<=5.22.9",
                 "aheinze/cockpit": "<2.2",
                 "aimeos/ai-admin-graphql": ">=2022.04.1,<2022.10.10|>=2023.04.1,<2023.10.6|>=2024.04.1,<2024.07.2",
                 "aimeos/ai-admin-jsonadm": "<2020.10.13|>=2021.04.1,<2021.10.6|>=2022.04.1,<2022.10.3|>=2023.04.1,<2023.10.4|==2024.04.1",
@@ -1368,7 +1377,7 @@
                 "backdrop/backdrop": "<1.27.3|>=1.28,<1.28.2",
                 "backpack/crud": "<3.4.9",
                 "backpack/filemanager": "<2.0.2|>=3,<3.0.9",
-                "bacula-web/bacula-web": "<8.0.0.0-RC2-dev",
+                "bacula-web/bacula-web": "<9.7.1",
                 "badaso/core": "<2.7",
                 "bagisto/bagisto": "<2.1",
                 "barrelstrength/sprout-base-email": "<1.2.7",
@@ -1423,7 +1432,7 @@
                 "cockpit-hq/cockpit": "<2.11.4",
                 "codeception/codeception": "<3.1.3|>=4,<4.1.22",
                 "codeigniter/framework": "<3.1.10",
-                "codeigniter4/framework": "<4.5.8",
+                "codeigniter4/framework": "<4.6.2",
                 "codeigniter4/shield": "<1.0.0.0-beta8",
                 "codiad/codiad": "<=2.8.4",
                 "codingms/additional-tca": ">=1.7,<1.15.17|>=1.16,<1.16.9",
@@ -1510,7 +1519,7 @@
                 "elefant/cms": "<2.0.7",
                 "elgg/elgg": "<3.3.24|>=4,<4.0.5",
                 "elijaa/phpmemcacheadmin": "<=1.3",
-                "elmsln/haxcms": "<11.0.8",
+                "elmsln/haxcms": "<11.0.14",
                 "encore/laravel-admin": "<=1.8.19",
                 "endroid/qr-code-bundle": "<3.4.2",
                 "enhavo/enhavo-app": "<=0.13.1",
@@ -2186,6 +2195,7 @@
                 "yoast-seo-for-typo3/yoast_seo": "<7.2.3",
                 "yourls/yourls": "<=1.8.2",
                 "yuan1994/tpadmin": "<=1.3.12",
+                "z-push/z-push-dev": "<2.7.6",
                 "zencart/zencart": "<=1.5.7.0-beta",
                 "zendesk/zendesk_api_client_php": "<2.2.11",
                 "zendframework/zend-cache": ">=2.4,<2.4.8|>=2.5,<2.5.3",
@@ -2260,7 +2270,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-07-22T16:07:09+00:00"
+            "time": "2025-08-04T16:07:43+00:00"
         },
         {
             "name": "wpackagist-plugin/query-monitor",
