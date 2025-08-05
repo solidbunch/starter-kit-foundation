@@ -118,6 +118,7 @@
       "@post-script"
     ],
     "post-script": [
+      "mkdir -p web/wp-core/wp-content/",
       "cp -r web/wp-config/* web/wp-core || true"
     ]
   }
