@@ -17,6 +17,8 @@ It provides a preconfigured Docker-based infrastructure and a custom starter Wor
 StarterKit follows Infrastructure-as-Product principles:
 you get local, staging, and production environments configured, provisioned, and deployed consistently across all stages.
 
+[Watch the introduction video](https://youtu.be/uCQcxhVUsdc) to see how it works.
+
 ## Getting Started
 
 See the [StarterKit installation guide](https://starter-kit.io/docs/installation/).
