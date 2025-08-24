@@ -45,10 +45,7 @@ jobs:
           export CURRENT_GID=$(id -g)
           # Load environment variables from .env file
           source .env
-          docker compose -f docker-compose.build.yml run --rm composer su -c "\
-              composer require solidbunch/starter-kit-theme:dev-develop --no-update && \
-              composer update solidbunch/starter-kit-theme --no-install --no-interaction --no-progress" \
-            "${DEFAULT_USER}"
+          docker compose -f docker-compose.build.yml run --rm composer su -c "composer run switch-theme-dev" "${DEFAULT_USER}"
 
       - name: Build Cache - restore
         id: build-cache-restore
