@@ -47,7 +47,7 @@ jobs:
           source .env
           docker compose -f docker-compose.build.yml run --rm composer su -c "\
               composer require solidbunch/starter-kit-theme:dev-develop --no-update && \
-              composer update --lock solidbunch/starter-kit-theme" \
+              composer update solidbunch/starter-kit-theme --no-install --no-interaction --no-progress" \
             "${DEFAULT_USER}"
 
       - name: Build Cache - restore
