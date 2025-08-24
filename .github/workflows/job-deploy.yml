@@ -37,6 +37,17 @@ jobs:
           echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
+      - name: Switch Theme Version for Dev Environment
+        if: inputs.ENVIRONMENT_TYPE == 'dev'
+        run: |
+          echo "Switching theme to dev-develop version for dev environment"
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          docker compose -f docker-compose.build.yml run --rm composer su -c "\
+              composer require solidbunch/starter-kit-theme:dev-develop --no-update && \
+              composer update solidbunch/starter-kit-theme --no-interaction --no-progress" \
+            "${DEFAULT_USER}"
+
       - name: Build Cache - restore
         id: build-cache-restore
         uses: actions/cache/restore@v4
@@ -45,7 +56,7 @@ jobs:
             vendor
             web
             kit-modules
-          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+          key: build-cache-${{ inputs.ENVIRONMENT_TYPE }}-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Install Composer and Node Dependencies
         if: steps.build-cache-restore.outputs.cache-hit != 'true'
@@ -62,7 +73,7 @@ jobs:
             vendor
             web
             kit-modules
-          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+          key: build-cache-${{ inputs.ENVIRONMENT_TYPE }}-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Save Built job
         uses: actions/cache/save@v4
