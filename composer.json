@@ -99,6 +99,10 @@
     }
   },
   "scripts": {
+    "switch-theme-dev": [
+      "composer require solidbunch/starter-kit-theme:dev-develop --no-update",
+      "composer update solidbunch/starter-kit-theme --no-install --no-interaction --no-progress"
+    ],
     "install-dev": [
       "composer install"
     ],
@@ -121,5 +125,8 @@
       "mkdir -p web/wp-core/wp-content/",
       "cp -r web/wp-config/* web/wp-core || true"
     ]
+  },
+  "scripts-descriptions": {
+    "switch-theme-dev": "CI-only. Switch theme to `dev-develop` and refresh lock for DEV deploys."
   }
 }
