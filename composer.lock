@@ -922,11 +922,8 @@
         {
             "name": "solidbunch/basis",
             "version": "dev-main",
-            "dist": {
-                "type": "zip",
-                "url": "https://licensing.starter-kit.io/wp-json/skl/v1/download/solidbunch/basis/dev-main.zip"
-            },
-            "type": "kit-module"
+            "type": "metapackage",
+            "description": "Unavailable without a valid license. Module is skipped."
         },
         {
             "name": "solidbunch/composer-installers",
@@ -972,20 +969,14 @@
         {
             "name": "solidbunch/monitoring-client",
             "version": "dev-main",
-            "dist": {
-                "type": "zip",
-                "url": "https://licensing.starter-kit.io/wp-json/skl/v1/download/solidbunch/monitoring-client/dev-main.zip"
-            },
-            "type": "kit-module"
+            "type": "metapackage",
+            "description": "Unavailable without a valid license. Module is skipped."
         },
         {
             "name": "solidbunch/monitoring-server",
             "version": "dev-main",
-            "dist": {
-                "type": "zip",
-                "url": "https://licensing.starter-kit.io/wp-json/skl/v1/download/solidbunch/monitoring-server/dev-main.zip"
-            },
-            "type": "kit-module"
+            "type": "metapackage",
+            "description": "Unavailable without a valid license. Module is skipped."
         },
         {
             "name": "solidbunch/starter-kit-theme",
