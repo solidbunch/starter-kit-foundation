@@ -39,20 +39,22 @@
       "url": "https://solidbunch.github.io/wordpress-core"
     },
     {
-      "type": "vcs",
-      "url": "https://github.com/solidbunch/starter-kit-theme.git",
-      "no-api": true
+      "type": "composer",
+      "url": "https://licensing.starter-kit.io/wp-json/skl/v1/"
     },
     {
       "type": "vcs",
-      "url": "git@github.com:solidbunch/monitoring-client.git"
+      "url": "https://github.com/solidbunch/starter-kit-theme.git",
+      "no-api": true
     }
   ],
   "require": {
     "php": ">=8.1",
     "composer/installers": "^2.3.0",
     "solidbunch/composer-installers": "^1.1",
-    "solidbunch/monitoring-client": "^1.0.2",
+    "solidbunch/basis": "dev-main",
+    "solidbunch/monitoring-client": "dev-main",
+    "solidbunch/monitoring-server": "dev-main",
     "solidbunch/starter-kit-theme": "dev-master",
     "solidbunch/wordpress-core-no-content": "^6.8.1",
     "wpackagist-plugin/contact-form-7": "^6.0.6",
@@ -68,8 +70,6 @@
   "config": {
     "optimize-autoloader": true,
     "preferred-install": {
-      "solidbunch/starter-kit-theme": "source",
-      "solidbunch/monitoring-client": "source",
       "*": "dist"
     },
     "sort-packages": true,

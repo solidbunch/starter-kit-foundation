@@ -62,6 +62,7 @@ jobs:
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
+          composer update 'solidbunch/monitoring-client' --no-interaction --with-all-dependencies
           bash ./sh/system/install.sh yes
 
       - name: Build Cache - save
@@ -128,6 +129,7 @@ jobs:
           ssh ${{ inputs.SSH_HOST_ALIAS }} "
             set -e -o pipefail;
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
+            mkdir -p ./cache/php
             make secret;
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
