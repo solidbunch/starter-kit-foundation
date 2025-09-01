@@ -35,16 +35,12 @@
       "url": "https://wpackagist.org"
     },
     {
-      "type": "package",
-      "package": {
-        "name": "solidbunch/wordpress-core",
-        "type": "laravel-library",
-        "version": "6.8.1",
-        "dist": {
-          "type": "zip",
-          "url": "https://wordpress.org/wordpress-6.8.1.zip"
-        }
-      }
+      "type": "composer",
+      "url": "https://solidbunch.github.io/wordpress-core"
+    },
+    {
+      "type": "composer",
+      "url": "https://licensing.starter-kit.io/wp-json/skl/v1/"
     },
     {
       "type": "vcs",
@@ -54,35 +50,42 @@
   ],
   "require": {
     "php": ">=8.1",
-    "composer/installers": "2.3.0",
+    "composer/installers": "^2.3.0",
+    "solidbunch/composer-installers": "^1.1",
+    "solidbunch/basis": "dev-main",
+    "solidbunch/monitoring-client": "dev-main",
+    "solidbunch/monitoring-server": "dev-main",
     "solidbunch/starter-kit-theme": "dev-master",
-    "solidbunch/wordpress-core": "6.8.1",
-    "wpackagist-plugin/contact-form-7": "6.0.6",
-    "wpackagist-plugin/redirection": "5.5.2",
-    "wpackagist-plugin/svg-support": "2.5.14",
-    "wpackagist-plugin/wordpress-seo": "25.3.1"
+    "solidbunch/wordpress-core-no-content": "^6.8.1",
+    "wpackagist-plugin/contact-form-7": "^6.0.6",
+    "wpackagist-plugin/redirection": "^5.5.2",
+    "wpackagist-plugin/svg-support": "^2.5.14",
+    "wpackagist-plugin/wordpress-seo": "^25.3.1"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
-    "wpackagist-plugin/rewrite-rules-inspector": "1.4.0",
-    "wpackagist-plugin/query-monitor": "3.18.0"
+    "wpackagist-plugin/rewrite-rules-inspector": "^1.4.0",
+    "wpackagist-plugin/query-monitor": "^3.18.0"
   },
   "config": {
     "optimize-autoloader": true,
     "preferred-install": {
-      "solidbunch/starter-kit-theme": "source",
       "*": "dist"
     },
     "sort-packages": true,
     "discard-changes": false,
     "allow-plugins": {
-      "composer/installers": true
+      "composer/installers": true,
+      "solidbunch/composer-installers": true
     }
   },
   "extra": {
     "installer-paths": {
+      "kit-modules/{$name}/": [
+        "type:kit-module"
+      ],
       "web/wp-core/": [
-        "solidbunch/wordpress-core"
+        "type:wordpress-core"
       ],
       "web/wp-content/mu-plugins/{$name}": [
         "type:wordpress-muplugin"
@@ -96,6 +99,10 @@
     }
   },
   "scripts": {
+    "switch-theme-dev": [
+      "composer require solidbunch/starter-kit-theme:dev-develop --no-update",
+      "composer update solidbunch/starter-kit-theme --no-install --no-interaction --no-progress"
+    ],
     "install-dev": [
       "composer install"
     ],
@@ -115,8 +122,11 @@
       "@post-script"
     ],
     "post-script": [
-      "rm -rf web/wp-core/wp-content/*",
+      "mkdir -p web/wp-core/wp-content/",
       "cp -r web/wp-config/* web/wp-core || true"
     ]
+  },
+  "scripts-descriptions": {
+    "switch-theme-dev": "CI-only. Switch theme to `dev-develop` and refresh lock for DEV deploys."
   }
 }

@@ -25,7 +25,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -37,6 +37,16 @@ jobs:
           echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
+      - name: Switch Theme Version for Dev Environment
+        if: inputs.ENVIRONMENT_TYPE == 'dev'
+        run: |
+          echo "Switching theme to dev-develop version for dev environment"
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          # Load environment variables from .env file
+          source .env
+          docker compose -f docker-compose.build.yml run --rm composer su -c "composer run switch-theme-dev" "${DEFAULT_USER}"
+
       - name: Build Cache - restore
         id: build-cache-restore
         uses: actions/cache/restore@v4
@@ -44,13 +54,16 @@ jobs:
           path: |
             vendor
             web
-          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+            kit-modules
+          key: build-cache-${{ inputs.ENVIRONMENT_TYPE }}-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Install Composer and Node Dependencies
         if: steps.build-cache-restore.outputs.cache-hit != 'true'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
+          source .env
+          docker compose -f docker-compose.build.yml run --rm composer su -c "composer update 'solidbunch/monitoring-client' --no-interaction --with-all-dependencies" "${DEFAULT_USER}"
           bash ./sh/system/install.sh yes
 
       - name: Build Cache - save
@@ -60,7 +73,8 @@ jobs:
           path: |
             vendor
             web
-          key: build-cache-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
+            kit-modules
+          key: build-cache-${{ inputs.ENVIRONMENT_TYPE }}-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Save Built job
         uses: actions/cache/save@v4
@@ -102,25 +116,26 @@ jobs:
             --exclude ".git*" \
             --exclude "*/node_modules/" \
             --exclude "backups/" \
-            --exclude "db-data/" \
-            --exclude "logs/*" \
-            --exclude "iac/" \
+            --exclude "**/db-*/" \
+            --exclude="**/tail-db/" \
+            --exclude "logs/" \
             --exclude ".env" \
             --exclude ".env.*override" \
             --exclude ".env.*secret" \
-            --exclude "config/ssl/*" \
+            --exclude "config/ssl/" \
             --exclude "web/wp-content/languages" \
             --exclude "web/wp-content/uploads" \
             --include "web/wp-content/cache" \
             ./ ${{ inputs.SSH_HOST_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
           ssh ${{ inputs.SSH_HOST_ALIAS }} "
-            set -e
+            set -e -o pipefail;
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
             make secret;
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
-            make down;
-            make up '${{ inputs.ENVIRONMENT_TYPE }}';
+            make recreate '${{ inputs.ENVIRONMENT_TYPE }}';
+            make monitoring off;
+            make monitoring on;
             bash ./sh/database/check.sh;
             make core-install"
 

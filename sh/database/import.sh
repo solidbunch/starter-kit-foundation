@@ -15,12 +15,12 @@
 #   - mariadb-dump utility available in the container
 # Note: This script assumes that the database container is named as per the APP_NAME and uses the environment variables defined in .env.
 
-# Load environment and colors
-source ./.env
-source ./sh/utils/colors.sh
-
 # Stop on any error and fail on pipe errors
 set -e -o pipefail
+
+# Load environment and colors
+source ./sh/utils/colors.sh
+source ./.env
 
 DATABASE_CONTAINER="${APP_NAME}-mariadb"
 

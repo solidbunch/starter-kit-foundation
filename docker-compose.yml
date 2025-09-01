@@ -32,6 +32,8 @@ services:
       - ./web/wp-content:/srv/web/wp-content
       # Debug log
       - ./logs/wordpress:/var/log/wordpress
+      # Cache folder
+      - ./cache/php:/srv/cache
       # PHP ini config
       - ./config/php:/usr/local/etc/php
       # Share shell scripts
@@ -77,15 +79,15 @@ services:
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
-      CURRENT_PATH: ${CURRENT_PATH:-$DEFAULT_PATH}
-    working_dir: /app
+      WORKING_DIR: ${WORKING_DIR:-$DEFAULT_PATH}
+    working_dir: ${WORKING_DIR:-$DEFAULT_PATH}
     volumes:
       # Share docker socket to allow cron run scenarios inside other containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Share crontabs files into tmp folder
       - ./config/cron/crontabs:/tmp/crontabs
       # Share all app files
-      - ./:/app
+      - ${WORKING_DIR:-$DEFAULT_PATH}:${WORKING_DIR:-$DEFAULT_PATH}
 
 networks:
   project_network:

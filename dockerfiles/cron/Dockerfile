@@ -11,6 +11,7 @@ RUN set -ex \
 # Install docker-cli only. We need just run `docker exec` command, we do not need 'Docker-in-Docker'
 # https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/
     docker-cli \
+    docker-cli-compose \
 # Add GNU tar
     tar \
 # WordPress backups dir

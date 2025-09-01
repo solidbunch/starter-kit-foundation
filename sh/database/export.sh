@@ -2,12 +2,12 @@
 
 # This script exports a database dump from the current database.
 
-# Load environment and colors
-source ./.env
-source ./sh/utils/colors.sh
-
 # Stop on any error and fail on pipe errors
 set -e -o pipefail
+
+# Load environment and colors
+source ./sh/utils/colors.sh
+source ./.env
 
 # Database container name
 DATABASE_CONTAINER="${APP_NAME}-mariadb"
