@@ -64,12 +64,22 @@ jobs:
           IS_DEMO: ${{ secrets.IS_DEMO }}
         run: |
           if [ "$IS_DEMO" = "true" ]; then
+            echo "Detected demo mode — forcing Composer update from dist"
             export CURRENT_UID=$(id -u)
             export CURRENT_GID=$(id -g)
             source .env
-            docker compose -f docker-compose.build.yml run --rm composer su -c "composer update 'solidbunch/monitoring-client' 'solidbunch/starter-kit-addon' --no-interaction --with-all-dependencies" "${DEFAULT_USER}"
+
+            echo "Clearing Composer cache (on host — optional)..."
+            composer clear-cache || true
+
+            echo "Running composer update (with COMPOSER_NO_CACHE=1 inside container)..."
+            docker compose -f docker-compose.build.yml run --rm \
+              -e COMPOSER_NO_CACHE=1 \
+              composer su -c \
+              "composer update solidbunch/monitoring-client solidbunch/starter-kit-addon \
+              --no-interaction --with-all-dependencies" "${DEFAULT_USER}"
           else
-            echo "Skipping composer update – not in demo mode"
+            echo "Skipping composer update — not in demo mode"
           fi
 
       - name: Install Composer and Node Dependencies
