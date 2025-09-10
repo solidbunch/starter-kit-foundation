@@ -68,13 +68,10 @@ jobs:
             export CURRENT_UID=$(id -u)
             export CURRENT_GID=$(id -g)
             source .env
-            docker compose -f docker-compose.build.yml run --rm \
-              -e COMPOSER_NO_CACHE=1 \
-              composer su -c "\
-                composer clear-cache && \
-                composer update solidbunch/monitoring-client solidbunch/starter-kit-addon \
-                  --no-interaction --with-all-dependencies \
-              " "${DEFAULT_USER}"
+            docker compose -f docker-compose.build.yml run --rm composer su -c "
+              rm -rf vendor;
+              composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
+            " "${DEFAULT_USER}"
           else
             echo "Skipping composer update — not in demo mode"
           fi
