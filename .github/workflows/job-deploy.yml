@@ -58,12 +58,17 @@ jobs:
           key: build-cache-${{ inputs.ENVIRONMENT_TYPE }}-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
       - name: Update Monitoring & Addon (only in demo)
-        if: secrets.IS_DEMO == 'true'
+        env:
+          IS_DEMO: ${{ secrets.IS_DEMO }}
         run: |
-          export CURRENT_UID=$(id -u)
-          export CURRENT_GID=$(id -g)
-          source .env
-          docker compose -f docker-compose.build.yml run --rm composer su -c "composer update 'solidbunch/monitoring-client' 'solidbunch/starter-kit-addon' --no-interaction --with-all-dependencies" "${DEFAULT_USER}"
+          if [ "$IS_DEMO" = "true" ]; then
+            export CURRENT_UID=$(id -u)
+            export CURRENT_GID=$(id -g)
+            source .env
+            docker compose -f docker-compose.build.yml run --rm composer su -c "composer update 'solidbunch/monitoring-client' 'solidbunch/starter-kit-addon' --no-interaction --with-all-dependencies" "${DEFAULT_USER}"
+          else
+            echo "Skipping composer update – not in demo mode"
+          fi
 
       - name: Install Composer and Node Dependencies
         run: |
