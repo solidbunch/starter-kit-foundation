@@ -57,12 +57,19 @@ jobs:
             kit-modules
           key: build-cache-${{ inputs.ENVIRONMENT_TYPE }}-${{ inputs.SSH_HOST_ALIAS }}-${{ runner.os }}-${{ hashFiles('composer.lock', 'composer.json', 'web/wp-config/**/*') }}
 
-      - name: Install Composer and Node Dependencies
+      - name: Update Monitoring & Addon (only in demo)
+        if: secrets.IS_DEMO == 'true'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           source .env
           docker compose -f docker-compose.build.yml run --rm composer su -c "composer update 'solidbunch/monitoring-client' 'solidbunch/starter-kit-addon' --no-interaction --with-all-dependencies" "${DEFAULT_USER}"
+
+      - name: Install Composer and Node Dependencies
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
           bash ./sh/system/install.sh yes
 
       - name: Build Cache - save
