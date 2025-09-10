@@ -13,6 +13,7 @@ jobs:
       SSH_KEY: ${{ secrets.SSH_KEY }}
       SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
       COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
+      IS_DEMO: ${{ secrets.IS_DEMO }}
     with:
       SSH_HOST_ALIAS: develop.starter-kit.io
       DEPLOY_PATH_DESTINATION: /srv/develop.starter-kit.io
