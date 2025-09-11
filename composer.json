@@ -102,7 +102,7 @@
   },
   "scripts": {
     "switch-theme-dev": [
-      "composer require solidbunch/starter-kit-theme:dev-feature/prepare-for-addon-plugin --no-update",
+      "composer require solidbunch/starter-kit-theme:dev-develop --no-update",
       "composer update solidbunch/starter-kit-theme --no-install --no-interaction --no-progress"
     ],
     "install-dev": [
