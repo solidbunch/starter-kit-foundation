@@ -36,7 +36,9 @@ jobs:
       - name: Prepare .env
         run: |
           bash ./sh/env/secret-gen.sh
-          echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
+            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          fi
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
       - name: Switch Theme Version for Dev Environment

@@ -28,14 +28,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show discovered environment types (from config/environment)
+      - name: Prepare .env
         run: |
-          if ls ./config/environment/.env.type.* >/dev/null 2>&1; then
-            echo "Available types:"
-            ls -1 ./config/environment/.env.type.* | sed 's/.*\.env\.type\.//'
-          else
-            echo "No .env.type.* files found under ./config/environment" >&2
+          bash ./sh/env/secret-gen.sh
+          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
+            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           fi
+          bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
+
+      - name: Update Basis (only in demo)
+        env:
+          IS_DEMO: ${{ secrets.IS_DEMO }}
+        run: |
+          if [ "$IS_DEMO" = "true" ]; then
+            echo "Detected demo mode — forcing Composer update from dist"
+            export CURRENT_UID=$(id -u)
+            export CURRENT_GID=$(id -g)
+            source .env
+            docker compose -f docker-compose.build.yml run --rm composer su -c "
+              composer update solidbunch/basis --no-interaction --with-all-dependencies
+            " "${DEFAULT_USER}"
+          else
+            echo "Skipping composer update — not in demo mode"
+          fi
+
+      - name: Install Composer and Node Dependencies
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash ./sh/system/install.sh yes
 
       - name: Verify Basis module is installed
         id: verify_basis
@@ -53,51 +75,16 @@ jobs:
         run: |
           echo "No license/module — skipping Terraform and Ansible."
 
-      - name: Set up SSH key (optional)
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.SSH_KEY != ''
-        run: |
-          mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
-          if [ -n "${{ secrets.SSH_CONFIG }}" ]; then
-            echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
-          fi
-
-      - name: Prepare env and determine groups/paths
+      - name: Resolve Terraform paths
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          INPUT_ENVIRONMENT_TYPE="${{ inputs.ENVIRONMENT_TYPE }}"
-          if [ -z "$INPUT_ENVIRONMENT_TYPE" ]; then
-            echo "ENVIRONMENT_TYPE is required via workflow input" >&2; exit 1;
-          fi
-          # Validate environment config presence
-          if [ ! -f ./config/environment/.env.main ]; then
-            echo "Missing ./config/environment/.env.main" >&2; exit 1;
-          fi
-          # Generate root .env using existing project scripts
-          bash ./sh/env/secret-gen.sh || true
-          if [ ! -f ./config/environment/.env.type."$INPUT_ENVIRONMENT_TYPE" ]; then
-            echo "Unknown environment type: $INPUT_ENVIRONMENT_TYPE (no file .env.type.$INPUT_ENVIRONMENT_TYPE)" >&2; exit 1;
-          fi
-          bash ./sh/env/init.sh "$INPUT_ENVIRONMENT_TYPE"
-          # Load the resulting .env
+          # Load the resulting .env to access ENVIRONMENT and other vars
           set -a
           [ -f ./.env ] && source ./.env || true
           set +a
-          # Effective env type is enforced from user input
-          EFFECTIVE_ENV_TYPE="$INPUT_ENVIRONMENT_TYPE"
+          # Effective env type comes strictly from workflow input
+          EFFECTIVE_ENV_TYPE="${{ inputs.ENVIRONMENT_TYPE }}"
           echo "EFFECTIVE_ENV_TYPE=$EFFECTIVE_ENV_TYPE" >> $GITHUB_ENV
-          # Determine Ansible group: prefer ENVIRONMENT var from .env, fallback by type mapping
-          if [ -n "$ENVIRONMENT" ]; then
-            echo "ANSIBLE_LIMIT=$ENVIRONMENT" >> $GITHUB_ENV
-          else
-            case "$EFFECTIVE_ENV_TYPE" in
-              dev) echo "ANSIBLE_LIMIT=development" >> $GITHUB_ENV ;;
-              stage) echo "ANSIBLE_LIMIT=stage" >> $GITHUB_ENV ;;
-              prod) echo "ANSIBLE_LIMIT=production" >> $GITHUB_ENV ;;
-              *) echo "Unknown ENVIRONMENT_TYPE: $EFFECTIVE_ENV_TYPE" >&2; exit 1 ;;
-            esac
-          fi
           echo "TF_STATE_DIR=kit-modules/basis/terraform/state" >> $GITHUB_ENV
           echo "TF_SHARED_DIR=kit-modules/basis/terraform/envs/shared" >> $GITHUB_ENV
           echo "TF_ENV_DIR=kit-modules/basis/terraform/envs/$EFFECTIVE_ENV_TYPE" >> $GITHUB_ENV
@@ -110,17 +97,18 @@ jobs:
         if: steps.verify_basis.outputs.has_basis == 'true'
         uses: hashicorp/setup-terraform@v3
 
-      - name: Derive AWS region from .env (optional)
+      - name: Derive AWS region from env/secrets
         if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
         run: |
           set -a
           [ -f ./.env ] && source ./.env || true
           set +a
-          REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
-          echo "AWS_REGION_EFFECTIVE=$REGION" >> $GITHUB_ENV
+          : # Only read if present; no guesses
+          if [ -n "$AWS_REGION" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_REGION" >> $GITHUB_ENV; fi
+          if [ -n "$AWS_DEFAULT_REGION" ] && [ -z "$AWS_REGION_EFFECTIVE" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_DEFAULT_REGION" >> $GITHUB_ENV; fi
 
       - name: Configure AWS credentials (optional)
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != '' && env.AWS_REGION_EFFECTIVE != ''
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -130,9 +118,7 @@ jobs:
       - name: Show provisioning plan
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          echo "ENVIRONMENT=$ENVIRONMENT"
           echo "EFFECTIVE_ENV_TYPE=$EFFECTIVE_ENV_TYPE"
-          echo "ANSIBLE_LIMIT=$ANSIBLE_LIMIT"
           echo "TF_STATE_DIR=$TF_STATE_DIR"
           echo "TF_SHARED_DIR=$TF_SHARED_DIR"
           echo "TF_ENV_DIR=$TF_ENV_DIR"
@@ -160,7 +146,41 @@ jobs:
             terraform apply -auto-approve -input=false -no-color
           else
             echo "Environment directory '$TF_ENV_DIR' not found — skipping env apply."
+            exit 1
           fi
+
+      - name: Fetch Terraform outputs for inventory
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          set +e
+          IPV4=$(terraform -chdir="$TF_ENV_DIR" output -raw instance_public_ip 2>/dev/null)
+          IPV6=$(terraform -chdir="$TF_ENV_DIR" output -raw instance_ipv6 2>/dev/null)
+          set -e
+          echo "TF_INSTANCE_IPV4=$IPV4" >> $GITHUB_ENV
+          echo "TF_INSTANCE_IPV6=$IPV6" >> $GITHUB_ENV
+
+      - name: Generate dynamic Ansible inventory from Terraform outputs
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        working-directory: kit-modules/basis/ansible
+        run: |
+          HOST_IP="${TF_INSTANCE_IPV6:-$TF_INSTANCE_IPV4}"
+          if [ -z "$HOST_IP" ]; then
+            echo "No instance IP found in Terraform outputs; cannot build inventory" >&2; exit 1
+          fi
+          printf "all:\n" > generated.inventory.yml
+          printf "  vars:\n" >> generated.inventory.yml
+          printf "    ansible_python_interpreter: /usr/bin/python3.11\n" >> generated.inventory.yml
+          printf "  children:\n" >> generated.inventory.yml
+          printf "    development:\n" >> generated.inventory.yml
+          printf "      hosts:\n" >> generated.inventory.yml
+          printf "        provisioned-host:\n" >> generated.inventory.yml
+          printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
+          printf "          ansible_user: admin\n" >> generated.inventory.yml
+          printf "    production:\n" >> generated.inventory.yml
+          printf "      hosts:\n" >> generated.inventory.yml
+          printf "        provisioned-host:\n" >> generated.inventory.yml
+          printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
+          printf "          ansible_user: admin\n" >> generated.inventory.yml
 
       - name: Install Ansible
         if: steps.verify_basis.outputs.has_basis == 'true'
@@ -168,21 +188,13 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y ansible
 
-      - name: Ansible playbook (inventory limited to group)
+      - name: Ansible playbook (provision & configure server)
         if: steps.verify_basis.outputs.has_basis == 'true'
         working-directory: kit-modules/basis/ansible
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-          if [ ! -f "inventory.yml" ] || [ ! -f "playbook.yml" ]; then
-            echo "Ansible inventory or playbook not found — skipping."
-            exit 0
+          if [ ! -f "generated.inventory.yml" ] || [ ! -f "playbook.yml" ]; then
+            echo "Dynamic inventory or playbook not found — cannot proceed." >&2; exit 1
           fi
-          # Check if the limit group exists in inventory; skip if missing
-          if ! grep -q "^\s\{4\}${ANSIBLE_LIMIT}:" inventory.yml; then
-            echo "Ansible group '${ANSIBLE_LIMIT}' not found in inventory — skipping."
-            exit 0
-          fi
-          ansible-playbook -i inventory.yml playbook.yml --limit "${ANSIBLE_LIMIT}"
+          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i generated.inventory.yml playbook.yml
 
 
