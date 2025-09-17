@@ -1,0 +1,188 @@
+name: Provision Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      ENVIRONMENT_TYPE:
+        required: true
+        type: choice
+        options:
+          - dev
+          - stage
+          - prod
+        description: Required. Select target environment type
+
+env:
+  # Defaults if not provided by env files
+  DEFAULT_EFFECTIVE_ENV_TYPE: dev
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show discovered environment types (from config/environment)
+        run: |
+          if ls ./config/environment/.env.type.* >/dev/null 2>&1; then
+            echo "Available types:"
+            ls -1 ./config/environment/.env.type.* | sed 's/.*\.env\.type\.//'
+          else
+            echo "No .env.type.* files found under ./config/environment" >&2
+          fi
+
+      - name: Verify Basis module is installed
+        id: verify_basis
+        run: |
+          if [ ! -d "kit-modules/basis" ]; then
+            echo "Basis module is not installed. Skipping provisioning."
+            echo "has_basis=false" >> $GITHUB_OUTPUT
+          else
+            echo "Basis module found."
+            echo "has_basis=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Short-circuit when Basis is missing
+        if: steps.verify_basis.outputs.has_basis == 'false'
+        run: |
+          echo "No license/module — skipping Terraform and Ansible."
+
+      - name: Set up SSH key (optional)
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.SSH_KEY != ''
+        run: |
+          mkdir -p ~/.ssh/
+          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+          if [ -n "${{ secrets.SSH_CONFIG }}" ]; then
+            echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+          fi
+
+      - name: Prepare env and determine groups/paths
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          INPUT_ENVIRONMENT_TYPE="${{ inputs.ENVIRONMENT_TYPE }}"
+          if [ -z "$INPUT_ENVIRONMENT_TYPE" ]; then
+            echo "ENVIRONMENT_TYPE is required via workflow input" >&2; exit 1;
+          fi
+          # Validate environment config presence
+          if [ ! -f ./config/environment/.env.main ]; then
+            echo "Missing ./config/environment/.env.main" >&2; exit 1;
+          fi
+          # Generate root .env using existing project scripts
+          bash ./sh/env/secret-gen.sh || true
+          if [ ! -f ./config/environment/.env.type."$INPUT_ENVIRONMENT_TYPE" ]; then
+            echo "Unknown environment type: $INPUT_ENVIRONMENT_TYPE (no file .env.type.$INPUT_ENVIRONMENT_TYPE)" >&2; exit 1;
+          fi
+          bash ./sh/env/init.sh "$INPUT_ENVIRONMENT_TYPE"
+          # Load the resulting .env
+          set -a
+          [ -f ./.env ] && source ./.env || true
+          set +a
+          # Effective env type is enforced from user input
+          EFFECTIVE_ENV_TYPE="$INPUT_ENVIRONMENT_TYPE"
+          echo "EFFECTIVE_ENV_TYPE=$EFFECTIVE_ENV_TYPE" >> $GITHUB_ENV
+          # Determine Ansible group: prefer ENVIRONMENT var from .env, fallback by type mapping
+          if [ -n "$ENVIRONMENT" ]; then
+            echo "ANSIBLE_LIMIT=$ENVIRONMENT" >> $GITHUB_ENV
+          else
+            case "$EFFECTIVE_ENV_TYPE" in
+              dev) echo "ANSIBLE_LIMIT=development" >> $GITHUB_ENV ;;
+              stage) echo "ANSIBLE_LIMIT=stage" >> $GITHUB_ENV ;;
+              prod) echo "ANSIBLE_LIMIT=production" >> $GITHUB_ENV ;;
+              *) echo "Unknown ENVIRONMENT_TYPE: $EFFECTIVE_ENV_TYPE" >&2; exit 1 ;;
+            esac
+          fi
+          echo "TF_STATE_DIR=kit-modules/basis/terraform/state" >> $GITHUB_ENV
+          echo "TF_SHARED_DIR=kit-modules/basis/terraform/envs/shared" >> $GITHUB_ENV
+          echo "TF_ENV_DIR=kit-modules/basis/terraform/envs/$EFFECTIVE_ENV_TYPE" >> $GITHUB_ENV
+          # Validate Terraform env directory
+          if [ ! -d "$GITHUB_WORKSPACE/$TF_ENV_DIR" ]; then
+            echo "Terraform environment directory '$TF_ENV_DIR' not found (basis maps $EFFECTIVE_ENV_TYPE)" >&2; exit 1;
+          fi
+
+      - name: Setup Terraform CLI
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Derive AWS region from .env (optional)
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        run: |
+          set -a
+          [ -f ./.env ] && source ./.env || true
+          set +a
+          REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
+          echo "AWS_REGION_EFFECTIVE=$REGION" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials (optional)
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION_EFFECTIVE }}
+
+      - name: Show provisioning plan
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          echo "ENVIRONMENT=$ENVIRONMENT"
+          echo "EFFECTIVE_ENV_TYPE=$EFFECTIVE_ENV_TYPE"
+          echo "ANSIBLE_LIMIT=$ANSIBLE_LIMIT"
+          echo "TF_STATE_DIR=$TF_STATE_DIR"
+          echo "TF_SHARED_DIR=$TF_SHARED_DIR"
+          echo "TF_ENV_DIR=$TF_ENV_DIR"
+
+      - name: Terraform apply — state backend
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        working-directory: ${{ env.TF_STATE_DIR }}
+        run: |
+          terraform init -input=false -no-color
+          terraform apply -auto-approve -input=false -no-color
+
+      - name: Terraform apply — shared network
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        working-directory: ${{ env.TF_SHARED_DIR }}
+        run: |
+          terraform init -input=false -no-color
+          terraform apply -auto-approve -input=false -no-color
+
+      - name: Terraform apply — environment
+        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        run: |
+          if [ -d "$TF_ENV_DIR" ]; then
+            cd "$TF_ENV_DIR"
+            terraform init -input=false -no-color
+            terraform apply -auto-approve -input=false -no-color
+          else
+            echo "Environment directory '$TF_ENV_DIR' not found — skipping env apply."
+          fi
+
+      - name: Install Ansible
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ansible
+
+      - name: Ansible playbook (inventory limited to group)
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        working-directory: kit-modules/basis/ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          if [ ! -f "inventory.yml" ] || [ ! -f "playbook.yml" ]; then
+            echo "Ansible inventory or playbook not found — skipping."
+            exit 0
+          fi
+          # Check if the limit group exists in inventory; skip if missing
+          if ! grep -q "^\s\{4\}${ANSIBLE_LIMIT}:" inventory.yml; then
+            echo "Ansible group '${ANSIBLE_LIMIT}' not found in inventory — skipping."
+            exit 0
+          fi
+          ansible-playbook -i inventory.yml playbook.yml --limit "${ANSIBLE_LIMIT}"
+
+
