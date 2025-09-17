@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       ENVIRONMENT_TYPE:
+        description: 'Required. Select target environment type'
         required: true
         type: choice
         options:
           - dev
           - stage
           - prod
-        description: Required. Select target environment type
 
 env:
   # Defaults if not provided by env files
@@ -145,14 +145,20 @@ jobs:
       - name: Fetch Terraform outputs for inventory (compose run)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          OUT_JSON=$(docker compose -f docker-compose.toolkit.yml run --rm \
+          IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
             -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
             -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
             -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
             -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -json")
-          echo "$OUT_JSON" | jq -r '.instance_public_ip.value // empty' | sed -n '1p' | xargs -I{} echo "TF_INSTANCE_IPV4={}" >> $GITHUB_ENV
-          echo "$OUT_JSON" | jq -r '.instance_ipv6.value // empty' | sed -n '1p' | xargs -I{} echo "TF_INSTANCE_IPV6={}" >> $GITHUB_ENV
+            iac bash -lc "terraform output -raw instance_public_ip || true")
+          IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
+            -w "/workspace/$TF_ENV_DIR" \
+            iac bash -lc "terraform output -raw instance_ipv6 || true")
+          echo "TF_INSTANCE_IPV4=$IPV4" >> $GITHUB_ENV
+          echo "TF_INSTANCE_IPV6=$IPV6" >> $GITHUB_ENV
 
       - name: Generate dynamic Ansible inventory from Terraform outputs
         if: steps.verify_basis.outputs.has_basis == 'true'
