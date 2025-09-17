@@ -11,6 +11,7 @@ ARG TF_VERSION=1.13.3
 ARG TG_VERSION=0.87.1
 ARG AWSCLI_VERSION=2.23.3
 ARG ANSIBLE_PIP_VERSION=12.0.0
+ARG TARGETARCH
 
 WORKDIR /workspace
 
@@ -36,25 +37,43 @@ RUN apt-get update \
        openssh-client \
        rsync \
        python3 \
-       python3-pip \
+       python3-venv \
        bash \
        tar \
     && rm -rf /var/lib/apt/lists/*
 
-# Terraform (pinned)
-RUN curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip" -o /tmp/terraform.zip \
+# Terraform (pinned) — multi-arch
+RUN set -e; \
+    case "${TARGETARCH}" in \
+      amd64) TF_ZIP_ARCH=linux_amd64 ;; \
+      arm64) TF_ZIP_ARCH=linux_arm64 ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_${TF_ZIP_ARCH}.zip" -o /tmp/terraform.zip \
     && unzip -q /tmp/terraform.zip -d /usr/local/bin \
     && chmod +x /usr/local/bin/terraform \
     && rm -f /tmp/terraform.zip \
     && terraform -version
 
-# Terragrunt (pinned)
-RUN curl -fsSL "https://github.com/gruntwork-io/terragrunt/releases/download/v${TG_VERSION}/terragrunt_linux_amd64" -o /usr/local/bin/terragrunt \
+# Terragrunt (pinned) — multi-arch
+RUN set -e; \
+    case "${TARGETARCH}" in \
+      amd64) TG_BIN_ARCH=linux_amd64 ;; \
+      arm64) TG_BIN_ARCH=linux_arm64 ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/gruntwork-io/terragrunt/releases/download/v${TG_VERSION}/terragrunt_${TG_BIN_ARCH}" -o /usr/local/bin/terragrunt \
     && chmod +x /usr/local/bin/terragrunt \
     && terragrunt --version
 
-# AWS CLI v2 (pinned)
-RUN curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWSCLI_VERSION}.zip" -o /tmp/awscliv2.zip \
+# AWS CLI v2 (pinned) — multi-arch
+RUN set -e; \
+    case "${TARGETARCH}" in \
+      amd64) AWS_ZIP_ARCH=x86_64 ;; \
+      arm64) AWS_ZIP_ARCH=aarch64 ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_ZIP_ARCH}-${AWSCLI_VERSION}.zip" -o /tmp/awscliv2.zip \
     && unzip -q /tmp/awscliv2.zip -d /tmp \
     && /tmp/aws/install \
     && rm -rf /tmp/aws /tmp/awscliv2.zip \
@@ -69,12 +88,15 @@ RUN mkdir -p /usr/share/keyrings \
     && rm -rf /var/lib/apt/lists/* \
     && gcloud --version
 
-# Ansible (pinned) + cloud libs
-RUN python3 -m pip install --no-cache-dir --upgrade pip \
-    && python3 -m pip install --no-cache-dir \
+# Ansible (pinned) + cloud libs in isolated venv (avoid PEP 668)
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv ${VIRTUAL_ENV} \
+    && ${VIRTUAL_ENV}/bin/pip install --no-cache-dir --upgrade pip \
+    && ${VIRTUAL_ENV}/bin/pip install --no-cache-dir \
        "ansible==${ANSIBLE_PIP_VERSION}" \
        boto3 botocore \
-    && ansible --version
+    && ${VIRTUAL_ENV}/bin/ansible --version
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 # Default to bash shell; CI can override command/entrypoint
 SHELL ["/bin/bash", "-lc"]
