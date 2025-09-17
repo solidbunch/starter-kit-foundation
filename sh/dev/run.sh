@@ -36,7 +36,7 @@ fi
 if [ "$MODE" == "run" ]; then
   docker compose \
     -f docker-compose.yml \
-    -f docker-compose.build.yml \
+    -f docker-compose.toolkit.yml \
     run \
       -it \
       --rm \
@@ -49,7 +49,7 @@ fi
 if [ "$MODE" == "exec" ]; then
   docker compose \
     -f docker-compose.yml \
-    -f docker-compose.build.yml \
+    -f docker-compose.toolkit.yml \
     exec \
       -u "${USER}" \
     "${SERVICE}" \

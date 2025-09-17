@@ -126,10 +126,10 @@ migrate:
 
 # Run phpMyAdmin docker container
 pma:
-	docker compose -f docker-compose.build.yml run --service-ports --rm phpmyadmin
+	docker compose -f docker-compose.toolkit.yml run --service-ports --rm phpmyadmin
 
 mailhog:
-	docker-compose -f docker-compose.build.yml run --service-ports --rm --name mailhog mailhog
+	docker-compose -f docker-compose.toolkit.yml run --service-ports --rm --name mailhog mailhog
 
 log:
 	docker compose logs -f $(PARAMS)
@@ -143,8 +143,8 @@ exec:
 	bash ./sh/dev/run.sh exec $(PARAMS)
 
 lint:
-	docker compose -f docker-compose.build.yml run -it --rm composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
-	docker compose -f docker-compose.build.yml run -it --rm node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
+	docker compose -f docker-compose.toolkit.yml run -it --rm composer su -c "cd web/wp-content/themes/${WP_DEFAULT_THEME} && composer lint" $(DEFAULT_USER)
+	docker compose -f docker-compose.toolkit.yml run -it --rm node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
 
 # IasC
 terraform:

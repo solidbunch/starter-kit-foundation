@@ -27,7 +27,7 @@ echo -e "${CYAN}[Info]${RESET} Generating dummy certificates for ${APP_DOMAIN}..
 mkdir -p "$SSL_DIR"
 
 # Run openssl as the default user to ensure correct file permissions on the host
-docker compose -f docker-compose.build.yml run --rm certbot su -c "\
+docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "\
     openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
       -keyout '/etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem' \
       -out '/etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem' \
@@ -49,12 +49,12 @@ else
 fi
 
 # Delete dummy certificates before requesting real ones
-docker compose -f docker-compose.build.yml run --rm certbot su -c "\
+docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "\
     rm -rf /etc/letsencrypt/live/${APP_DOMAIN} /etc/letsencrypt/archive/${APP_DOMAIN} /etc/letsencrypt/renewal/${APP_DOMAIN}.conf" \
   "${DEFAULT_USER}"
 
 # Run Certbot as the default user. It will use the webroot authenticator from cli.ini
-docker compose -f docker-compose.build.yml run --rm certbot su -c "\
+docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "\
     certbot certonly --no-eff-email --email admin@${APP_DOMAIN} ${DOMAIN_ARGS}" \
   "${DEFAULT_USER}"
 

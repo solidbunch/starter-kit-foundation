@@ -11,15 +11,9 @@ services:
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     working_dir: /srv
     volumes:
-      # Project files with same path
       - ./:/srv
-      # User added in Dockerfile
-      - ~/.ssh:/home/${DEFAULT_USER}/.ssh:ro
-      # Debug log
       - ./logs/wordpress:/var/log/wordpress
-      # PHP ini config
       - ./config/php:/usr/local/etc/php
-      # Share shell scripts
       - ./sh:/shell:ro
 
   node:
@@ -35,9 +29,7 @@ services:
       - "3000:3000"
       - "3001:3001"
     volumes:
-      # Web root folder
       - ./web/wp-core:/srv/web
-      # WordPress wp-content folder
       - ./web/wp-content:/srv/web/wp-content
 
   phpmyadmin:
@@ -63,21 +55,26 @@ services:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     volumes:
-      # SSL certificate files
       - ./config/ssl:/etc/letsencrypt
       - ./config/certbot/cli.ini:/etc/letsencrypt/cli.ini
-      # Web root folder
       - ./web/wp-core:/srv/web
-      # Logs folder
       - ./logs/letsencrypt:/var/log/letsencrypt
 
   mailhog:
-      image: "${APP_MAILHOG_IMAGE}"
-      container_name: "${APP_NAME}-mailhog"
-      restart: no
-      ports:
-        - "8025:8025"
-        - "1025:1025"
+    image: "${APP_MAILHOG_IMAGE}"
+    container_name: "${APP_NAME}-mailhog"
+    restart: no
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  iac:
+    image: "${APP_IAC_IMAGE}"
+    container_name: "${APP_NAME}-iac"
+    restart: no
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
 
 networks:
   project_network:

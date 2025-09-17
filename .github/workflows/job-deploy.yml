@@ -36,7 +36,9 @@ jobs:
       - name: Prepare .env
         run: |
           bash ./sh/env/secret-gen.sh
-          echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
+            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          fi
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
       - name: Switch Theme Version for Dev Environment
@@ -47,7 +49,7 @@ jobs:
           export CURRENT_GID=$(id -g)
           # Load environment variables from .env file
           source .env
-          docker compose -f docker-compose.build.yml run --rm composer su -c "composer run switch-theme-dev" "${DEFAULT_USER}"
+          docker compose -f docker-compose.toolkit.yml run --rm composer su -c "composer run switch-theme-dev" "${DEFAULT_USER}"
 
       - name: Update Monitoring & Addon (only in demo)
         env:
@@ -58,7 +60,7 @@ jobs:
             export CURRENT_UID=$(id -u)
             export CURRENT_GID=$(id -g)
             source .env
-            docker compose -f docker-compose.build.yml run --rm composer su -c "
+            docker compose -f docker-compose.toolkit.yml run --rm composer su -c "
               composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
             " "${DEFAULT_USER}"
           else
