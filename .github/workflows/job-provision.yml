@@ -45,7 +45,7 @@ jobs:
             export CURRENT_UID=$(id -u)
             export CURRENT_GID=$(id -g)
             source .env
-            docker compose -f docker-compose.build.yml run --rm composer su -c "
+            docker compose -f docker-compose.toolkit.yml run --rm composer su -c "
               composer update solidbunch/basis --no-interaction --with-all-dependencies
             " "${DEFAULT_USER}"
           else
@@ -93,27 +93,15 @@ jobs:
             echo "Terraform environment directory '$TF_ENV_DIR' not found (basis maps $EFFECTIVE_ENV_TYPE)" >&2; exit 1;
           fi
 
-      - name: Setup Terraform CLI
-        if: steps.verify_basis.outputs.has_basis == 'true'
-        uses: hashicorp/setup-terraform@v3
-
       - name: Derive AWS region from env
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           set -a
           [ -f ./.env ] && source ./.env || true
           set +a
-          : # Only read if present; no guesses
           if [ -n "$AWS_REGION" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_REGION" >> $GITHUB_ENV; fi
           if [ -n "$AWS_DEFAULT_REGION" ] && [ -z "$AWS_REGION_EFFECTIVE" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_DEFAULT_REGION" >> $GITHUB_ENV; fi
 
-      - name: Configure AWS credentials
-        if: steps.verify_basis.outputs.has_basis == 'true' && env.AWS_REGION_EFFECTIVE != ''
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION_EFFECTIVE }}
 
       - name: Show provisioning plan
         if: steps.verify_basis.outputs.has_basis == 'true'
@@ -123,41 +111,48 @@ jobs:
           echo "TF_SHARED_DIR=$TF_SHARED_DIR"
           echo "TF_ENV_DIR=$TF_ENV_DIR"
 
-      - name: Terraform apply — state backend
+      - name: Terraform apply — state backend (compose run)
         if: steps.verify_basis.outputs.has_basis == 'true'
-        working-directory: ${{ env.TF_STATE_DIR }}
         run: |
-          terraform init -input=false -no-color
-          terraform apply -auto-approve -input=false -no-color
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
+            -w "/workspace/${{ env.TF_STATE_DIR }}" \
+            iac bash -lc "terraform init -input=false -no-color && terraform apply -auto-approve -input=false -no-color"
 
-      - name: Terraform apply — shared network
+      - name: Terraform apply — shared network (compose run)
         if: steps.verify_basis.outputs.has_basis == 'true'
-        working-directory: ${{ env.TF_SHARED_DIR }}
         run: |
-          terraform init -input=false -no-color
-          terraform apply -auto-approve -input=false -no-color
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
+            -w "/workspace/${{ env.TF_SHARED_DIR }}" \
+            iac bash -lc "terraform init -input=false -no-color && terraform apply -auto-approve -input=false -no-color"
 
-      - name: Terraform apply — environment
+      - name: Terraform apply — environment (compose run)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          if [ -d "$TF_ENV_DIR" ]; then
-            cd "$TF_ENV_DIR"
-            terraform init -input=false -no-color
-            terraform apply -auto-approve -input=false -no-color
-          else
-            echo "Environment directory '$TF_ENV_DIR' not found — skipping env apply."
-            exit 1
-          fi
+          if [ ! -d "$TF_ENV_DIR" ]; then echo "Environment directory '$TF_ENV_DIR' not found" >&2; exit 1; fi
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
+            -w "/workspace/$TF_ENV_DIR" \
+            iac bash -lc "terraform init -input=false -no-color && terraform apply -auto-approve -input=false -no-color && terraform output -json"
 
-      - name: Fetch Terraform outputs for inventory
+      - name: Fetch Terraform outputs for inventory (compose run)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          set +e
-          IPV4=$(terraform -chdir="$TF_ENV_DIR" output -raw instance_public_ip 2>/dev/null)
-          IPV6=$(terraform -chdir="$TF_ENV_DIR" output -raw instance_ipv6 2>/dev/null)
-          set -e
-          echo "TF_INSTANCE_IPV4=$IPV4" >> $GITHUB_ENV
-          echo "TF_INSTANCE_IPV6=$IPV6" >> $GITHUB_ENV
+          OUT_JSON=$(docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
+            -w "/workspace/$TF_ENV_DIR" \
+            iac bash -lc "terraform output -json")
+          echo "$OUT_JSON" | jq -r '.instance_public_ip.value // empty' | sed -n '1p' | xargs -I{} echo "TF_INSTANCE_IPV4={}" >> $GITHUB_ENV
+          echo "$OUT_JSON" | jq -r '.instance_ipv6.value // empty' | sed -n '1p' | xargs -I{} echo "TF_INSTANCE_IPV6={}" >> $GITHUB_ENV
 
       - name: Generate dynamic Ansible inventory from Terraform outputs
         if: steps.verify_basis.outputs.has_basis == 'true'
@@ -182,19 +177,15 @@ jobs:
           printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
           printf "          ansible_user: admin\n" >> generated.inventory.yml
 
-      - name: Install Ansible
+      - name: Ansible playbook (provision & configure server) via compose
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ansible
-
-      - name: Ansible playbook (provision & configure server)
-        if: steps.verify_basis.outputs.has_basis == 'true'
-        working-directory: kit-modules/basis/ansible
-        run: |
-          if [ ! -f "generated.inventory.yml" ] || [ ! -f "playbook.yml" ]; then
+          if [ ! -f "kit-modules/basis/ansible/generated.inventory.yml" ] || [ ! -f "kit-modules/basis/ansible/playbook.yml" ]; then
             echo "Dynamic inventory or playbook not found — cannot proceed." >&2; exit 1
           fi
-          ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i generated.inventory.yml playbook.yml
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -w "/workspace/kit-modules/basis/ansible" \
+            iac bash -lc "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i generated.inventory.yml playbook.yml"
+
 
 

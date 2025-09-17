@@ -30,7 +30,7 @@
 
 # SSL certificate renew by Certbot
 30 3 * * *  cd ${WORKING_DIR} && \
-            docker compose -f docker-compose.build.yml run --rm certbot su -c "certbot renew" && \
+            docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "certbot renew" && \
             docker compose restart nginx >> /var/log/cron.log 2>&1
 
 
