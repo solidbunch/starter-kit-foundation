@@ -97,8 +97,8 @@ jobs:
         if: steps.verify_basis.outputs.has_basis == 'true'
         uses: hashicorp/setup-terraform@v3
 
-      - name: Derive AWS region from env/secrets
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+      - name: Derive AWS region from env
+        if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           set -a
           [ -f ./.env ] && source ./.env || true
@@ -107,8 +107,8 @@ jobs:
           if [ -n "$AWS_REGION" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_REGION" >> $GITHUB_ENV; fi
           if [ -n "$AWS_DEFAULT_REGION" ] && [ -z "$AWS_REGION_EFFECTIVE" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_DEFAULT_REGION" >> $GITHUB_ENV; fi
 
-      - name: Configure AWS credentials (optional)
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != '' && env.AWS_REGION_EFFECTIVE != ''
+      - name: Configure AWS credentials
+        if: steps.verify_basis.outputs.has_basis == 'true' && env.AWS_REGION_EFFECTIVE != ''
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -124,21 +124,21 @@ jobs:
           echo "TF_ENV_DIR=$TF_ENV_DIR"
 
       - name: Terraform apply — state backend
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        if: steps.verify_basis.outputs.has_basis == 'true'
         working-directory: ${{ env.TF_STATE_DIR }}
         run: |
           terraform init -input=false -no-color
           terraform apply -auto-approve -input=false -no-color
 
       - name: Terraform apply — shared network
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        if: steps.verify_basis.outputs.has_basis == 'true'
         working-directory: ${{ env.TF_SHARED_DIR }}
         run: |
           terraform init -input=false -no-color
           terraform apply -auto-approve -input=false -no-color
 
       - name: Terraform apply — environment
-        if: steps.verify_basis.outputs.has_basis == 'true' && secrets.AWS_ACCESS_KEY_ID != ''
+        if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           if [ -d "$TF_ENV_DIR" ]; then
             cd "$TF_ENV_DIR"
