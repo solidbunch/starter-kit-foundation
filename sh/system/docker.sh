@@ -25,8 +25,8 @@ if [ "$2" ]; then
 fi
 
 # Define the services and images arrays
-SERVICES=("mariadb"             "php"              "nginx"              "cron"              "composer"              "node"              "certbot")
-IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}" "${APP_CERTBOT_IMAGE}")
+SERVICES=("mariadb"             "php"              "nginx"              "cron"              "composer"              "node"              "certbot"              "iac")
+IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}" "${APP_CERTBOT_IMAGE}" "${APP_IAC_IMAGE}")
 
 PLATFORMS=linux/amd64,linux/arm64
 
