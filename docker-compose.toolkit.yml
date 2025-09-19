@@ -72,6 +72,7 @@ services:
     image: "${APP_IAC_IMAGE}"
     container_name: "${APP_NAME}-iac"
     restart: no
+    env_file: .env
     working_dir: /workspace
     volumes:
       - ./:/workspace

@@ -148,7 +148,23 @@ lint:
 
 # IasC
 terraform:
-	terraform -chdir=iac/terraform $(PARAMS)
+	docker compose -f docker-compose.toolkit.yml run --rm iac terraform -chdir=kit-modules/basis/terraform $(PARAMS)
+
+terraform-local:
+	terraform -chdir=kit-modules/basis/terraform $(PARAMS)
+
+# Terraform with environment variables
+tf-init:
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) init $(PARAM2)
+
+tf-plan:
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) plan $(PARAM2)
+
+tf-apply:
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) apply $(PARAM2)
+
+tf-destroy:
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) destroy $(PARAM2)
 
 ansible:
 	ansible-playbook iac/ansible/playbook.yml $(PARAMS)
