@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       ENVIRONMENT_TYPE:
-        description: 'Required. Select target environment type'
+        description: 'Select target environment type'
         required: true
         type: choice
         options:
