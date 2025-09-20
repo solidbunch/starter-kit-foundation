@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       EFFECTIVE_ENV_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
-      TF_STATE_DIR: kit-modules/basis/terraform/state
-      TF_SHARED_DIR: kit-modules/basis/terraform/envs/shared
       TF_ENV_DIR: kit-modules/basis/terraform/envs/${{ inputs.ENVIRONMENT_TYPE }}
 
     steps:
@@ -87,8 +85,6 @@ jobs:
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           echo "EFFECTIVE_ENV_TYPE=${EFFECTIVE_ENV_TYPE}"
-          echo "TF_STATE_DIR=${TF_STATE_DIR}"
-          echo "TF_SHARED_DIR=${TF_SHARED_DIR}"
           echo "TF_ENV_DIR=${TF_ENV_DIR}"
           if [ ! -d "$TF_ENV_DIR" ]; then
             echo "Terraform environment directory '$TF_ENV_DIR' not found" >&2; exit 1;
@@ -97,20 +93,20 @@ jobs:
       - name: Terraform apply — state backend (run.sh)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          bash kit-modules/basis/sh/terraform/run.sh state init
-          bash kit-modules/basis/sh/terraform/run.sh state apply
+          bash kit-modules/basis/sh/terraform.sh state init
+          bash kit-modules/basis/sh/terraform.sh state apply
 
       - name: Terraform apply — shared network (run.sh)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          bash kit-modules/basis/sh/terraform/run.sh shared init
-          bash kit-modules/basis/sh/terraform/run.sh shared apply
+          bash kit-modules/basis/sh/terraform.sh shared init
+          bash kit-modules/basis/sh/terraform.sh shared apply
 
       - name: Terraform apply — environment (run.sh)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          bash kit-modules/basis/sh/terraform/run.sh "${EFFECTIVE_ENV_TYPE}" init
-          bash kit-modules/basis/sh/terraform/run.sh "${EFFECTIVE_ENV_TYPE}" apply
+          bash kit-modules/basis/sh/terraform.sh "${EFFECTIVE_ENV_TYPE}" init
+          bash kit-modules/basis/sh/terraform.sh "${EFFECTIVE_ENV_TYPE}" apply
 
       - name: Generate dynamic Ansible inventory from Terraform outputs
         if: steps.verify_basis.outputs.has_basis == 'true'
