@@ -155,16 +155,16 @@ terraform-local:
 
 # Terraform with environment variables
 tf-init:
-	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) init $(PARAM2)
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAM1) init
 
 tf-plan:
-	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) plan $(PARAM2)
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAM1) plan
 
 tf-apply:
-	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) apply $(PARAM2)
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAM1) apply
 
 tf-destroy:
-	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAMS) destroy $(PARAM2)
+	bash ./kit-modules/basis/sh/terraform/run.sh $(PARAM1) destroy
 
 ansible:
 	ansible-playbook iac/ansible/playbook.yml $(PARAMS)
