@@ -73,9 +73,9 @@ services:
     container_name: "${APP_NAME}-iac"
     restart: no
     env_file: .env
-    working_dir: /workspace
+    working_dir: /srv
     volumes:
-      - ./:/workspace
+      - ./:/srv
 
 networks:
   project_network:

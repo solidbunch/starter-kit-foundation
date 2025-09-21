@@ -153,18 +153,13 @@ terraform:
 terraform-local:
 	terraform -chdir=kit-modules/basis/terraform $(PARAMS)
 
-# Terraform with environment variables
-tf-init:
-	bash ./kit-modules/basis/sh/terraform.sh $(PARAM1) init
-
-tf-plan:
-	bash ./kit-modules/basis/sh/terraform.sh $(PARAM1) plan
-
-tf-apply:
-	bash ./kit-modules/basis/sh/terraform.sh $(PARAM1) apply
-
-tf-destroy:
-	bash ./kit-modules/basis/sh/terraform.sh $(PARAM1) destroy
+# Terraform unified command (flags-based)
+# Usage examples:
+# make tf dev plan        -> bash ... -e dev -c plan
+# make tf prod apply      -> bash ... -e prod -c apply
+# make tf iam init -> bash ... -e iam -c init
+tf:
+	bash ./kit-modules/basis/sh/terraform.sh -e $(PARAM1) -c $(PARAM2)
 
 ansible:
 	ansible-playbook iac/ansible/playbook.yml $(PARAMS)
