@@ -73,6 +73,11 @@ services:
     container_name: "${APP_NAME}-iac"
     restart: no
     env_file: .env
+    environment:
+      DEFAULT_USER: ${DEFAULT_USER}
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+      TF_VAR_app_domain: ${APP_DOMAIN}
     working_dir: /srv
     volumes:
       - ./:/srv
