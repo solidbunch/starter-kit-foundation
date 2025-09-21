@@ -93,20 +93,20 @@ jobs:
       - name: Terraform apply — state backend (run.sh)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          bash kit-modules/basis/sh/terraform.sh state init
-          bash kit-modules/basis/sh/terraform.sh state apply
+          bash kit-modules/basis/sh/terraform.sh -e state -c init
+          bash kit-modules/basis/sh/terraform.sh -e state -c apply
 
       - name: Terraform apply — shared network (run.sh)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          bash kit-modules/basis/sh/terraform.sh shared init
-          bash kit-modules/basis/sh/terraform.sh shared apply
+          bash kit-modules/basis/sh/terraform.sh -e shared -c init
+          bash kit-modules/basis/sh/terraform.sh -e shared -c apply
 
       - name: Terraform apply — environment (run.sh)
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          bash kit-modules/basis/sh/terraform.sh "${EFFECTIVE_ENV_TYPE}" init
-          bash kit-modules/basis/sh/terraform.sh "${EFFECTIVE_ENV_TYPE}" apply
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply
 
       - name: Generate dynamic Ansible inventory from Terraform outputs
         if: steps.verify_basis.outputs.has_basis == 'true'
