@@ -24,7 +24,7 @@ if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
 fi
 
 # 1) Build non-secret runtime env first (main + type [+ override])
-RUNTIME_ENV="./.env.runtime"
+RUNTIME_ENV=".env.runtime"
 cat ./config/environment/.env.main <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}" > "$RUNTIME_ENV"
 
 # Check .env.type.${ENVIRONMENT_TYPE}.override file exist

@@ -4,7 +4,7 @@ services:
     image: "${APP_DATABASE_IMAGE}"
     container_name: "${APP_NAME}-mariadb"
     restart: unless-stopped
-    env_file: ./.env.runtime
+    env_file: .env.runtime
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -26,12 +26,15 @@ services:
     depends_on:
       - mariadb
     working_dir: /srv/web
-    env_file: ./.env.runtime
+    env_file: .env.runtime
     environment:
+      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
+      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+
       # DataBase options (client)
       MYSQL_HOST: ${MYSQL_HOST}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_DB_PREFIX: ${MYSQL_DB_PREFIX:-}
+      #MYSQL_DB_PREFIX: ${MYSQL_DB_PREFIX:-}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       WP_DB_CHARSET: ${WP_DB_CHARSET:-}
@@ -70,7 +73,7 @@ services:
       - mariadb
       - php
     working_dir: /srv/web
-    env_file: ./.env.runtime
+    env_file: .env.runtime
     environment:
       APP_BA_USER: ${APP_BA_USER:-}
       APP_BA_PASS: ${APP_BA_PASS:-}
@@ -101,7 +104,7 @@ services:
     depends_on:
       - mariadb
       - php
-    env_file: ./.env.runtime
+    env_file: .env.runtime
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
