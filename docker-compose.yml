@@ -4,7 +4,12 @@ services:
     image: "${APP_DATABASE_IMAGE}"
     container_name: "${APP_NAME}-mariadb"
     restart: unless-stopped
-    env_file: .env
+    env_file: ./.env.runtime
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
     # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
     ports:
@@ -21,10 +26,28 @@ services:
     depends_on:
       - mariadb
     working_dir: /srv/web
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
-      CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
-      CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+      # DataBase options (client)
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_DB_PREFIX: ${MYSQL_DB_PREFIX:-}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      WP_DB_CHARSET: ${WP_DB_CHARSET:-}
+      WP_DB_COLLATE: ${WP_DB_COLLATE:-}
+      WP_AUTH_KEY: ${WP_AUTH_KEY:-}
+      WP_SECURE_AUTH_KEY: ${WP_SECURE_AUTH_KEY:-}
+      WP_LOGGED_IN_KEY: ${WP_LOGGED_IN_KEY:-}
+      WP_NONCE_KEY: ${WP_NONCE_KEY:-}
+      WP_AUTH_SALT: ${WP_AUTH_SALT:-}
+      WP_SECURE_AUTH_SALT: ${WP_SECURE_AUTH_SALT:-}
+      WP_LOGGED_IN_SALT: ${WP_LOGGED_IN_SALT:-}
+      WP_NONCE_SALT: ${WP_NONCE_SALT:-}
+
+      # SMTP config
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
     volumes:
       # Web root folder
       - ./web/wp-core:/srv/web
@@ -47,7 +70,10 @@ services:
       - mariadb
       - php
     working_dir: /srv/web
-    env_file: .env
+    env_file: ./.env.runtime
+    environment:
+      APP_BA_USER: ${APP_BA_USER:-}
+      APP_BA_PASS: ${APP_BA_PASS:-}
     ports:
       - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
       - "${APP_HTTPS_PORT}:${APP_HTTPS_PORT}"
@@ -75,7 +101,7 @@ services:
     depends_on:
       - mariadb
       - php
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}

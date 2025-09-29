@@ -16,6 +16,6 @@ fi
 mkdir -p /etc/nginx/auth/
 
 # Generate htpasswd file
-printf "%s:%s\n" "$APP_BA_USER" "$(openssl passwd -apr1 "$APP_BA_PASSWORD")" >> /etc/nginx/auth/.wplogin
+printf "%s:%s\n" "$APP_BA_USER" "$(openssl passwd -apr1 "$APP_BA_PASS")" >> /etc/nginx/auth/.wplogin
 
 echo "$ME: [Success] Auth file ready in /etc/nginx/auth/.wplogin"

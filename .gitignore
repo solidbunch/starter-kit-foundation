@@ -48,6 +48,7 @@ logs/**/*.out
 .env
 .env.*override
 .env.*secret
+.env.*runtime
 /config/ssl/**
 !/config/ssl/readme.md
 

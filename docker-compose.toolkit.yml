@@ -4,11 +4,12 @@ services:
     image: "${APP_COMPOSER_IMAGE}"
     container_name: "${APP_NAME}-composer"
     restart: no
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
       DEFAULT_USER: ${DEFAULT_USER}
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
+      COMPOSER_AUTH: ${COMPOSER_AUTH:-}
     working_dir: /srv
     volumes:
       - ./:/srv
@@ -20,7 +21,7 @@ services:
     image: "${APP_NODE_IMAGE}"
     container_name: "${APP_NAME}-node"
     restart: no
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
@@ -38,7 +39,7 @@ services:
     restart: no
     ports:
       - ${PMA_EXT_PORT}:80
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
       PMA_ARBITRARY: ${PMA_ARBITRARY}
       PMA_HOST: ${MYSQL_HOST}
@@ -50,7 +51,7 @@ services:
     image: "${APP_CERTBOT_IMAGE}"
     container_name: "${APP_NAME}-certbot"
     restart: no
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
@@ -72,7 +73,7 @@ services:
     image: "${APP_IAC_IMAGE}"
     container_name: "${APP_NAME}-iac"
     restart: no
-    env_file: .env
+    env_file: ./.env.runtime
     environment:
       DEFAULT_USER: ${DEFAULT_USER}
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}

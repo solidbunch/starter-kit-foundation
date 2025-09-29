@@ -23,14 +23,17 @@ if [ ! -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}" ]; then
     echo -e "${LIGHTRED}[Error]${RESET} .env.type.${ENVIRONMENT_TYPE} file not found in ./config/environment/"; exit 1;
 fi
 
-# Concatenate root .env file
-cat ./config/environment/.env.main <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}" <(echo) ./config/environment/.env.secret > .env
+# 1) Build non-secret runtime env first (main + type [+ override])
+RUNTIME_ENV="./.env.runtime"
+cat ./config/environment/.env.main <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}" > "$RUNTIME_ENV"
 
 # Check .env.type.${ENVIRONMENT_TYPE}.override file exist
 if [ -f ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override ]; then
-    # Concatenate root .env file
-    cat <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override >> .env
-
+    cat <(echo) ./config/environment/.env.type."${ENVIRONMENT_TYPE}".override >> "$RUNTIME_ENV"
 fi
 
+# 2) Concatenate root .env file
+cat "$RUNTIME_ENV" <(echo) ./config/environment/.env.secret > .env
+
+echo -e "${LIGHTGREEN}[Success]${RESET} .env.runtime ready"
 echo -e "${LIGHTGREEN}[Success]${RESET} root .env ready for '${ENVIRONMENT_TYPE}'"
