@@ -11,6 +11,20 @@ on:
           - dev
           - stage
           - prod
+      ACTION_TYPE:
+        description: 'Select action type'
+        required: true
+        type: choice
+        options:
+          - apply
+          - plan
+          - destroy
+        default: 'apply'
+      SKIP_ANSIBLE:
+        description: 'Skip Ansible provisioning'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,10 +36,15 @@ jobs:
     env:
       EFFECTIVE_ENV_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
       TF_ENV_DIR: kit-modules/basis/terraform/envs/${{ inputs.ENVIRONMENT_TYPE }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::306724455598:role/StarterKit-Terraform-Role
+          aws-region: eu-west-1
 
       - name: Prepare .env
         run: |
@@ -90,26 +109,29 @@ jobs:
             echo "Terraform environment directory '$TF_ENV_DIR' not found" >&2; exit 1;
           fi
 
-      - name: Terraform apply — state backend (run.sh)
+      - name: Terraform — state backend
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           bash kit-modules/basis/sh/terraform.sh -e state -c init
-          bash kit-modules/basis/sh/terraform.sh -e state -c apply
+          bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
 
-      - name: Terraform apply — shared network (run.sh)
+      - name: Terraform — shared network
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           bash kit-modules/basis/sh/terraform.sh -e shared -c init
-          bash kit-modules/basis/sh/terraform.sh -e shared -c apply
+          bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
 
-      - name: Terraform apply — environment (run.sh)
+      - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
-          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
 
       - name: Generate dynamic Ansible inventory from Terraform outputs
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.SKIP_ANSIBLE == 'false'
         working-directory: kit-modules/basis/ansible
         run: |
           IPV4=$(docker compose -f ../../../../docker-compose.toolkit.yml run --rm \
@@ -138,7 +160,10 @@ jobs:
           printf "          ansible_user: admin\n" >> generated.inventory.yml
 
       - name: Ansible playbook (provision & configure server) via compose
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.SKIP_ANSIBLE == 'false'
         run: |
           if [ ! -f "kit-modules/basis/ansible/generated.inventory.yml" ] || [ ! -f "kit-modules/basis/ansible/playbook.yml" ]; then
             echo "Dynamic inventory or playbook not found — cannot proceed." >&2; exit 1
@@ -147,5 +172,40 @@ jobs:
             -w "/workspace/kit-modules/basis/ansible" \
             iac bash -lc "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i generated.inventory.yml playbook.yml"
 
+      - name: Generate Infrastructure Summary
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply'
+        run: |
+          echo "## Infrastructure Provisioning Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ inputs.ACTION_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.ENVIRONMENT_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
+          # Get instance details
+          IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
+            -w "/workspace/$TF_ENV_DIR" \
+            iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" 2>/dev/null || echo "N/A")
+          IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
+            -w "/workspace/$TF_ENV_DIR" \
+            iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" 2>/dev/null || echo "N/A")
+
+          if [ "$IPV4" != "N/A" ] || [ "$IPV6" != "N/A" ]; then
+            echo "### Instance Details" >> $GITHUB_STEP_SUMMARY
+            echo "- **IPv4 Address:** $IPV4" >> $GITHUB_STEP_SUMMARY
+            echo "- **IPv6 Address:** $IPV6" >> $GITHUB_STEP_SUMMARY
+            echo "- **SSH Command:** ssh admin@${IPV6:-$IPV4}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify instance connectivity: \`ssh admin@${IPV6:-$IPV4}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run deployment workflow to deploy application" >> $GITHUB_STEP_SUMMARY
+          echo "3. Configure DNS records if needed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f kit-modules/basis/ansible/generated.inventory.yml || true
 
