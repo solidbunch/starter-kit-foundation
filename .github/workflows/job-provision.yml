@@ -43,8 +43,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: arn:aws:iam::306724455598:role/StarterKit-Terraform-Role
-          aws-region: eu-west-1
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Verify AWS credentials
         run: |
@@ -62,7 +62,7 @@ jobs:
           echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> ./config/environment/.env.secret
           echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> ./config/environment/.env.secret
           echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> ./config/environment/.env.secret
-          echo "AWS_DEFAULT_REGION=eu-west-1" >> ./config/environment/.env.secret
+          echo "AWS_DEFAULT_REGION=$AWS_REGION" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
       - name: Update Basis (only in demo)
