@@ -147,22 +147,23 @@ lint:
 	docker compose -f docker-compose.toolkit.yml run -it --rm node su -c "cd wp-content/themes/${WP_DEFAULT_THEME} && npm run lint" $(DEFAULT_USER)
 
 # IasC
-terraform:
-	docker compose -f docker-compose.toolkit.yml run --rm iac terraform -chdir=kit-modules/basis/terraform $(PARAMS)
-
-terraform-local:
-	terraform -chdir=kit-modules/basis/terraform $(PARAMS)
+basis:
+	docker compose -f docker-compose.toolkit.yml run --rm -it iac su -c "cd /srv/kit-modules/basis && bash" $(DEFAULT_USER)
 
 # Terraform unified command (flags-based)
 # Usage examples:
-# make tf dev plan        -> bash ... -e dev -c plan
+# make tf dev init        -> bash ... -e dev -c init
 # make tf prod apply      -> bash ... -e prod -c apply
-# make tf iam init -> bash ... -e iam -c init
 tf:
 	bash ./kit-modules/basis/sh/terraform.sh -e $(PARAM1) -c $(PARAM2)
 
+# Ansible unified command (flags-based)
+# Usage examples:
+# make ansible dev inventory        -> bash ... -e dev -a inventory
+# make ansible dev playbook         -> bash ... -e dev -a playbook
+# make ansible dev playbook static  -> bash ... -e dev -a playbook -s
 ansible:
-	ansible-playbook iac/ansible/playbook.yml $(PARAMS)
+	bash ./kit-modules/basis/sh/ansible.sh -e $(PARAM1) -a $(PARAM2) $(if $(filter static,$(PARAM3)),-s)
 
 # docker build|docker push|docker clean
 docker:

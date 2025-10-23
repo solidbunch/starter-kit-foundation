@@ -139,50 +139,21 @@ jobs:
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
 
-      - name: Generate dynamic Ansible inventory from Terraform outputs
+      - name: Generate Ansible inventory
         if: |
           steps.verify_basis.outputs.has_basis == 'true' &&
           inputs.ACTION_TYPE == 'apply' &&
           inputs.SKIP_ANSIBLE == 'false'
-        working-directory: kit-modules/basis/ansible
         run: |
-          IPV4=$(docker compose -f ../../../../docker-compose.toolkit.yml run --rm \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_public_ip || true")
-          IPV6=$(docker compose -f ../../../../docker-compose.toolkit.yml run --rm \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_ipv6 || true")
-          HOST_IP="${IPV6:-$IPV4}"
-          if [ -z "$HOST_IP" ]; then
-            echo "No instance IP found in Terraform outputs; cannot build inventory" >&2; exit 1
-          fi
-          printf "all:\n" > generated.inventory.yml
-          printf "  vars:\n" >> generated.inventory.yml
-          printf "    ansible_python_interpreter: /usr/bin/python3.11\n" >> generated.inventory.yml
-          printf "  children:\n" >> generated.inventory.yml
-          printf "    development:\n" >> generated.inventory.yml
-          printf "      hosts:\n" >> generated.inventory.yml
-          printf "        provisioned-host:\n" >> generated.inventory.yml
-          printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
-          printf "          ansible_user: admin\n" >> generated.inventory.yml
-          printf "    production:\n" >> generated.inventory.yml
-          printf "      hosts:\n" >> generated.inventory.yml
-          printf "        provisioned-host:\n" >> generated.inventory.yml
-          printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
-          printf "          ansible_user: admin\n" >> generated.inventory.yml
+          bash kit-modules/basis/sh/ansible.sh -e "${{ inputs.ENVIRONMENT_TYPE }}" -a inventory
 
-      - name: Ansible playbook (provision & configure server) via compose
+      - name: Run Ansible playbook
         if: |
           steps.verify_basis.outputs.has_basis == 'true' &&
           inputs.ACTION_TYPE == 'apply' &&
           inputs.SKIP_ANSIBLE == 'false'
         run: |
-          if [ ! -f "kit-modules/basis/ansible/generated.inventory.yml" ] || [ ! -f "kit-modules/basis/ansible/playbook.yml" ]; then
-            echo "Dynamic inventory or playbook not found — cannot proceed." >&2; exit 1
-          fi
-          docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/workspace/kit-modules/basis/ansible" \
-            iac bash -lc "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i generated.inventory.yml playbook.yml"
+          bash kit-modules/basis/sh/ansible.sh -e "${{ inputs.ENVIRONMENT_TYPE }}" -a playbook
 
       - name: Generate Infrastructure Summary
         if: |
