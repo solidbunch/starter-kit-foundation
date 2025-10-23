@@ -52,6 +52,26 @@ jobs:
           echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo "yes" || echo "no")"
           echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo "yes" || echo "no")"
 
+      - name: Set up SSH key
+        run: |
+          # Check if secrets are available
+          if [ -z "${{ secrets.SSH_KEY }}" ]; then
+            echo "Error: SSH_KEY secret is not available"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_CONFIG }}" ]; then
+            echo "Error: SSH_CONFIG secret is not available"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh/
+          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+          # Start SSH agent and add key
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+
       - name: Prepare .env
         run: |
           bash ./sh/env/secret-gen.sh
