@@ -52,25 +52,19 @@ jobs:
           echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo "yes" || echo "no")"
           echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo "yes" || echo "no")"
 
-      - name: Set up SSH key
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Set up SSH config
         run: |
-          # Check if secrets are available
-          if [ -z "${{ secrets.SSH_KEY }}" ]; then
-            echo "Error: SSH_KEY secret is not available"
-            exit 1
-          fi
           if [ -z "${{ secrets.SSH_CONFIG }}" ]; then
             echo "Error: SSH_CONFIG secret is not available"
             exit 1
           fi
-
           mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
           echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
-          # Start SSH agent and add key
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/id_rsa
 
       - name: Prepare .env
         run: |
@@ -83,11 +77,12 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> ./config/environment/.env.secret
           echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> ./config/environment/.env.secret
           echo "AWS_DEFAULT_REGION=$AWS_REGION" >> ./config/environment/.env.secret
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
       - name: Update Basis (only in demo)
         env:
-          IS_DEMO: ${{ secrets.IS_DEMO }}
+          IS_DEMO: ${{ vars.IS_DEMO }}
         run: |
           if [ "$IS_DEMO" = "true" ]; then
             echo "Detected demo mode — forcing Composer update from dist"

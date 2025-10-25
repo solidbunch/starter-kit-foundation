@@ -79,11 +79,11 @@ services:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
       TF_VAR_app_domain: ${APP_DOMAIN}
-      SSH_AUTH_SOCK: /ssh-agent
+      SSH_AUTH_SOCK: ${SSH_AUTH_SOCK}
     working_dir: /srv
     volumes:
       - ./:/srv
-      - ${SSH_AUTH_SOCK}:/ssh-agent:ro
+      - ${SSH_AUTH_SOCK}:${SSH_AUTH_SOCK}:ro
 
 networks:
   project_network:

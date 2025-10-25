@@ -53,7 +53,7 @@ jobs:
 
       - name: Update Monitoring & Addon (only in demo)
         env:
-          IS_DEMO: ${{ secrets.IS_DEMO }}
+          IS_DEMO: ${{ vars.IS_DEMO }}
         run: |
           if [ "$IS_DEMO" = "true" ]; then
             echo "Detected demo mode — forcing Composer update from dist"
