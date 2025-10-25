@@ -40,11 +40,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Extract AWS region from .env.main
+        id: region
+        run: |
+          REGION=$(grep '^TF_VAR_aws_region=' .env.main | cut -d '=' -f2)
+          echo "region=$REGION" >> $GITHUB_OUTPUT
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ steps.region.outputs.region }}
 
       - name: Verify AWS credentials
         run: |

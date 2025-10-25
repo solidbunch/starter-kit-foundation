@@ -80,6 +80,12 @@ services:
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
       TF_VAR_app_domain: ${APP_DOMAIN}
       SSH_AUTH_SOCK: ${SSH_AUTH_SOCK}
+
+      # Pass AWS credentials to the container
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_DEFAULT_REGION: ${TF_VAR_aws_region}
     working_dir: /srv
     volumes:
       - ./:/srv
