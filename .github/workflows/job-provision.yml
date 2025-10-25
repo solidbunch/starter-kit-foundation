@@ -16,8 +16,8 @@ on:
         required: true
         type: choice
         options:
-          - apply
           - plan
+          - apply
           - destroy
         default: 'apply'
       SKIP_ANSIBLE:
