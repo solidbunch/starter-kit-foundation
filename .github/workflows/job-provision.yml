@@ -43,7 +43,7 @@ jobs:
       - name: Extract AWS region from .env.main
         id: region
         run: |
-          REGION=$(grep '^TF_VAR_aws_region=' .env.main | cut -d '=' -f2)
+          REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
           echo "region=$REGION" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials
@@ -145,6 +145,8 @@ jobs:
       - name: Terraform — state backend
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
+          ls -la
+          ls -la kit-modules/basis/sh/terraform.sh
           bash kit-modules/basis/sh/terraform.sh -e state -c init
           bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
 
