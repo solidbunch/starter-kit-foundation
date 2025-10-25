@@ -974,6 +974,7 @@
         },
         {
             "name": "solidbunch/monitoring-server",
+            "version": "1.0.0",
             "type": "metapackage",
             "description": "Unavailable without a valid license. Module is skipped."
         },
