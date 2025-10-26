@@ -86,6 +86,24 @@ jobs:
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
+      - name: Extract SSH public key for Terraform
+        run: |
+          # Load environment variables
+          source .env
+
+          # Write private key to file
+          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Extract public key from private key using ssh-keygen -y
+          ssh-keygen -y -f ~/.ssh/id_rsa > kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
+
+          # Clean up temporary file
+          rm ~/.ssh/id_rsa
+
+          echo "SSH public key extracted for Terraform:"
+          cat kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
+
       - name: Update Basis (only in demo)
         env:
           IS_DEMO: ${{ vars.IS_DEMO }}
