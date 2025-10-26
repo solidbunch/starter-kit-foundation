@@ -145,20 +145,27 @@ jobs:
       - name: Terraform — state backend
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          ls -la
-          ls -la kit-modules/basis/sh/terraform.sh
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
           bash kit-modules/basis/sh/terraform.sh -e state -c init
           bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
 
       - name: Terraform — shared network
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
           bash kit-modules/basis/sh/terraform.sh -e shared -c init
           bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
 
       - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
 
