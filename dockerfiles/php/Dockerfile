@@ -1,7 +1,7 @@
-FROM php:8.2-fpm-alpine3.20
+FROM php:8.4-fpm-alpine3.22
 
-ENV XDEBUG_VERSION=3.3.2
-ENV IMAGICK_VERSION=3.7.0
+ENV XDEBUG_VERSION=3.4.7
+ENV IMAGICK_VERSION=3.8.0
 
 ##################################
 #         Adding WP-CLI          #
