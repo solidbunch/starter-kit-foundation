@@ -82,9 +82,16 @@ if [ "$MODE" == "push" ]; then
 
   # Step 1: Login to Container Registry (CR)
 
-  echo -e "${CYAN}[Info]${RESET} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${RESET} "
+  echo -e "${CYAN}[Info]${RESET} Checking authentication status with GitHub Container Registry..."
   export "$(grep -v '^#' .env | xargs)"
-  echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
+
+  # Check if already logged in to ghcr.io
+  if grep -q "ghcr.io" ~/.docker/config.json 2>/dev/null; then
+    echo -e "${CYAN}[Info]${RESET} Already authenticated with ghcr.io. Skipping login."
+  else
+    echo -e "${CYAN}[Info]${RESET} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${RESET} "
+    echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
+  fi
   #docker login ghcr.io
   #echo "$CR_TOKEN" | docker login registry.gitlab.com -u USERNAME --password-stdin
 
