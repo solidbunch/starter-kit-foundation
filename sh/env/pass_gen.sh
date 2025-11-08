@@ -39,6 +39,13 @@ while IFS= read -r line; do
     line="$(echo "$line" | sed "s/$(escape_for_sed "generate_key")/$(escape_for_sed "$key")/")"
   fi
 
+  # Check if the line contains 'generate_safe_token'
+  if echo "$line" | grep -q 'generate_safe_token'; then
+    # URL/HTTP-safe token (64 chars, no +/=)
+    token=$(generate_password "A-Za-z0-9_" 64)
+    line="$(echo "$line" | sed "s/$(escape_for_sed "generate_safe_token")/$(escape_for_sed "$token")/")"
+  fi
+
   # Append the processed line to the output file
   echo "$line" >> "$output_file"
 done < "$input_file"

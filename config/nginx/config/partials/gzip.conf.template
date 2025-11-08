@@ -4,7 +4,7 @@
     # Enable gzip compression
     gzip on;
     gzip_comp_level 5;
-    gzip_min_length 1000;
+    gzip_min_length 1024;
     gzip_vary on;
     gzip_proxied any;
 

@@ -4,17 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       ENVIRONMENT_TYPE:
-        description: 'Required. Select target environment type'
+        description: 'Select target environment type'
         required: true
         type: choice
         options:
           - dev
           - stage
           - prod
-
-env:
-  # Defaults if not provided by env files
-  DEFAULT_EFFECTIVE_ENV_TYPE: dev
+      ACTION_TYPE:
+        description: 'Select action type'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: 'plan'
+      SKIP_ANSIBLE:
+        description: 'Skip Ansible provisioning'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -23,10 +33,44 @@ permissions:
 jobs:
   provision:
     runs-on: ubuntu-24.04
-
+    env:
+      EFFECTIVE_ENV_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
+      TF_ENV_DIR: kit-modules/basis/terraform/envs/${{ inputs.ENVIRONMENT_TYPE }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Extract AWS region from .env.main
+        id: region
+        run: |
+          REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
+          echo "region=$REGION" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ steps.region.outputs.region }}
+
+      - name: Verify AWS credentials
+        run: |
+          echo "AWS credentials configured via OIDC"
+          echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo "yes" || echo "no")"
+          echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo "yes" || echo "no")"
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Set up SSH config
+        run: |
+          if [ -z "${{ secrets.SSH_CONFIG }}" ]; then
+            echo "Error: SSH_CONFIG secret is not available"
+            exit 1
+          fi
+          mkdir -p ~/.ssh/
+          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
 
       - name: Prepare .env
         run: |
@@ -34,11 +78,17 @@ jobs:
           if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
             echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           fi
+          # Inject AWS credentials from OIDC into IaC container
+          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> ./config/environment/.env.secret
+          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> ./config/environment/.env.secret
+          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> ./config/environment/.env.secret
+          echo "AWS_DEFAULT_REGION=$AWS_REGION" >> ./config/environment/.env.secret
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
       - name: Update Basis (only in demo)
         env:
-          IS_DEMO: ${{ secrets.IS_DEMO }}
+          IS_DEMO: ${{ vars.IS_DEMO }}
         run: |
           if [ "$IS_DEMO" = "true" ]; then
             echo "Detected demo mode — forcing Composer update from dist"
@@ -70,128 +120,124 @@ jobs:
             echo "has_basis=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Extract SSH public key for Terraform
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          # Load environment variables
+          source .env
+
+          # Write private key to file
+          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Extract public key from private key using ssh-keygen -y
+          ssh-keygen -y -f ~/.ssh/id_rsa > kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
+
+          # Clean up temporary file
+          rm ~/.ssh/id_rsa
+
+          echo "SSH public key extracted for Terraform:"
+          cat kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
+
       - name: Short-circuit when Basis is missing
         if: steps.verify_basis.outputs.has_basis == 'false'
         run: |
           echo "No license/module — skipping Terraform and Ansible."
 
-      - name: Resolve Terraform paths
+      - name: Show provisioning plan and validate environment
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          # Load the resulting .env to access ENVIRONMENT and other vars
-          set -a
-          [ -f ./.env ] && source ./.env || true
-          set +a
-          # Effective env type comes strictly from workflow input
-          EFFECTIVE_ENV_TYPE="${{ inputs.ENVIRONMENT_TYPE }}"
-          echo "EFFECTIVE_ENV_TYPE=$EFFECTIVE_ENV_TYPE" >> $GITHUB_ENV
-          echo "TF_STATE_DIR=kit-modules/basis/terraform/state" >> $GITHUB_ENV
-          echo "TF_SHARED_DIR=kit-modules/basis/terraform/envs/shared" >> $GITHUB_ENV
-          echo "TF_ENV_DIR=kit-modules/basis/terraform/envs/$EFFECTIVE_ENV_TYPE" >> $GITHUB_ENV
-          # Validate Terraform env directory
-          if [ ! -d "$GITHUB_WORKSPACE/$TF_ENV_DIR" ]; then
-            echo "Terraform environment directory '$TF_ENV_DIR' not found (basis maps $EFFECTIVE_ENV_TYPE)" >&2; exit 1;
+          echo "EFFECTIVE_ENV_TYPE=${EFFECTIVE_ENV_TYPE}"
+          echo "TF_ENV_DIR=${TF_ENV_DIR}"
+          if [ ! -d "$TF_ENV_DIR" ]; then
+            echo "Terraform environment directory '$TF_ENV_DIR' not found" >&2; exit 1;
           fi
 
-      - name: Derive AWS region from env
+          # Verify AWS credentials are available in container
+          echo "Verifying AWS credentials in container..."
+          docker compose -f docker-compose.toolkit.yml run --rm iac bash -c "
+            echo 'AWS_ACCESS_KEY_ID is set: \$([ -n \"\$AWS_ACCESS_KEY_ID\" ] && echo \"yes\" || echo \"no\")'
+            echo 'AWS_SESSION_TOKEN is set: \$([ -n \"\$AWS_SESSION_TOKEN\" ] && echo \"yes\" || echo \"no\")'
+            aws sts get-caller-identity || echo 'AWS credentials test failed'
+          "
+
+      - name: Terraform — state backend
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          set -a
-          [ -f ./.env ] && source ./.env || true
-          set +a
-          if [ -n "$AWS_REGION" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_REGION" >> $GITHUB_ENV; fi
-          if [ -n "$AWS_DEFAULT_REGION" ] && [ -z "$AWS_REGION_EFFECTIVE" ]; then echo "AWS_REGION_EFFECTIVE=$AWS_DEFAULT_REGION" >> $GITHUB_ENV; fi
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash kit-modules/basis/sh/terraform.sh -e state -c init
+          bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
 
-
-      - name: Show provisioning plan
+      - name: Terraform — shared network
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          echo "EFFECTIVE_ENV_TYPE=$EFFECTIVE_ENV_TYPE"
-          echo "TF_STATE_DIR=$TF_STATE_DIR"
-          echo "TF_SHARED_DIR=$TF_SHARED_DIR"
-          echo "TF_ENV_DIR=$TF_ENV_DIR"
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash kit-modules/basis/sh/terraform.sh -e shared -c init
+          bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
 
-      - name: Terraform apply — state backend (compose run)
+      - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
-          docker compose -f docker-compose.toolkit.yml run --rm \
-            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
-            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
-            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
-            -w "/workspace/${{ env.TF_STATE_DIR }}" \
-            iac bash -lc "terraform init -input=false -no-color && terraform apply -auto-approve -input=false -no-color"
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
 
-      - name: Terraform apply — shared network (compose run)
-        if: steps.verify_basis.outputs.has_basis == 'true'
+      - name: Generate Ansible inventory
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.SKIP_ANSIBLE == 'false'
         run: |
-          docker compose -f docker-compose.toolkit.yml run --rm \
-            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
-            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
-            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
-            -w "/workspace/${{ env.TF_SHARED_DIR }}" \
-            iac bash -lc "terraform init -input=false -no-color && terraform apply -auto-approve -input=false -no-color"
+          bash kit-modules/basis/sh/ansible.sh -e "${{ inputs.ENVIRONMENT_TYPE }}" -a inventory
 
-      - name: Terraform apply — environment (compose run)
-        if: steps.verify_basis.outputs.has_basis == 'true'
+      - name: Run Ansible playbook
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.SKIP_ANSIBLE == 'false'
         run: |
-          if [ ! -d "$TF_ENV_DIR" ]; then echo "Environment directory '$TF_ENV_DIR' not found" >&2; exit 1; fi
-          docker compose -f docker-compose.toolkit.yml run --rm \
-            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
-            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
-            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform init -input=false -no-color && terraform apply -auto-approve -input=false -no-color && terraform output -json"
+          bash kit-modules/basis/sh/ansible.sh -e "${{ inputs.ENVIRONMENT_TYPE }}" -a playbook
 
-      - name: Fetch Terraform outputs for inventory (compose run)
-        if: steps.verify_basis.outputs.has_basis == 'true'
+      - name: Generate Infrastructure Summary
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply'
         run: |
+          echo "## Infrastructure Provisioning Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Action:** ${{ inputs.ACTION_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.ENVIRONMENT_TYPE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get instance details
           IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
-            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
-            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
             -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_public_ip || true")
+            iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" 2>/dev/null || echo "N/A")
           IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -e AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
-            -e AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
-            -e AWS_REGION="$AWS_REGION_EFFECTIVE" \
             -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_ipv6 || true")
-          echo "TF_INSTANCE_IPV4=$IPV4" >> $GITHUB_ENV
-          echo "TF_INSTANCE_IPV6=$IPV6" >> $GITHUB_ENV
+            iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" 2>/dev/null || echo "N/A")
 
-      - name: Generate dynamic Ansible inventory from Terraform outputs
-        if: steps.verify_basis.outputs.has_basis == 'true'
-        working-directory: kit-modules/basis/ansible
-        run: |
-          HOST_IP="${TF_INSTANCE_IPV6:-$TF_INSTANCE_IPV4}"
-          if [ -z "$HOST_IP" ]; then
-            echo "No instance IP found in Terraform outputs; cannot build inventory" >&2; exit 1
+          if [ "$IPV4" != "N/A" ] || [ "$IPV6" != "N/A" ]; then
+            echo "### Instance Details" >> $GITHUB_STEP_SUMMARY
+            echo "- **IPv4 Address:** $IPV4" >> $GITHUB_STEP_SUMMARY
+            echo "- **IPv6 Address:** $IPV6" >> $GITHUB_STEP_SUMMARY
+            echo "- **SSH Command:** ssh admin@${IPV6:-$IPV4}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
           fi
-          printf "all:\n" > generated.inventory.yml
-          printf "  vars:\n" >> generated.inventory.yml
-          printf "    ansible_python_interpreter: /usr/bin/python3.11\n" >> generated.inventory.yml
-          printf "  children:\n" >> generated.inventory.yml
-          printf "    development:\n" >> generated.inventory.yml
-          printf "      hosts:\n" >> generated.inventory.yml
-          printf "        provisioned-host:\n" >> generated.inventory.yml
-          printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
-          printf "          ansible_user: admin\n" >> generated.inventory.yml
-          printf "    production:\n" >> generated.inventory.yml
-          printf "      hosts:\n" >> generated.inventory.yml
-          printf "        provisioned-host:\n" >> generated.inventory.yml
-          printf "          ansible_host: %s\n" "${HOST_IP}" >> generated.inventory.yml
-          printf "          ansible_user: admin\n" >> generated.inventory.yml
 
-      - name: Ansible playbook (provision & configure server) via compose
-        if: steps.verify_basis.outputs.has_basis == 'true'
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify instance connectivity: \`ssh admin@${IPV6:-$IPV4}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run deployment workflow to deploy application" >> $GITHUB_STEP_SUMMARY
+          echo "3. Configure DNS records if needed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup
+        if: always()
         run: |
-          if [ ! -f "kit-modules/basis/ansible/generated.inventory.yml" ] || [ ! -f "kit-modules/basis/ansible/playbook.yml" ]; then
-            echo "Dynamic inventory or playbook not found — cannot proceed." >&2; exit 1
-          fi
-          docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/workspace/kit-modules/basis/ansible" \
-            iac bash -lc "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i generated.inventory.yml playbook.yml"
-
-
+          rm -f kit-modules/basis/ansible/generated.inventory.yml || true
 

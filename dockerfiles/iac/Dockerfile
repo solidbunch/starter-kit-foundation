@@ -40,6 +40,7 @@ RUN apt-get update \
        python3-venv \
        bash \
        tar \
+       adduser \
     && rm -rf /var/lib/apt/lists/*
 
 # Terraform (pinned) — multi-arch
@@ -101,5 +102,9 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 # Default to bash shell; CI can override command/entrypoint
 SHELL ["/bin/bash", "-lc"]
 
-# No ENTRYPOINT/CMD to keep the image flexible in CI
+# Add entrypoint to drop privileges to host UID/GID
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["bash"]

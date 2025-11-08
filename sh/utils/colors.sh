@@ -1,5 +1,5 @@
 # Disable colors if output is not a terminal or if NO_COLOR is set
-if [ ! -t 1 ] || [ -n "${NO_COLOR}" ]; then
+if [ ! -t 1 ] || [ -n "${NO_COLOR:-}" ]; then
   RED=''; GREEN=''; ORANGE=''; BLUE=''
   PURPLE=''; CYAN=''; LIGHTGRAY=''
   DARKGRAY=''; LIGHTRED=''; LIGHTGREEN=''
