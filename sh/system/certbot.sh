@@ -7,7 +7,7 @@ set -e -o pipefail
 
 # Load environment and colors
 source ./sh/utils/colors.sh
-source ./.env
+source ./.env.runtime
 
 # Paths to SSL files
 CERT_PATH="./config/ssl/live/${APP_DOMAIN}/fullchain.pem"
