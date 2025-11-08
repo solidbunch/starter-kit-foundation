@@ -79,8 +79,7 @@ services:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
       TF_VAR_app_domain: ${APP_DOMAIN}
-      SSH_AUTH_SOCK: ${SSH_AUTH_SOCK}
-
+      SSH_AUTH_SOCK: ${SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}
       # Pass AWS credentials to the container
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -89,7 +88,7 @@ services:
     working_dir: /srv
     volumes:
       - ./:/srv
-      - ${SSH_AUTH_SOCK}:${SSH_AUTH_SOCK}:ro
+      - ${SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}:${SSH_AUTH_SOCK:-/run/host-services/ssh-auth.sock}:ro
 
 networks:
   project_network:
