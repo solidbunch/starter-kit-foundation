@@ -968,7 +968,7 @@
         },
         {
             "name": "solidbunch/monitoring-client",
-            "version": "2.0.1",
+            "version": "2.0.2",
             "type": "metapackage",
             "description": "Unavailable without a valid license. Module is skipped."
         },
