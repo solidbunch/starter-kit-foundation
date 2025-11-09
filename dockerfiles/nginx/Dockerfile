@@ -1,7 +1,7 @@
 #
 # Supplement to original file
 #
-FROM nginx:1.27-alpine3.20
+FROM nginx:1.29-alpine3.22
 
 RUN apk add --no-cache openssl
 
