@@ -12,9 +12,13 @@ services:
       COMPOSER_AUTH: ${COMPOSER_AUTH:-}
     working_dir: /srv
     volumes:
+      # Project files with same path
       - ./:/srv
+      # Debug log
       - ./logs/wordpress:/var/log/wordpress
+      # PHP ini config
       - ./config/php:/usr/local/etc/php
+      # Share shell scripts
       - ./sh:/shell:ro
 
   node:
@@ -30,7 +34,9 @@ services:
       - "3000:3000"
       - "3001:3001"
     volumes:
+      # Web root folder
       - ./web/wp-core:/srv/web
+      # WordPress wp-content folder
       - ./web/wp-content:/srv/web/wp-content
 
   phpmyadmin:
@@ -56,9 +62,12 @@ services:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
     volumes:
+      # SSL certificate files
       - ./config/ssl:/etc/letsencrypt
       - ./config/certbot/cli.ini:/etc/letsencrypt/cli.ini
+      # Web root folder
       - ./web/wp-core:/srv/web
+      # Logs folder
       - ./logs/letsencrypt:/var/log/letsencrypt
 
   mailhog:
