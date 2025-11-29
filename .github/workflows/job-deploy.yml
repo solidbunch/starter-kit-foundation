@@ -9,8 +9,6 @@ on:
         required: true
       COMPOSER_AUTH:
         required: true
-      IS_DEMO:
-        required: false
     inputs:
       SSH_HOST_ALIAS:
         required: true
