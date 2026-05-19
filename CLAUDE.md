@@ -157,137 +157,165 @@ src/
   Handlers/
     SetupTheme.php              Theme support, image sizes, menus
     Front.php / Back.php        Asset enqueue
-    PostTypes/                  CPT registration (News, Portfolio, Pricing, DocPage, TeamMember, Service)
-    Meta/PostMeta/              CF containers: News, Pricing, Page
+    PostTypes/                  CPT registration (News + taxonomies, TeamMember, Service)
+    Meta/PostMeta/              CF containers: News, Page
     Settings/ThemeSettings.php  CF::boot() + theme_options container
     Blocks/Init.php             Block auto-discovery and registration
 ```
 
 Bootstrap flow: `functions.php` → `require vendor/autoload.php` → `apply_filters('starter_kit/container', require config/container.php)` → `App::instance()->run($container)` → `Constants::define()` + `Hooks::initHooks()`
 
-Adding new page templates: create `.html` file in `templates/`.
-Adding new template parts: create `.html` file in `parts/`.
+Adding new page templates: create `.html` file in `templates/` (e.g. `page.html`, `single.html`, `page-with-hero.html`).
+Adding new template parts: create `.html` file in `parts/` (`header.html`, `footer.html`).
+Block patterns live in `patterns/` as PHP files (`header.php`, `footer.php`).
 
 ## Gutenberg Blocks
 
-Blocks live in `blocks/` — in the **theme** (`starter-kit-theme/blocks/`) for application blocks, or in the **addon** (`starter-kit-addon/blocks/`) for addon-specific blocks. Both use the same structure.
+Blocks live in `blocks/` — in the **theme** (`starter-kit-theme/blocks/`, namespace `StarterKitBlocks\`) or the **addon** (`starter-kit-addon/blocks/`, namespace `StarterKitAddonBlocks\`). Auto-discovered: `Init::loadBlocks()` scans `blocks/*`, skips folders starting with `_` or missing `block.json`, instantiates `{namespace}\{BlockName}\Block`.
 
+**TWO block types — choose the right one before writing code:**
+
+| | Static block (default — most blocks) | Dynamic block (PHP render) |
+|---|---|---|
+| Use when | Pure markup/layout; content saved into post HTML | Needs DB data, post meta, or runtime content |
+| `registerBlockArgs()` | empty | sets `render_callback` |
+| `save()` in `index.jsx` | real JSX (`RichText.Content`, `InnerBlocks.Content`) | `() => null` |
+| `view/` folder | none | PHP templates (`layout.php`, ...) |
+| Examples | Section, Heading, Button, Row, FaqSection | News, PricingTable |
+
+**Folder structure:**
 ```
-blocks/MyBlock/         # PascalCase folder name (prefix _ = skip auto-discovery)
-  block.json            # Required metadata
-  Block.php             # Extends BlockAbstract — server-side render logic
-  src/
-    index.jsx           # registerBlockType — editor UI only
-    style.scss          # Front + editor styles
-    editor.scss         # Editor-only styles (optional)
-    view.js             # Frontend JS (optional)
+blocks/MyBlock/         # PascalCase; prefix _ skips auto-discovery
+  block.json            # apiVersion 3, name "starter-kit/my-block", category "starter-kit"
+  Block.php             # extends BlockAbstract
+  src/                  # SOURCE files — compiled by Laravel Mix
+    index.jsx           # editor + save logic — ALWAYS present
+    style.scss          # frontend + editor styles (optional)
+    editor.scss         # editor-only styles (optional)
+    view.js             # frontend-only JS (optional)
+  view/                 # PHP templates — DYNAMIC blocks ONLY
+    layout.php
+  build/                # compiled output — git-ignored, NEVER edit by hand
 ```
 
-**`block.json` required fields:**
-```json
-{
-  "apiVersion": 3,
-  "name": "starter-kit/my-block",
-  "title": "My Block",
-  "category": "starter-kit"
-}
-```
-
-**`Block.php` pattern** — extends `BlockAbstract`, declare assets, use `blockServerSideCallback` (3 params), render via `loadBlockView`:
+**`Block.php`** — extends `BlockAbstract`, declares `$blockAssets`. File names there are the COMPILED `.js`/`.css` (sources are `.jsx`/`.scss`):
 ```php
 class Block extends BlockAbstract {
     protected array $blockAssets = [
         'editor_script' => ['file' => 'index.js', 'dependencies' => ['wp-i18n', 'wp-element', 'wp-blocks', 'wp-components', 'wp-editor']],
-        'editor_style'  => ['file' => 'editor.css', 'dependencies' => []],
-        'style'         => ['file' => 'style.css', 'dependencies' => []],
-        // 'view_script' => ['file' => 'view.js', 'dependencies' => []], // frontend-only JS
+        'style'         => ['file' => 'style.css', 'dependencies' => []],   // optional: frontend + editor
+        'editor_style'  => ['file' => 'editor.css', 'dependencies' => []],  // optional: editor only
+        'view_script'   => ['file' => 'view.js', 'dependencies' => []],     // optional: frontend only
     ];
 
     public function registerBlockArgs(): void {
-        $this->blockArgs['render_callback'] = [$this, 'blockServerSideCallback'];  // NOTE: key assignment, not full array
-    }
-
-    public function blockServerSideCallback(array $attributes, string $content, object $block): string {
-        $templateData = [
-            'title'      => $attributes['title'] ?? '',
-            'blockClass' => $this->generateBlockClasses($attributes),  // handles spacers + className
-        ];
-        return $this->loadBlockView('layout', $templateData);  // loads view/layout.php
+        // STATIC block: leave empty
+        // DYNAMIC block: $this->blockArgs['render_callback'] = [$this, 'blockServerSideCallback'];
     }
 
     public function blockRestApiEndpoints(): void {
-        // register_rest_route(SK_REST_API_NS, '/endpoint', [...]);
+        // optional: register_rest_route(SK_REST_API_NS, '/endpoint', [...]);
     }
 }
 ```
+Asset types: `editor_script`/`editor_style` (admin only), `style`/`script` (both contexts), `view_script`/`view_style` (frontend only). `editor_script` is always required.
 
-Asset types: `editor_script`/`editor_style` (admin only), `style` (frontend+admin), `view_script`/`view_style` (frontend only), `script` (both).
+### Static block — the default for most blocks
 
-**`view/layout.php`** — receives `$data` array, is the actual rendered HTML:
+`registerBlockArgs()` empty. `index.jsx` has a real `save()`; output is stored in post HTML, no PHP rendering. Layout blocks use `InnerBlocks`; text blocks use `RichText`.
+```jsx
+const {registerBlockType} = wp.blocks;
+const {useBlockProps, RichText, InnerBlocks, InspectorControls} = wp.blockEditor;
+const {PanelBody, SelectControl} = wp.components;
+
+registerBlockType(metadata, {
+    edit: ({attributes, setAttributes}) => {
+        const blockProps = useBlockProps({className: ['my-block']});
+        return <div {...blockProps}>
+            <RichText value={attributes.content} onChange={(content) => setAttributes({content})} />
+        </div>;
+    },
+    save: ({attributes}) => {
+        const {className} = useBlockProps.save();
+        return <div className={className}><RichText.Content value={attributes.content} /></div>;
+    },
+});
+```
+
+### Dynamic block — PHP-rendered
+
+`registerBlockArgs()` sets the callback. `save: () => null`. PHP renders via a `view/` template.
+```php
+public function registerBlockArgs(): void {
+    $this->blockArgs['render_callback'] = [$this, 'blockServerSideCallback'];  // key assignment, not full array
+}
+
+public function blockServerSideCallback(array $attributes, string $content, object $block): string {
+    $templateData = [
+        'items'      => NewsRepository::get([]),
+        'blockClass' => $this->generateBlockClasses($attributes),  // merges className + spacers
+    ];
+    return $this->loadBlockView('layout', $templateData);  // → view/layout.php
+}
+```
+`view/layout.php` — receives `$data`, is the rendered HTML:
 ```php
 defined('ABSPATH') || exit;
 $data = $data ?? [];
 ?>
-<div class="my-block <?php echo $data['blockClass']; ?>">
-    <h2><?php echo esc_html($data['title']); ?></h2>
+<div class="news <?php echo $data['blockClass']; ?>">
+    <?php foreach ($data['items'] as $item) : ?>
+        <h3><?php echo esc_html($item->post_title); ?></h3>
+    <?php endforeach; ?>
 </div>
 ```
-
-**`index.jsx` pattern** for server-side render blocks (most blocks):
+`index.jsx` — editor shows `ServerSideRender`, `save` returns null:
 ```jsx
-const {registerBlockType} = wp.blocks;
-const {useBlockProps} = wp.blockEditor;
 const {serverSideRender: ServerSideRender} = wp;
-
 registerBlockType(metadata, {
-    edit: (props) => {
-        const blockProps = useBlockProps();
-        return <div {...blockProps}><ServerSideRender block={metadata.name} attributes={props.attributes} /></div>;
-    },
-    save: () => null,  // always null for server-side render
+    edit: (props) => <div {...useBlockProps()}>
+        <ServerSideRender block={metadata.name} attributes={props.attributes} /></div>,
+    save: () => null,
 });
 ```
 
-IMPORTANT: Use global `wp.*` — NOT `@wordpress/` npm imports. They are not in the bundle config.
+IMPORTANT:
+- Use global `wp.*` — NEVER `@wordpress/` npm imports (not in the bundle config).
+- Style with Bootstrap 5 classes (`bg-dark`, `text-center`, `col-lg-4`, ...) — the theme is Bootstrap-based.
+- Block settings usually live under an object attribute (e.g. `attributes.modification`), not flat keys — copy the nearest existing block.
 
-**Full-page CF-backed block** — the "fill in fields, get a complete section" pattern. Instead of complex block editor layout, register CF fields on the page/CPT and read them in the block callback:
+### Full-page CF-backed block
+
+The "fill in fields, get a complete section" pattern — a dynamic block whose data comes from Carbon Fields on the current post. Instead of building nested blocks in the editor, register CF fields and let one block render the whole section:
 ```php
-// 1. Register CF container in Meta/PostMeta/MyPage.php (hook in Hooks.php):
-public static function make(): void {
-    $metaPrefix = SK_PREFIX . 'page_';
-    Container::make('post_meta', __('Page Content', 'starter-kit'))
-        ->where('post_type', '=', 'page')
-        ->add_fields([
-            Field::make('text',     $metaPrefix . 'hero_title',    __('Hero Title', 'starter-kit')),
-            Field::make('textarea', $metaPrefix . 'hero_subtitle', __('Subtitle', 'starter-kit')),
-            Field::make('image',    $metaPrefix . 'hero_image',    __('Hero Image', 'starter-kit')),
-            Field::make('complex',  $metaPrefix . 'sections',      __('Sections', 'starter-kit'))
-                ->add_fields('section', __('Section', 'starter-kit'), [
-                    Field::make('text',      'title',   __('Title', 'starter-kit')),
-                    Field::make('rich_text', 'content', __('Content', 'starter-kit')),
-                ]),
-        ]);
-}
+// 1. Register CF container in Meta/PostMeta/ (hook in Hooks.php on carbon_fields_register_fields):
+$metaPrefix = SK_PREFIX . 'page_';
+Container::make('post_meta', __('Page Content', 'starter-kit'))
+    ->where('post_type', '=', 'page')
+    ->add_fields([
+        Field::make('text',    $metaPrefix . 'hero_title', __('Hero Title', 'starter-kit')),
+        Field::make('image',   $metaPrefix . 'hero_image', __('Hero Image', 'starter-kit')),
+        Field::make('complex', $metaPrefix . 'sections',   __('Sections', 'starter-kit'))
+            ->add_fields('section', __('Section', 'starter-kit'), [
+                Field::make('text',      'title',   __('Title', 'starter-kit')),
+                Field::make('rich_text', 'content', __('Content', 'starter-kit')),
+            ]),
+    ]);
 
-// 2. Block.php reads CF meta in callback:
+// 2. Dynamic block reads CF meta in the callback (always via Utils):
 public function blockServerSideCallback(array $attributes, string $content, object $block): string {
     $postId     = get_the_ID();
     $metaPrefix = SK_PREFIX . 'page_';
-    $templateData = [
-        'heroTitle'    => Utils::getPostMeta($postId, $metaPrefix . 'hero_title'),
-        'heroSubtitle' => Utils::getPostMeta($postId, $metaPrefix . 'hero_subtitle'),
-        'heroImageId'  => Utils::getPostMeta($postId, $metaPrefix . 'hero_image'),
-        'sections'     => Utils::getPostMetaFw($postId, $metaPrefix . 'sections') ?: [],  // Fw for complex
-        'blockClass'   => $this->generateBlockClasses($attributes),
-    ];
-    return $this->loadBlockView('layout', $templateData);
+    return $this->loadBlockView('layout', [
+        'heroTitle'  => Utils::getPostMeta($postId, $metaPrefix . 'hero_title'),
+        'heroImage'  => Utils::getPostMeta($postId, $metaPrefix . 'hero_image'),
+        'sections'   => Utils::getPostMetaFw($postId, $metaPrefix . 'sections') ?: [],  // Fw for complex
+        'blockClass' => $this->generateBlockClasses($attributes),
+    ]);
 }
-
-// 3. view/layout.php renders the complete section from CF data:
-// Admin fills CF fields in the WP editor → block renders the complete page section
+// 3. view/layout.php renders the full section from CF data. Editor JSX = just ServerSideRender.
 ```
-
-In editor JSX: just `ServerSideRender` — no editable controls needed. User manages all content via CF admin panel.
+Admin fills CF fields in the post editor → one block renders the whole page section.
 
 ## Debugging
 
@@ -346,7 +374,7 @@ Primary location is the **theme** (`starter-kit-theme/`). Use the addon only for
 | New repository | `src/Repository/NewTypeRepository.php` extends `WpPostRepositoryAbstract` |
 | New REST endpoint | handler in `src/Handlers/`, route registered in `Hooks.php` |
 | New config key | `config/common/main.php` or appropriate config file |
-| New block | `blocks/NewBlock/` (PascalCase) in theme or addon `blocks/` folder |
+| New block | `blocks/NewBlock/` (PascalCase) — copy `_StarterBlock`, pick static or dynamic type |
 
 ## WordPress Conventions
 
