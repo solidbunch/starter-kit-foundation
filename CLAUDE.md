@@ -78,6 +78,28 @@ echo esc_url($url);
 $wpdb->prepare("SELECT * FROM t WHERE id = %d", $id);  // always prepared statements
 ```
 
+## Utils Helper — Mandatory for All Meta and Options
+
+NEVER call `get_post_meta()`, `update_post_meta()`, `get_option()`, `carbon_get_post_meta()`, or any raw WP meta/option function. Always go through `Utils`. It auto-adds the project prefix and is idempotent (won't double-prefix).
+
+```php
+// CF post meta — use in Block.php, Repository, Handlers
+Utils::getPostMeta($postId, $metaPrefix . 'field');              // WP API, uses _SK_PREFIX
+Utils::getPostMetaFw($postId, $metaPrefix . 'field');            // CF API (use for complex, association fields)
+Utils::setPostMeta($postId, $metaPrefix . 'field', $value);      // writes via WP
+
+// CF theme options (registered in ThemeSettings)
+Utils::getOptionFw('gtm_code');       // CF theme option, uses SK_PREFIX
+Utils::getOption('some_key');         // plain WP option, uses _SK_PREFIX
+
+// Taxonomy / user meta
+Utils::getTermMeta($termId, $metaPrefix . 'field');
+Utils::getUserMeta($userId, $metaPrefix . 'field');
+// Fw variants exist for all: getTermMetaFw, getUserMetaFw, etc.
+```
+
+All Utils methods: when value is `''`, `false`, `null`, or `[]` → returns `$defaultValue` (default: null).
+
 ## Carbon Fields
 
 **Boot**: THEME boots CF (`ThemeSettings::boot()` via `after_setup_theme` in theme Hooks.php). Addon does NOT boot CF — never boot it twice.
@@ -167,28 +189,101 @@ blocks/MyBlock/         # PascalCase folder name (prefix _ = skip auto-discovery
 }
 ```
 
-**`Block.php` pattern:**
+**`Block.php` pattern** — extends `BlockAbstract`, declare assets, use `blockServerSideCallback` (3 params), render via `loadBlockView`:
 ```php
 class Block extends BlockAbstract {
+    protected array $blockAssets = [
+        'editor_script' => ['file' => 'index.js', 'dependencies' => ['wp-i18n', 'wp-element', 'wp-blocks', 'wp-components', 'wp-editor']],
+        'editor_style'  => ['file' => 'editor.css', 'dependencies' => []],
+        'style'         => ['file' => 'style.css', 'dependencies' => []],
+        // 'view_script' => ['file' => 'view.js', 'dependencies' => []], // frontend-only JS
+    ];
+
     public function registerBlockArgs(): void {
-        $this->blockArgs = ['render_callback' => [$this, 'renderBlock']];
+        $this->blockArgs['render_callback'] = [$this, 'blockServerSideCallback'];  // NOTE: key assignment, not full array
     }
-    public function renderBlock(array $attributes, string $content): string {
-        return '<div class="my-block">' . esc_html($attributes['title'] ?? '') . '</div>';
+
+    public function blockServerSideCallback(array $attributes, string $content, object $block): string {
+        $templateData = [
+            'title'      => $attributes['title'] ?? '',
+            'blockClass' => $this->generateBlockClasses($attributes),  // handles spacers + className
+        ];
+        return $this->loadBlockView('layout', $templateData);  // loads view/layout.php
+    }
+
+    public function blockRestApiEndpoints(): void {
+        // register_rest_route(SK_REST_API_NS, '/endpoint', [...]);
     }
 }
 ```
 
-**`index.jsx` pattern** — `save: () => null` always (server-side render):
+Asset types: `editor_script`/`editor_style` (admin only), `style` (frontend+admin), `view_script`/`view_style` (frontend only), `script` (both).
+
+**`view/layout.php`** — receives `$data` array, is the actual rendered HTML:
+```php
+defined('ABSPATH') || exit;
+$data = $data ?? [];
+?>
+<div class="my-block <?php echo $data['blockClass']; ?>">
+    <h2><?php echo esc_html($data['title']); ?></h2>
+</div>
+```
+
+**`index.jsx` pattern** for server-side render blocks (most blocks):
 ```jsx
-import metadata from '../block.json';
+const {registerBlockType} = wp.blocks;
+const {useBlockProps} = wp.blockEditor;
+const {serverSideRender: ServerSideRender} = wp;
+
 registerBlockType(metadata, {
-    edit: ({ attributes, setAttributes }) => <div {...useBlockProps()}>Editor view</div>,
-    save: () => null,
+    edit: (props) => {
+        const blockProps = useBlockProps();
+        return <div {...blockProps}><ServerSideRender block={metadata.name} attributes={props.attributes} /></div>;
+    },
+    save: () => null,  // always null for server-side render
 });
 ```
 
 IMPORTANT: Use global `wp.*` — NOT `@wordpress/` npm imports. They are not in the bundle config.
+
+**Full-page CF-backed block** — the "fill in fields, get a complete section" pattern. Instead of complex block editor layout, register CF fields on the page/CPT and read them in the block callback:
+```php
+// 1. Register CF container in Meta/PostMeta/MyPage.php (hook in Hooks.php):
+public static function make(): void {
+    $metaPrefix = SK_PREFIX . 'page_';
+    Container::make('post_meta', __('Page Content', 'starter-kit'))
+        ->where('post_type', '=', 'page')
+        ->add_fields([
+            Field::make('text',     $metaPrefix . 'hero_title',    __('Hero Title', 'starter-kit')),
+            Field::make('textarea', $metaPrefix . 'hero_subtitle', __('Subtitle', 'starter-kit')),
+            Field::make('image',    $metaPrefix . 'hero_image',    __('Hero Image', 'starter-kit')),
+            Field::make('complex',  $metaPrefix . 'sections',      __('Sections', 'starter-kit'))
+                ->add_fields('section', __('Section', 'starter-kit'), [
+                    Field::make('text',      'title',   __('Title', 'starter-kit')),
+                    Field::make('rich_text', 'content', __('Content', 'starter-kit')),
+                ]),
+        ]);
+}
+
+// 2. Block.php reads CF meta in callback:
+public function blockServerSideCallback(array $attributes, string $content, object $block): string {
+    $postId     = get_the_ID();
+    $metaPrefix = SK_PREFIX . 'page_';
+    $templateData = [
+        'heroTitle'    => Utils::getPostMeta($postId, $metaPrefix . 'hero_title'),
+        'heroSubtitle' => Utils::getPostMeta($postId, $metaPrefix . 'hero_subtitle'),
+        'heroImageId'  => Utils::getPostMeta($postId, $metaPrefix . 'hero_image'),
+        'sections'     => Utils::getPostMetaFw($postId, $metaPrefix . 'sections') ?: [],  // Fw for complex
+        'blockClass'   => $this->generateBlockClasses($attributes),
+    ];
+    return $this->loadBlockView('layout', $templateData);
+}
+
+// 3. view/layout.php renders the complete section from CF data:
+// Admin fills CF fields in the WP editor → block renders the complete page section
+```
+
+In editor JSX: just `ServerSideRender` — no editable controls needed. User manages all content via CF admin panel.
 
 ## Debugging
 
@@ -222,7 +317,7 @@ NEVER:
 - Edit WordPress core `web/wp-core/` — it is a Composer dependency
 - Edit `vendor/` directly — update `composer.json` instead
 - Hardcode environment-specific values — use `getenv()` or config files
-- Use raw `get_post_meta()` / `update_post_meta()` for Carbon Fields fields — use Utils wrappers
+- Use raw `get_post_meta()`, `update_post_meta()`, `get_option()`, `carbon_get_post_meta()` — always use `Utils::` wrappers
 - Register hooks outside `src/Base/Hooks.php`
 - Write procedural functions or global helpers
 - Run `git push --force` to `main` or `develop`
