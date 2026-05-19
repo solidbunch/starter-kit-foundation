@@ -80,21 +80,19 @@ $wpdb->prepare("SELECT * FROM t WHERE id = %d", $id);  // always prepared statem
 
 ## Carbon Fields
 
-**Boot**: only from the plugin (`plugins_loaded`). Theme NEVER boots CF — only reads meta via `Utils`.
+**Boot**: THEME boots CF (`ThemeSettings::boot()` via `after_setup_theme` in theme Hooks.php). Addon does NOT boot CF — never boot it twice.
 
-**Register fields**: use `carbon_fields_register_fields` hook only — never `init` (silently fails):
+**Register fields**: use `carbon_fields_register_fields` hook — never `init` (silently fails):
 ```php
-// In Hooks.php:
+// In Hooks.php (theme or addon):
 add_action('carbon_fields_register_fields', [Meta\PostMeta\MyType::class, 'make']);
 
 // In src/Handlers/Meta/PostMeta/MyType.php:
 public static function make(): void {
-    $prefix = Config::get('settingsPrefix') . Config::get('postTypes/myTypeId') . '_';
-    Container::make('post_meta', __('Settings', 'ska'))
-        ->where('post_type', '=', Config::get('postTypes/myTypeId'))
-        ->set_context('normal')
-        ->set_priority('high')
-        ->add_fields([ Field::make('text', $prefix . 'field_name', __('Label', 'ska')) ]);
+    $metaPrefix = SK_PREFIX . PostTypes\MyType::getKey() . '_';
+    Container::make('post_meta', __('Settings', 'starter-kit'))
+        ->where('post_type', '=', PostTypes\MyType::getKey())
+        ->add_fields([ Field::make('text', $metaPrefix . 'field_name', __('Label', 'starter-kit')) ]);
 }
 ```
 
@@ -102,8 +100,8 @@ One `Container::make` per CPT. Never call it before `carbon_fields_register_fiel
 
 **Read/write always via Utils**:
 ```php
-Utils::getPostMeta($postId, $prefix . 'field_name');           // read
-Utils::setPostMeta($postId, $prefix . 'field_name', $value);   // write
+Utils::getPostMeta($postId, $metaPrefix . 'field_name');           // read
+Utils::setPostMeta($postId, $metaPrefix . 'field_name', $value);   // write
 ```
 
 **Field type gotchas** — Claude will get these wrong without being told:
@@ -115,28 +113,38 @@ Utils::setPostMeta($postId, $prefix . 'field_name', $value);   // write
 
 ## Theme (starter-kit-theme)
 
-FSE block theme. Theme has **minimal hooks** — all business logic lives in `starter-kit-addon`.
+FSE block theme. Namespace: `StarterKit\` → `src/`. **The theme is where all main application code lives**: CPTs, meta fields, blocks, settings, analytics, security — all registered in the theme's Hooks.php.
 
 ```
-templates/          Full-page block templates (.html): index, front-page, page, single, 404
+templates/          Full-page block templates (.html)
 parts/              Template parts: header.html, footer.html
 theme.json          Global styles and block settings
+blocks/             Gutenberg blocks (Button, Row, Section, Heading, News, etc.)
 src/
-  App.php           Bootstrap (singleton)
-  Base/Hooks.php    Theme-side hooks ONLY (textdomain, addThemeSupport)
-  Helper/           Config.php, Utils.php — same API as plugin helpers
-  Handlers/         SetupTheme.php (image sizes, menus, MIME types)
+  App.php                      Bootstrap (AbstractSingleton)
+  Base/
+    Constants.php               Defines SK_PREFIX, SK_HOOKS_PREFIX, SK_REST_API_NS, etc.
+    Hooks.php                   ALL add_action/add_filter: CPTs, CF, blocks, front/back, security, mail
+  Helper/
+    Config.php                  Config::get('section/key')
+    Utils.php                   getPostMeta(), setPostMeta(), getOption(), getOptionFw()
+  Handlers/
+    SetupTheme.php              Theme support, image sizes, menus
+    Front.php / Back.php        Asset enqueue
+    PostTypes/                  CPT registration (News, TeamMember, Service)
+    Meta/PostMeta/              CF containers per CPT
+    Settings/ThemeSettings.php  CF::boot() + theme_options container
+    Blocks/Init.php             Block auto-discovery and registration
 ```
 
-Bootstrap flow: `functions.php` → `App::instance()->run($container)` → `Hooks::initHooks()`
+Bootstrap flow: `functions.php` → `require vendor/autoload.php` → `apply_filters('starter_kit/container', require config/container.php)` → `App::instance()->run($container)` → `Constants::define()` + `Hooks::initHooks()`
 
-**Never boot Carbon Fields or register CPTs from the theme.** Theme only reads meta via `Utils`.
 Adding new page templates: create `.html` file in `templates/`.
 Adding new template parts: create `.html` file in `parts/`.
 
 ## Gutenberg Blocks
 
-Blocks live in **`starter-kit-addon/blocks/`**, never in the theme.
+Blocks live in `blocks/` — in the **theme** (`starter-kit-theme/blocks/`) for application blocks, or in the **addon** (`starter-kit-addon/blocks/`) for addon-specific blocks. Both use the same structure.
 
 ```
 blocks/MyBlock/         # PascalCase folder name (prefix _ = skip auto-discovery)
@@ -153,7 +161,7 @@ blocks/MyBlock/         # PascalCase folder name (prefix _ = skip auto-discovery
 ```json
 {
   "apiVersion": 3,
-  "name": "ska/my-block",
+  "name": "starter-kit/my-block",
   "title": "My Block",
   "category": "starter-kit"
 }
@@ -217,7 +225,6 @@ NEVER:
 - Use raw `get_post_meta()` / `update_post_meta()` for Carbon Fields fields — use Utils wrappers
 - Register hooks outside `src/Base/Hooks.php`
 - Write procedural functions or global helpers
-- Put blocks or CPT registration in the theme
 - Run `git push --force` to `main` or `develop`
 
 ALWAYS:
@@ -228,23 +235,27 @@ ALWAYS:
 - Report broken code spotted outside current scope — do not silently fix it
 - One task = one commit-ready change
 
-## Adding New Things (starter-kit-addon)
+## Adding New Things
 
-| What | Where |
-|------|-------|
+Primary location is the **theme** (`starter-kit-theme/`). Use the addon only for addon-specific features.
+
+| What | Where (in theme or addon) |
+|------|--------------------------|
 | New hook | `src/Base/Hooks.php` → `initHooks()` |
-| New CPT | `src/Handlers/PostTypes/NewType.php`, register via `Hooks.php` |
+| New CPT | `src/Handlers/PostTypes/NewType.php`, register in `Hooks.php` |
 | New CF container | `src/Handlers/Meta/PostMeta/NewType.php`, hook in `Hooks.php` |
 | New repository | `src/Repository/NewTypeRepository.php` extends `WpPostRepositoryAbstract` |
-| New REST endpoint | `src/Handlers/Rest/` handler class, route registered in `Hooks.php` |
+| New REST endpoint | handler in `src/Handlers/`, route registered in `Hooks.php` |
 | New config key | `config/common/main.php` or appropriate config file |
-| New block | `blocks/NewBlock/` (PascalCase) — see Gutenberg Blocks section |
+| New block | `blocks/NewBlock/` (PascalCase) in theme or addon `blocks/` folder |
 
 ## WordPress Conventions
 
-- Plugin hooks use namespace prefix: `starter_kit_addon/action_name`
-- New features go in `starter-kit-addon`, not in the theme
-- REST endpoints: `register_rest_route('ska/v1', '/your-route', ...)`
+- New application CPTs, meta, blocks, business logic → **theme** (`StarterKit\` namespace)
+- Addon-specific features (tied to Pricing/DocPage CPTs, Stripe, etc.) → **addon** (`StarterKitAddon\` namespace)
+- Theme hook prefix: `SK_HOOKS_PREFIX` constant (e.g., `starter_kit/action_name`)
+- Addon hook prefix: `SKA_HOOKS_PREFIX` constant (e.g., `starter_kit_addon/action_name`)
+- REST endpoints: `register_rest_route(SK_REST_API_NS, '/route', ...)` (theme) or `register_rest_route(SKA_REST_API_NS, '/route', ...)` (addon)
 - `DISALLOW_FILE_EDIT=1` and `AUTOMATIC_UPDATER_DISABLED=1` are intentional — do not remove
 
 ## Intentional Quirks
