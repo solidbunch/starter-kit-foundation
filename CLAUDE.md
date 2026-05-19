@@ -8,20 +8,24 @@ PHP 8.1+, WordPress 6.8.1, MariaDB, Nginx. Four environments: local, dev, stage,
 ```bash
 make install [local|dev|stage|prod]      # First-time setup: secrets → .env → composer → npm → docker → WP
 make up [local|dev|stage|prod]           # Start containers (rebuilds .env first)
-make down                                # Stop containers
+make down                                # Stop and REMOVE containers + volumes (data lost if not bind-mounted)
+make restart [local|dev|stage|prod]      # Restart containers without removing volumes
 make watch                               # npm watch + BrowserSync for theme development
-make lint                                # PHP (PSR-12) + JS linting — run before every commit
-make secret                              # Generate .env.secret from template
-make import -f dump.sql                  # Import DB + run WP search-replace
+make lint                                # Lint theme: PHP (PSR-12) + JS — run before committing theme changes
+make secret                              # Generate .env.secret from template (skips if file already exists)
+make import dump.sql                     # Import DB from file + run WP search-replace
 make export                              # Export DB to file
+make replace                             # Run WP search-replace (domain update)
 make log [php|nginx|mariadb|cron]        # Stream container logs
+make pma                                 # Launch phpMyAdmin (port 8801)
+make mailhog                             # Launch MailHog for email testing
 make tf [env] [init|plan|apply]          # Terraform: manage AWS infrastructure
 make ansible [env] [inventory|playbook]  # Ansible: provision servers
 ```
 
 ## Environment System
 
-Config merges in order (last wins): `.env.main` → `.env.type.{env}` → `.env.secret`
+Config merges in order (last wins): `.env.main` → `.env.type.{env}` → `.env.type.{env}.override` (optional) → `.env.secret`
 
 NEVER edit `.env` directly — it is auto-generated. Edit the source files instead.
 Secrets live ONLY in `.env.secret` (not committed). Template: `sh/env/.env.secret.template`.
@@ -153,8 +157,8 @@ src/
   Handlers/
     SetupTheme.php              Theme support, image sizes, menus
     Front.php / Back.php        Asset enqueue
-    PostTypes/                  CPT registration (News, TeamMember, Service)
-    Meta/PostMeta/              CF containers per CPT
+    PostTypes/                  CPT registration (News, Portfolio, Pricing, DocPage, TeamMember, Service)
+    Meta/PostMeta/              CF containers: News, Pricing, Page
     Settings/ThemeSettings.php  CF::boot() + theme_options container
     Blocks/Init.php             Block auto-discovery and registration
 ```
