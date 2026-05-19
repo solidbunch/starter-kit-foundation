@@ -78,6 +78,41 @@ echo esc_url($url);
 $wpdb->prepare("SELECT * FROM t WHERE id = %d", $id);  // always prepared statements
 ```
 
+## Carbon Fields
+
+**Boot**: only from the plugin (`plugins_loaded`). Theme NEVER boots CF — only reads meta via `Utils`.
+
+**Register fields**: use `carbon_fields_register_fields` hook only — never `init` (silently fails):
+```php
+// In Hooks.php:
+add_action('carbon_fields_register_fields', [Meta\PostMeta\MyType::class, 'make']);
+
+// In src/Handlers/Meta/PostMeta/MyType.php:
+public static function make(): void {
+    $prefix = Config::get('settingsPrefix') . Config::get('postTypes/myTypeId') . '_';
+    Container::make('post_meta', __('Settings', 'ska'))
+        ->where('post_type', '=', Config::get('postTypes/myTypeId'))
+        ->set_context('normal')
+        ->set_priority('high')
+        ->add_fields([ Field::make('text', $prefix . 'field_name', __('Label', 'ska')) ]);
+}
+```
+
+One `Container::make` per CPT. Never call it before `carbon_fields_register_fields` fires.
+
+**Read/write always via Utils**:
+```php
+Utils::getPostMeta($postId, $prefix . 'field_name');           // read
+Utils::setPostMeta($postId, $prefix . 'field_name', $value);   // write
+```
+
+**Field type gotchas** — Claude will get these wrong without being told:
+- `checkbox` → returns `'yes'` / `''`, NOT `true` / `false`
+- `relationship` is deprecated → use `association` instead
+- `association` returns `[['id'=>..., 'type'=>..., 'subtype'=>...]]` → use `wp_list_pluck($result, 'id')` for IDs
+- `complex` (repeater) returns `array[]` → always null-check before iterating
+- `select` options format: `['value' => 'Label']`, dynamic: `->set_options(fn() => [...])`
+
 ## Theme (starter-kit-theme)
 
 FSE block theme. Theme has **minimal hooks** — all business logic lives in `starter-kit-addon`.
@@ -192,6 +227,18 @@ ALWAYS:
 - Read existing files before modifying — never assume structure
 - Report broken code spotted outside current scope — do not silently fix it
 - One task = one commit-ready change
+
+## Adding New Things (starter-kit-addon)
+
+| What | Where |
+|------|-------|
+| New hook | `src/Base/Hooks.php` → `initHooks()` |
+| New CPT | `src/Handlers/PostTypes/NewType.php`, register via `Hooks.php` |
+| New CF container | `src/Handlers/Meta/PostMeta/NewType.php`, hook in `Hooks.php` |
+| New repository | `src/Repository/NewTypeRepository.php` extends `WpPostRepositoryAbstract` |
+| New REST endpoint | `src/Handlers/Rest/` handler class, route registered in `Hooks.php` |
+| New config key | `config/common/main.php` or appropriate config file |
+| New block | `blocks/NewBlock/` (PascalCase) — see Gutenberg Blocks section |
 
 ## WordPress Conventions
 
