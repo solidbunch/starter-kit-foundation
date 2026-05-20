@@ -10,19 +10,22 @@ Two layers:
 
 <!-- This file is always loaded. Topic detail lives in path-scoped rules — see the table below. -->
 
-## Detailed rules load on demand
+## Where AI rules live
 
-Topic guides in `.claude/rules/` are auto-injected by context. Run `/memory` to see what is loaded.
+Foundation rules — in `.claude/rules/`, auto-injected by context (`/memory` shows what is loaded):
 
 | Rule | Loads when |
 |------|------------|
 | `workflow.md` | always — how to work on this project |
 | `debug.md` | always — debugging tools, what never to commit |
-| `php-standards.md` | editing theme `*.php` — OOP patterns, Utils, security |
-| `carbon-fields.md` | editing theme `*.php` — Carbon Fields |
-| `theme.md` | editing `starter-kit-theme/**` — main codebase structure, FSE |
-| `blocks.md` | editing theme `blocks/**` — Gutenberg blocks |
 | `infrastructure.md` | editing `kit-modules/basis/**`, `*.tf` — Terraform / Ansible |
+
+The **theme** and **addon** carry their own `CLAUDE.md` files inside their repos. Claude Code
+auto-loads them on demand when it reads files there — no setup needed:
+
+- `web/wp-content/themes/starter-kit-theme/CLAUDE.md` — theme: PHP, Carbon Fields, FSE, structure
+- `web/wp-content/themes/starter-kit-theme/blocks/CLAUDE.md` — Gutenberg blocks
+- `web/wp-content/plugins/starter-kit-addon/CLAUDE.md` — addon (demo-only plugin)
 
 ## Commands
 
