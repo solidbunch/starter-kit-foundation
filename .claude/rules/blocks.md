@@ -174,3 +174,4 @@ Admin fills CF fields in the post editor → one block renders the whole page se
 - Block settings usually live under an object attribute (e.g. `attributes.modification`), not flat keys
   — copy the nearest existing block.
 - `block.json`: `name` prefix is always `starter-kit/`, `category` is `starter-kit`, `apiVersion` 3.
+- Never register a block manually in `Hooks.php` — auto-discovery handles it. Never skip `block.json`.

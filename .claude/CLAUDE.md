@@ -3,23 +3,27 @@
 Enterprise WordPress boilerplate: Docker + Terraform + Ansible + CI/CD.
 PHP 8.1+ (8.4 in containers), WordPress 6.8.1, MariaDB, Nginx. Four environments: local, dev, stage, prod.
 
-<!-- This file is always loaded. Topic detail is split into path-scoped rules so it
-     loads only when relevant — see ".claude/rules/" below. -->
+Two layers:
+
+- **Foundation** — Docker, env/secrets, CI/CD, IaC (this repo)
+- **Application** — `starter-kit-theme` (the main codebase) + `starter-kit-addon` (supplementary plugin)
+
+<!-- This file is always loaded. Topic detail lives in path-scoped rules — see the table below. -->
 
 ## Detailed rules load on demand
 
-Topic guides live in `.claude/rules/` and are auto-injected ONLY when Claude reads files
-matching their `paths` — so block guidance never loads during Terraform work, and vice versa:
+Topic guides in `.claude/rules/` are auto-injected by context. Run `/memory` to see what is loaded.
 
-| Rule file | Loads when editing |
-|-----------|--------------------|
-| `php.md` | theme / addon `*.php` — architecture, Utils, hooks, security, conventions |
-| `carbon-fields.md` | theme / addon `*.php` — Carbon Fields patterns |
-| `blocks.md` | `blocks/**` — Gutenberg block creation |
-| `theme.md` | theme `templates/` `parts/` `patterns/` `theme.json` — FSE markup |
-| `infrastructure.md` | `kit-modules/basis/**`, `*.tf` — Terraform / Ansible |
-
-Run `/memory` to see which rules are currently loaded.
+| Rule | Loads when |
+|------|------------|
+| `workflow.md` | always — how to work on this project |
+| `debug.md` | always — debugging tools, what never to commit |
+| `php-standards.md` | editing theme/addon `*.php` — OOP patterns, Utils, security |
+| `carbon-fields.md` | editing theme/addon `*.php` — Carbon Fields |
+| `theme.md` | editing `starter-kit-theme/**` — main codebase structure, FSE |
+| `addon.md` | editing `starter-kit-addon/**` — supplementary plugin |
+| `blocks.md` | editing `blocks/**` — Gutenberg blocks |
+| `infrastructure.md` | editing `kit-modules/basis/**`, `*.tf` — Terraform / Ansible |
 
 ## Commands
 
@@ -62,7 +66,7 @@ sh/                            # Shell scripts (never call directly — use make
 .github/workflows/             # CI/CD: deploy + provision pipelines
 ```
 
-## Hard Rules (apply everywhere)
+## Hard Rules
 
 NEVER:
 
@@ -71,14 +75,7 @@ NEVER:
 - Hardcode environment-specific values — use `getenv()` or config files
 - Run `git push --force` to `main` or `develop`
 
-ALWAYS:
-
-- Run `make lint` before committing PHP or JS changes
-- Add new secret variable names to `sh/env/.env.secret.template`
-- Test in `local` before pushing to `dev`
-- Read existing files before modifying — never assume structure
-- Report broken code spotted outside current scope — do not silently fix it
-- One task = one commit-ready change
+(Working process and per-language rules: see `workflow.md`, `debug.md`, and the path-scoped rules.)
 
 ## Intentional Quirks
 
