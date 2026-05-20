@@ -1,14 +1,13 @@
 ---
 paths:
   - "web/wp-content/themes/starter-kit-theme/blocks/**"
-  - "web/wp-content/plugins/starter-kit-addon/blocks/**"
 ---
 
 # Gutenberg Blocks
 
-Blocks live in `blocks/` — theme (namespace `StarterKitBlocks\`) or addon (`StarterKitAddonBlocks\`).
+Blocks live in the theme's `blocks/` directory, namespace `StarterKitBlocks\`.
 Auto-discovered: `Init::loadBlocks()` scans `blocks/*`, skips folders starting with `_` or missing
-`block.json`, instantiates `{namespace}\{BlockName}\Block`. Start a new block by copying
+`block.json`, instantiates `StarterKitBlocks\{BlockName}\Block`. Start a new block by copying
 `blocks/_StarterBlock/`.
 
 ## TWO block types — choose before writing code

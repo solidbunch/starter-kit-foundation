@@ -1,7 +1,6 @@
 ---
 paths:
   - "web/wp-content/themes/starter-kit-theme/**/*.php"
-  - "web/wp-content/plugins/starter-kit-addon/**/*.php"
 ---
 
 # PHP Standards and Architecture
@@ -13,7 +12,7 @@ Everything is PSR-12 OOP. Follow existing patterns — never invent new ones.
 
 ## PSR-12 — enforced by `phpcs.xml`
 
-Run `make lint` before committing. Inside the theme/addon repo: `composer lint` / `composer lintfix`.
+Run `make lint` before committing. Inside the theme repo: `composer lint` / `composer lintfix`.
 
 ## File header — every PHP file in `src/`
 

@@ -6,8 +6,8 @@ This is a mature codebase with strong conventions. Follow them — do not invent
 
 - Read the relevant existing files first — never assume structure
 - If unsure about a pattern, open the nearest similar file and copy its approach
-- Verify which repo/branch you are in: theme and addon are separate VCS repos with their own
-  git state; the dev environment tracks the theme's `dev-develop` branch
+- Note that `starter-kit-theme` is a separate VCS repo with its own git state; the dev
+  environment tracks its `dev-develop` branch
 
 ## Scope control
 
@@ -18,7 +18,7 @@ This is a mature codebase with strong conventions. Follow them — do not invent
 
 ## Before committing
 
-- Run `make lint` (PSR-12 PHP + JS) before committing theme or addon changes
+- Run `make lint` (PSR-12 PHP + JS) before committing theme changes
 - No `TODO` / `FIXME` and no debug output in committed code (see `debug.md`)
 - Add any new secret variable name to `sh/env/.env.secret.template` (value stays out of git)
 - Test in the `local` environment before pushing to `dev`

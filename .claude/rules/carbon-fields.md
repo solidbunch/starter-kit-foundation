@@ -1,18 +1,17 @@
 ---
 paths:
   - "web/wp-content/themes/starter-kit-theme/**/*.php"
-  - "web/wp-content/plugins/starter-kit-addon/**/*.php"
 ---
 
 # Carbon Fields
 
-**Boot**: the THEME boots CF (`ThemeSettings::boot()` via `after_setup_theme` in theme `Hooks.php`).
-The addon does NOT boot CF — never boot it twice.
+**Boot**: the theme boots CF — `ThemeSettings::boot()` on `after_setup_theme` in `Hooks.php`.
+Never boot it twice.
 
 **Register fields**: use the `carbon_fields_register_fields` hook — never `init` (silently fails):
 
 ```php
-// In Hooks.php (theme or addon):
+// In Hooks.php:
 add_action('carbon_fields_register_fields', [Meta\PostMeta\MyType::class, 'make']);
 
 // In src/Handlers/Meta/PostMeta/MyType.php:
@@ -28,7 +27,7 @@ One `Container::make` per CPT. Never call it before `carbon_fields_register_fiel
 Prefix pattern: `SK_PREFIX . PostTypes\Type::getKey() . '_'` for post meta; `SK_PREFIX` alone for
 theme options.
 
-**Read/write always via Utils** (see php.md):
+**Read/write always via Utils** (see php-standards.md):
 
 ```php
 Utils::getPostMeta($postId, $metaPrefix . 'field_name');           // read

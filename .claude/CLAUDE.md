@@ -6,7 +6,7 @@ PHP 8.1+ (8.4 in containers), WordPress 6.8.1, MariaDB, Nginx. Four environments
 Two layers:
 
 - **Foundation** — Docker, env/secrets, CI/CD, IaC (this repo)
-- **Application** — `starter-kit-theme` (the main codebase) + `starter-kit-addon` (supplementary plugin)
+- **Application** — `starter-kit-theme`, a custom FSE block theme (the main codebase)
 
 <!-- This file is always loaded. Topic detail lives in path-scoped rules — see the table below. -->
 
@@ -18,11 +18,10 @@ Topic guides in `.claude/rules/` are auto-injected by context. Run `/memory` to 
 |------|------------|
 | `workflow.md` | always — how to work on this project |
 | `debug.md` | always — debugging tools, what never to commit |
-| `php-standards.md` | editing theme/addon `*.php` — OOP patterns, Utils, security |
-| `carbon-fields.md` | editing theme/addon `*.php` — Carbon Fields |
+| `php-standards.md` | editing theme `*.php` — OOP patterns, Utils, security |
+| `carbon-fields.md` | editing theme `*.php` — Carbon Fields |
 | `theme.md` | editing `starter-kit-theme/**` — main codebase structure, FSE |
-| `addon.md` | editing `starter-kit-addon/**` — supplementary plugin |
-| `blocks.md` | editing `blocks/**` — Gutenberg blocks |
+| `blocks.md` | editing theme `blocks/**` — Gutenberg blocks |
 | `infrastructure.md` | editing `kit-modules/basis/**`, `*.tf` — Terraform / Ansible |
 
 ## Commands
@@ -57,7 +56,6 @@ Secrets live ONLY in `.env.secret` (not committed). Template: `sh/env/.env.secre
 ```
 web/wp-content/
   themes/starter-kit-theme/   # FSE theme — main app code: CPTs, blocks, meta, hooks (separate VCS repo)
-  plugins/starter-kit-addon/  # Supplementary plugin — Pricing/DocPage CPTs, Stripe, addon blocks
 kit-modules/
   basis/                       # IaC: Terraform (AWS) + Ansible (servers)
   monitoring-client/           # Loki logging client

@@ -56,7 +56,7 @@ Repository/                    WpPostRepositoryAbstract + per-CPT repositories
 ## Key rules
 
 - Carbon Fields is **booted by the theme** (`ThemeSettings::boot()` on `after_setup_theme`)
-- New core CPTs / meta / blocks / business logic → here in the theme (see `addon.md` for the addon)
+- All CPTs / meta / blocks / business logic → here in the theme
 - Global styles, colors, spacing → `theme.json`, never inline CSS
 - Heavy logic does not belong in a `.html` template — build a block instead (see `blocks.md`)
 - The theme is Bootstrap 5 based; use Bootstrap utility classes in markup
