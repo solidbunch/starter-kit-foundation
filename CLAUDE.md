@@ -50,6 +50,7 @@ This is NOT classic WordPress. No procedural functions, no global functions, no 
 Everything is PSR-12 OOP. Read existing code before modifying — never invent new patterns.
 
 **Static handler — dominant pattern.** All methods `public static`, never instantiate handlers:
+
 ```php
 class Front {
     public static function enqueueAssets(): void { ... }
@@ -61,6 +62,7 @@ add_action('wp_enqueue_scripts', [Front::class, 'enqueueAssets']);
 **Singleton** — only for `App` (entry point). Never make handlers singletons.
 
 **Repository** — every CPT that needs querying gets a repository class:
+
 ```php
 class PostRepository extends WpPostRepositoryAbstract { ... }
 $posts = PostRepository::getAllList();   // returns [ID => title]
@@ -75,6 +77,7 @@ Never register hooks inside handler methods or constructors.
 **Meta access**: always via `Utils::getPostMeta($postId, $key)` — NEVER raw `get_post_meta()` for CF fields.
 
 **Security — mandatory on every input/output:**
+
 ```php
 $clean = sanitize_text_field($_POST['field']);   // sanitize input early
 echo esc_html($value);                           // escape output late
@@ -109,6 +112,7 @@ All Utils methods: when value is `''`, `false`, `null`, or `[]` → returns `$de
 **Boot**: THEME boots CF (`ThemeSettings::boot()` via `after_setup_theme` in theme Hooks.php). Addon does NOT boot CF — never boot it twice.
 
 **Register fields**: use `carbon_fields_register_fields` hook — never `init` (silently fails):
+
 ```php
 // In Hooks.php (theme or addon):
 add_action('carbon_fields_register_fields', [Meta\PostMeta\MyType::class, 'make']);
@@ -125,12 +129,14 @@ public static function make(): void {
 One `Container::make` per CPT. Never call it before `carbon_fields_register_fields` fires.
 
 **Read/write always via Utils**:
+
 ```php
 Utils::getPostMeta($postId, $metaPrefix . 'field_name');           // read
 Utils::setPostMeta($postId, $metaPrefix . 'field_name', $value);   // write
 ```
 
 **Field type gotchas** — Claude will get these wrong without being told:
+
 - `checkbox` → returns `'yes'` / `''`, NOT `true` / `false`
 - `relationship` is deprecated → use `association` instead
 - `association` returns `[['id'=>..., 'type'=>..., 'subtype'=>...]]` → use `wp_list_pluck($result, 'id')` for IDs
@@ -175,15 +181,16 @@ Blocks live in `blocks/` — in the **theme** (`starter-kit-theme/blocks/`, name
 
 **TWO block types — choose the right one before writing code:**
 
-| | Static block (default — most blocks) | Dynamic block (PHP render) |
-|---|---|---|
-| Use when | Pure markup/layout; content saved into post HTML | Needs DB data, post meta, or runtime content |
-| `registerBlockArgs()` | empty | sets `render_callback` |
-| `save()` in `index.jsx` | real JSX (`RichText.Content`, `InnerBlocks.Content`) | `() => null` |
-| `view/` folder | none | PHP templates (`layout.php`, ...) |
-| Examples | Section, Heading, Button, Row, FaqSection | News, PricingTable |
+|                         | Static block (default — most blocks)                 | Dynamic block (PHP render)                   |
+| ----------------------- | ---------------------------------------------------- | -------------------------------------------- |
+| Use when                | Pure markup/layout; content saved into post HTML     | Needs DB data, post meta, or runtime content |
+| `registerBlockArgs()`   | empty                                                | sets `render_callback`                       |
+| `save()` in `index.jsx` | real JSX (`RichText.Content`, `InnerBlocks.Content`) | `() => null`                                 |
+| `view/` folder          | none                                                 | PHP templates (`layout.php`, ...)            |
+| Examples                | Section, Heading, Button, Row, FaqSection            | News, PricingTable                           |
 
 **Folder structure:**
+
 ```
 blocks/MyBlock/         # PascalCase; prefix _ skips auto-discovery
   block.json            # apiVersion 3, name "starter-kit/my-block", category "starter-kit"
@@ -199,6 +206,7 @@ blocks/MyBlock/         # PascalCase; prefix _ skips auto-discovery
 ```
 
 **`Block.php`** — extends `BlockAbstract`, declares `$blockAssets`. File names there are the COMPILED `.js`/`.css` (sources are `.jsx`/`.scss`):
+
 ```php
 class Block extends BlockAbstract {
     protected array $blockAssets = [
@@ -218,11 +226,13 @@ class Block extends BlockAbstract {
     }
 }
 ```
+
 Asset types: `editor_script`/`editor_style` (admin only), `style`/`script` (both contexts), `view_script`/`view_style` (frontend only). `editor_script` is always required.
 
 ### Static block — the default for most blocks
 
 `registerBlockArgs()` empty. `index.jsx` has a real `save()`; output is stored in post HTML, no PHP rendering. Layout blocks use `InnerBlocks`; text blocks use `RichText`.
+
 ```jsx
 const {registerBlockType} = wp.blocks;
 const {useBlockProps, RichText, InnerBlocks, InspectorControls} = wp.blockEditor;
@@ -245,6 +255,7 @@ registerBlockType(metadata, {
 ### Dynamic block — PHP-rendered
 
 `registerBlockArgs()` sets the callback. `save: () => null`. PHP renders via a `view/` template.
+
 ```php
 public function registerBlockArgs(): void {
     $this->blockArgs['render_callback'] = [$this, 'blockServerSideCallback'];  // key assignment, not full array
@@ -258,7 +269,9 @@ public function blockServerSideCallback(array $attributes, string $content, obje
     return $this->loadBlockView('layout', $templateData);  // → view/layout.php
 }
 ```
+
 `view/layout.php` — receives `$data`, is the rendered HTML:
+
 ```php
 defined('ABSPATH') || exit;
 $data = $data ?? [];
@@ -269,7 +282,9 @@ $data = $data ?? [];
     <?php endforeach; ?>
 </div>
 ```
+
 `index.jsx` — editor shows `ServerSideRender`, `save` returns null:
+
 ```jsx
 const {serverSideRender: ServerSideRender} = wp;
 registerBlockType(metadata, {
@@ -280,6 +295,7 @@ registerBlockType(metadata, {
 ```
 
 IMPORTANT:
+
 - Use global `wp.*` — NEVER `@wordpress/` npm imports (not in the bundle config).
 - Style with Bootstrap 5 classes (`bg-dark`, `text-center`, `col-lg-4`, ...) — the theme is Bootstrap-based.
 - Block settings usually live under an object attribute (e.g. `attributes.modification`), not flat keys — copy the nearest existing block.
@@ -287,6 +303,7 @@ IMPORTANT:
 ### Full-page CF-backed block
 
 The "fill in fields, get a complete section" pattern — a dynamic block whose data comes from Carbon Fields on the current post. Instead of building nested blocks in the editor, register CF fields and let one block render the whole section:
+
 ```php
 // 1. Register CF container in Meta/PostMeta/ (hook in Hooks.php on carbon_fields_register_fields):
 $metaPrefix = SK_PREFIX . 'page_';
@@ -315,19 +332,23 @@ public function blockServerSideCallback(array $attributes, string $content, obje
 }
 // 3. view/layout.php renders the full section from CF data. Editor JSX = just ServerSideRender.
 ```
+
 Admin fills CF fields in the post editor → one block renders the whole page section.
 
 ## Debugging
 
 Xdebug is **inactive by default** — trigger per request (local environment only):
+
 ```
 ?XDEBUG_TRIGGER=1            # query param
 POST field: XDEBUG_TRIGGER=1
 Header: XDEBUG_TRIGGER: 1
 ```
+
 Config: `config/php/local.d/xdebug.ini`
 
 Log file locations on host:
+
 ```
 logs/nginx/access.log           HTTP access log
 logs/nginx/error.log            Nginx errors
@@ -336,6 +357,7 @@ logs/wordpress/xdebug-log.log   Xdebug session log
 ```
 
 Acceptable during local dev only — NEVER commit:
+
 ```php
 error_log(print_r($value, true));
 ```
@@ -345,6 +367,7 @@ NEVER leave in committed code: `var_dump()`, `print_r()`, `dd()`, `dump()`, `err
 ## Hard Rules
 
 NEVER:
+
 - Commit `.env`, `.env.secret`, or any file with credentials
 - Edit WordPress core `web/wp-core/` — it is a Composer dependency
 - Edit `vendor/` directly — update `composer.json` instead
@@ -355,6 +378,7 @@ NEVER:
 - Run `git push --force` to `main` or `develop`
 
 ALWAYS:
+
 - Run `make lint` before committing PHP or JS changes
 - Add new secret variable names to `sh/env/.env.secret.template`
 - Test in `local` before pushing to `dev`
@@ -366,15 +390,15 @@ ALWAYS:
 
 Primary location is the **theme** (`starter-kit-theme/`). Use the addon only for addon-specific features.
 
-| What | Where (in theme or addon) |
-|------|--------------------------|
-| New hook | `src/Base/Hooks.php` → `initHooks()` |
-| New CPT | `src/Handlers/PostTypes/NewType.php`, register in `Hooks.php` |
-| New CF container | `src/Handlers/Meta/PostMeta/NewType.php`, hook in `Hooks.php` |
-| New repository | `src/Repository/NewTypeRepository.php` extends `WpPostRepositoryAbstract` |
-| New REST endpoint | handler in `src/Handlers/`, route registered in `Hooks.php` |
-| New config key | `config/common/main.php` or appropriate config file |
-| New block | `blocks/NewBlock/` (PascalCase) — copy `_StarterBlock`, pick static or dynamic type |
+| What              | Where (in theme or addon)                                                           |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| New hook          | `src/Base/Hooks.php` → `initHooks()`                                                |
+| New CPT           | `src/Handlers/PostTypes/NewType.php`, register in `Hooks.php`                       |
+| New CF container  | `src/Handlers/Meta/PostMeta/NewType.php`, hook in `Hooks.php`                       |
+| New repository    | `src/Repository/NewTypeRepository.php` extends `WpPostRepositoryAbstract`           |
+| New REST endpoint | handler in `src/Handlers/`, route registered in `Hooks.php`                         |
+| New config key    | `config/common/main.php` or appropriate config file                                 |
+| New block         | `blocks/NewBlock/` (PascalCase) — copy `_StarterBlock`, pick static or dynamic type |
 
 ## WordPress Conventions
 
