@@ -45,6 +45,8 @@ make pma                                 # Launch phpMyAdmin (port 8801)
 make mailhog                             # Launch MailHog for email testing
 make tf [env] [init|plan|apply]          # Terraform: manage AWS infrastructure
 make ansible [env] [inventory|playbook]  # Ansible: provision servers
+make basis                               # Interactive shell in the IaC container
+make monitoring [mode]                   # Run monitoring-client scenario (alias: make mon)
 ```
 
 ## Environment System
@@ -59,9 +61,10 @@ Secrets live ONLY in `.env.secret` (not committed). Template: `sh/env/.env.secre
 ```
 web/wp-content/
   themes/starter-kit-theme/   # FSE theme — main app code: CPTs, blocks, meta, hooks (separate VCS repo)
-kit-modules/
+kit-modules/                   # Composer-installed sub-projects (each its own VCS repo)
   basis/                       # IaC: Terraform (AWS) + Ansible (servers)
-  monitoring-client/           # Loki logging client
+  monitoring-client/           # Ships container logs to Loki (fluent-bit)
+  monitoring-server/           # Grafana + Loki server stack (standalone deployable)
 config/                        # Docker, nginx, php, ssl, cron, environment configs
 sh/                            # Shell scripts (never call directly — use make)
 .github/workflows/             # CI/CD: deploy + provision pipelines
