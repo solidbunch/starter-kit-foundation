@@ -78,13 +78,16 @@ jobs:
           if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
             echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
           fi
-          # Inject AWS credentials from OIDC into IaC container
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> ./config/environment/.env.secret
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> ./config/environment/.env.secret
-          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> ./config/environment/.env.secret
-          echo "AWS_DEFAULT_REGION=$AWS_REGION" >> ./config/environment/.env.secret
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> ./config/environment/.env.secret
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
+
+      - name: Store OIDC credentials for IaC
+        run: |
+          # AWS credentials are NOT written to files — they will be passed
+          # to containers via docker compose -e flags during runtime only
+          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> $GITHUB_ENV
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
 
       - name: Update Basis (only in demo)
         env:
@@ -95,7 +98,13 @@ jobs:
             export CURRENT_UID=$(id -u)
             export CURRENT_GID=$(id -g)
             source .env
-            docker compose -f docker-compose.toolkit.yml run --rm composer su -c "
+            docker compose -f docker-compose.toolkit.yml run --rm \
+              -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+              -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+              -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+              composer su -c "
               composer update solidbunch/basis --no-interaction --with-all-dependencies
             " "${DEFAULT_USER}"
           else
@@ -123,6 +132,9 @@ jobs:
       - name: Extract SSH public key for Terraform
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
+          # Guarantee cleanup of SSH key even if script fails
+          trap "rm -f ~/.ssh/id_rsa ~/.ssh/config" EXIT
+
           # Load environment variables
           source .env
 
@@ -132,9 +144,6 @@ jobs:
 
           # Extract public key from private key using ssh-keygen -y
           ssh-keygen -y -f ~/.ssh/id_rsa > kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
-
-          # Clean up temporary file
-          rm ~/.ssh/id_rsa
 
           echo "SSH public key extracted for Terraform:"
           cat kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
@@ -155,7 +164,13 @@ jobs:
 
           # Verify AWS credentials are available in container
           echo "Verifying AWS credentials in container..."
-          docker compose -f docker-compose.toolkit.yml run --rm iac bash -c "
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+            iac bash -c "
             echo 'AWS_ACCESS_KEY_ID is set: \$([ -n \"\$AWS_ACCESS_KEY_ID\" ] && echo \"yes\" || echo \"no\")'
             echo 'AWS_SESSION_TOKEN is set: \$([ -n \"\$AWS_SESSION_TOKEN\" ] && echo \"yes\" || echo \"no\")'
             aws sts get-caller-identity || echo 'AWS credentials test failed'
@@ -217,9 +232,19 @@ jobs:
 
           # Get instance details
           IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
             -w "/workspace/$TF_ENV_DIR" \
             iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" 2>/dev/null || echo "N/A")
           IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
             -w "/workspace/$TF_ENV_DIR" \
             iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" 2>/dev/null || echo "N/A")
 
