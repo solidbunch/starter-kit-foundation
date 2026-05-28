@@ -51,6 +51,11 @@ services:
       # SMTP config
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+
+      # WP install credentials
+      WP_ADMIN_USER: ${WP_ADMIN_USER:-}
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD:-}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL:-}
     volumes:
       # Web root folder
       - ./web/wp-core:/srv/web
