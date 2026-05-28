@@ -22,8 +22,18 @@ if [ -z "$WP_HOME" ]; then
   echo -e "${LIGHTRED}[Error]${RESET} WP_HOME is not defined in wp-config.php"; exit 1;
 fi
 
-# Using WP_HOME, WP_ADMIN_USER, WP_ADMIN_EMAIL, WP_ADMIN_PASSWORD from .env.secret file
-# Run the wp core install command and capture its output in a variable
+if [ -z "$WP_ADMIN_USER" ]; then
+  echo -e "${LIGHTRED}[Error]${RESET} WP_ADMIN_USER is not defined"; exit 1;
+fi
+
+if [ -z "$WP_ADMIN_PASSWORD" ]; then
+  echo -e "${LIGHTRED}[Error]${RESET} WP_ADMIN_PASSWORD is not defined"; exit 1;
+fi
+
+if [ -z "$WP_ADMIN_EMAIL" ]; then
+  echo -e "${LIGHTRED}[Error]${RESET} WP_ADMIN_EMAIL is not defined"; exit 1;
+fi
+
 wp core install \
   --url="$WP_HOME" \
   --title="$APP_TITLE" \
