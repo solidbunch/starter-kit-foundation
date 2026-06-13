@@ -6,6 +6,10 @@ set -e
 # Colors
 source ./sh/utils/colors.sh
 
+echo -e "------------------------------"
+echo -e "Check database is up"
+echo -e "------------------------------"
+
 source ./.env
 
 # Take database hostname from .env file

@@ -6,6 +6,10 @@ set -e
 # Colors
 source ./sh/utils/colors.sh
 
+echo -e "------------------------------"
+echo -e "Init root .env file"
+echo -e "------------------------------"
+
 # We have no root .env yet, need to connect main env to generate root .env file
 source ./config/environment/.env.main
 
