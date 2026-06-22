@@ -14,10 +14,10 @@ Two layers:
 
 Foundation rules — in `.claude/rules/`, auto-injected by context (`/memory` shows what is loaded):
 
-| Rule | Loads when |
-|------|------------|
-| `workflow.md` | always — how to work on this project |
-| `debug.md` | always — debugging tools, what never to commit |
+| Rule                | Loads when                                                   |
+| ------------------- | ------------------------------------------------------------ |
+| `workflow.md`       | always — how to work on this project                         |
+| `debug.md`          | always — debugging tools, what never to commit               |
 | `infrastructure.md` | editing `kit-modules/basis/**`, `*.tf` — Terraform / Ansible |
 
 The **theme** and **addon** carry their own `CLAUDE.md` files inside their repos. Claude Code

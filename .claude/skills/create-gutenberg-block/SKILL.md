@@ -1,11 +1,16 @@
 ---
 name: create-gutenberg-block
+model: sonnet
 description: >
-  Create Gutenberg blocks for the starter-kit-theme project (StarterKit Foundation).
-  Use this skill for ANY request to create, add, or build a block — including "make a block",
-  "add a CF block", "create a page template block", "replicate a site as a block", or when the
-  user runs /make-template-block. Always apply before writing any block code — contains critical
-  gotchas that cause empty blocks without this skill.
+  Create, edit, fix, or debug Gutenberg blocks in
+  web/wp-content/themes/starter-kit-theme/blocks/. Contains critical gotchas that cause silent
+  empty-block failures — always load before writing any block code.
+when_to_use: >
+  Invoke when: (1) any file inside
+  web/wp-content/themes/starter-kit-theme/blocks/<AnyBlockFolder>/ is being created or edited —
+  each subfolder is one block (Block.php, block.json, src/index.jsx, view/layout.php, etc.);
+  (2) a new subfolder is being added to that blocks/ directory (= new block);
+  (3) the user asks to create, add, edit, update, fix, or debug a block in any wording.
 ---
 
 # StarterKit Foundation — Gutenberg Block Creation
