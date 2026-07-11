@@ -165,9 +165,13 @@ tf:
 ansible:
 	bash ./kit-modules/basis/sh/ansible.sh -e $(PARAM1) -a $(PARAM2) $(if $(filter static,$(PARAM3)),-s)
 
-# docker build|docker push|docker clean
+# docker build|docker push|docker clean|docker login
 docker:
 	bash ./sh/system/docker.sh $(PARAMS)
+
+# Login to GitHub Container Registry only (no build/push)
+docker-login:
+	bash ./sh/system/docker.sh login
 
 # Run monitoring scenario
 monitoring:
