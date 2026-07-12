@@ -4,10 +4,13 @@ Enterprise WordPress boilerplate: Docker + Terraform + Ansible + CI/CD.
 PHP ≥8.4, WordPress core `wordpress-core-no-content` ^6.8.1, MariaDB, Nginx.
 Four environments: local, dev, stage, prod.
 
-Two layers:
+Three layers:
 
 - **Foundation** — Docker, env/secrets, CI/CD, IaC (this repo)
 - **Application** — `starter-kit-theme`, a custom FSE block theme (the main app codebase, separate VCS repo)
+- **kit-modules** — licensed sub-projects Composer-installs into `kit-modules/` once a valid
+  license is configured (`basis`, `monitoring-client`, `monitoring-server`, plus opt-in `proxy`)
+  — see `infrastructure.md`
 
 <!-- This file is always loaded. Topic detail lives in path-scoped rules — see the table below. -->
 
@@ -15,22 +18,20 @@ Two layers:
 
 Foundation rules — in `.claude/rules/`, auto-injected by path (`/memory` shows what is loaded):
 
-| Rule                 | Loads when                                                                 |
-| -------------------- | --------------------------------------------------------------------------- |
-| `workflow.md`        | always — how to work on this project                                       |
-| `debug.md`           | always — debugging tools, what never to commit                             |
-| `infrastructure.md`  | editing `kit-modules/**`, `*.tf`, `*.tfvars` — Terraform / Ansible / licensing |
-| `docker.md`          | editing `docker-compose*.yml`, `dockerfiles/**`, `sh/system/{docker,install,certbot}.sh` |
-| `ci.md`              | editing `.github/workflows/**` — deploy + provisioning pipelines           |
-| `config.md`          | editing `config/**` — nginx templates, PHP ini, cron, certbot, SSL         |
+| Rule                | Loads when                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| `workflow.md`       | always — how to work on this project                                                     |
+| `debug.md`          | always — debugging tools, what never to commit                                           |
+| `infrastructure.md` | editing `kit-modules/**`, `*.tf`, `*.tfvars` — Terraform / Ansible / licensing           |
+| `docker.md`         | editing `docker-compose*.yml`, `dockerfiles/**`, `sh/system/{docker,install,certbot}.sh` |
+| `ci.md`             | editing `.github/workflows/**` — deploy + provisioning pipelines                         |
+| `config.md`         | editing `config/**` — env files, nginx templates, PHP ini, cron, certbot, SSL            |
 
-The **theme** and **addon** carry their own `CLAUDE.md` files inside their repos. Claude Code
-auto-loads them on demand when it reads files there — no setup needed:
+The **theme** carries its own `CLAUDE.md` files inside its repo. Claude Code auto-loads them on
+demand when it reads files there — no setup needed:
 
 - `web/wp-content/themes/starter-kit-theme/CLAUDE.md` — theme: PHP, Carbon Fields, FSE, structure
 - `web/wp-content/themes/starter-kit-theme/blocks/CLAUDE.md` — Gutenberg blocks
-- `web/wp-content/plugins/starter-kit-addon/CLAUDE.md` — addon (demo-only plugin, present only
-  when Composer resolved a valid license for it — see `infrastructure.md`)
 
 ## Commands
 
@@ -79,7 +80,6 @@ web/wp-core/                    # WordPress core, Composer-managed/gitignored �
 web/wp-content/
   themes/starter-kit-theme/    # FSE theme — main app code: CPTs, blocks, meta, hooks (separate VCS repo)
   plugins/                     # wpackagist plugins (contact-form-7, redirection, svg-support, wordpress-seo, ...)
-                                # + starter-kit-addon (licensed, separate repo) — installed only when licensed
 kit-modules/                    # Composer-installed sub-projects (each its own VCS repo), git-ignored, licensed — see infrastructure.md
   basis/                        # IaC: Terraform (AWS) + Ansible (servers)
   monitoring-client/             # Ships container logs to Loki (fluent-bit)
@@ -93,10 +93,10 @@ sh/                              # Shell scripts (never call directly — use ma
 
 Package sources (`composer.json` `repositories`): wpackagist.org (community plugins),
 `solidbunch.github.io/wordpress-core` (WP core mirror), `licensing.starter-kit.io` (licensed
-SolidBunch packages: basis, monitoring-client/server, starter-kit-addon — required, resolve to
-real code once licensed; proxy is the same licensing scheme but opt-in, not a default require —
-see `infrastructure.md` for how licensing gates these), and a direct VCS repo for
-`starter-kit-theme` (source-installed, so it's a real local git checkout, not a `dist` tarball).
+SolidBunch packages: basis, monitoring-client/server — required, resolve to real code once
+licensed; proxy is the same licensing scheme but opt-in, not a default require — see
+`infrastructure.md` for how licensing gates these), and a direct VCS repo for `starter-kit-theme`
+(source-installed, so it's a real local git checkout, not a `dist` tarball).
 
 ## Hard Rules
 
@@ -124,8 +124,8 @@ NEVER:
   the exception: opt-in, installed manually, not a default require); a directory being present
   doesn't guarantee it's current either — check `composer.lock` type (`metapackage` = no valid
   license) as the source of truth, not just what's on disk (see `infrastructure.md`)
-- `starter-kit-addon` and `monitoring-client` are only force-updated from `dist` in CI when
-  `IS_DEMO=true` (demo/showcase deployments) — normal deploys use the locked version
+- `monitoring-client` is only force-updated from `dist` in CI when `IS_DEMO=true` (demo/showcase
+  deployments) — normal deploys use the locked version
 
 ## Out of Scope (Do Not Modify)
 
@@ -135,12 +135,3 @@ NEVER:
 - `cache/` — build cache (auto-generated)
 - `logs/` — runtime logs (read only)
 - `.env` / `.env.runtime` — auto-generated from source env files, do not edit directly
-
-## Known Documentation Gap
-
-`docs/AI.md` and `docs/AI_API.md` describe an "AI Module" (`AIModule` namespace,
-`kit-modules/ai-module/`, `AIService`, `ClaudeProvider`, etc.) that **does not exist in this
-codebase** — no such module directory, no `AIModule` namespace, not a Composer dependency.
-`sh/env/.env.secret.template` also carries a leftover `CLAUDE_API_KEY` / `AI_PROVIDER` block for
-it. Treat those two docs as stale/aspirational, not a description of real code, until an actual
-module is implemented.

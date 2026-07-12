@@ -122,7 +122,7 @@ tmp/**
 # ===================================#
 #          Claude Code               #
 # ===================================#
-# Keep shared AI instructions tracked (.claude/CLAUDE.md, .claude/rules/);
+# Keep shared AI instructions tracked (root CLAUDE.md, .claude/rules/);
 # ignore machine-local runtime artifacts.
 .claude/worktrees/
 .claude/settings.local.json

@@ -10,34 +10,32 @@ paths:
 `kit-modules/` holds Composer-installed sub-projects — each is its **own VCS repo**, git-ignored
 in the foundation root. Never run `terraform` / `ansible` directly — always go through `make`.
 
-Four modules: `basis` (IaC), `monitoring-client`, `monitoring-server`, `proxy` (optional
-multi-instance reverse proxy) — plus `starter-kit-addon` (a demo plugin, installed under
-`web/wp-content/plugins/`, not `kit-modules/`, but licensed the same way).
+Three modules: `basis` (IaC), `monitoring-client`, `monitoring-server` — plus opt-in `proxy`
+(multi-instance reverse proxy, see below). A fourth licensed package, `starter-kit-addon`, follows
+the same licensing mechanism but is a demo-only plugin, not part of normal project work — see the
+one-line note at the end of this file instead of treating it as a fifth kit-module.
 
 ## How kit-modules are installed — licensing gates real code, not just presence
 
-`composer.json` declares `basis`, `monitoring-client`, `monitoring-server`, and
-`starter-kit-addon` as regular requires (`solidbunch/basis`, `solidbunch/monitoring-client`,
-`solidbunch/monitoring-server`, `solidbunch/starter-kit-addon`), resolved from the private
-Composer repository `https://licensing.starter-kit.io/wp-json/skl/v1/`. `proxy` is **not** a
-default require — it's opt-in, added manually with `composer require solidbunch/proxy` on
-servers that need it (see below). Composer's `installer-paths` (`composer.json` →
+`composer.json` declares `basis`, `monitoring-client`, and `monitoring-server` as regular requires
+(`solidbunch/basis`, `solidbunch/monitoring-client`, `solidbunch/monitoring-server`), resolved
+from the private Composer repository `https://licensing.starter-kit.io/wp-json/skl/v1/`. `proxy`
+is **not** a default require — it's opt-in, added manually with `composer require solidbunch/proxy`
+on servers that need it (see below). Composer's `installer-paths` (`composer.json` →
 `extra.installer-paths`) map packages of `type:kit-module` into `kit-modules/{$name}/`.
 
 **With a valid SolidBunch license/auth token, `composer install`/`update` always resolves the
-real module code** — the four required modules are not optional once licensed; they're a normal
-part of the stack and should be present in `kit-modules/` (or `web/wp-content/plugins/` for the
-addon) whenever a license is configured. **Without a valid license**, the licensing repo serves
-an empty `metapackage` stub instead — check `composer.lock`: an unlicensed module shows
-`"type": "metapackage"` and `"description": "Unavailable without a valid license. Module is
-skipped."`, with no `source`/`dist`.
+real module code** — the three required modules are not optional once licensed; they're a normal
+part of the stack and should be present in `kit-modules/` whenever a license is configured.
+**Without a valid license**, the licensing repo serves an empty `metapackage` stub instead — check
+`composer.lock`: an unlicensed module shows `"type": "metapackage"` and `"description":
+"Unavailable without a valid license. Module is skipped."`, with no `source`/`dist`.
 
 So don't infer license state from directory presence alone — **always check `composer.lock`**,
 because the two can disagree:
 
-- A directory absent from `kit-modules/` (or the addon absent from `web/wp-content/plugins/`)
-  can mean either "not installed yet" **or** "no valid license" — check `composer.lock`'s
-  `type` field for that package before assuming.
+- A directory absent from `kit-modules/` can mean either "not installed yet" **or** "no valid
+  license" — check `composer.lock`'s `type` field for that package before assuming.
 - A directory can also be **present but stale**: if `composer update` runs later without
   `COMPOSER_AUTH` set (auth lost, token expired, ran outside the intended environment),
   `composer.lock` will show `metapackage` for a module whose directory on disk still holds real
@@ -115,10 +113,9 @@ make basis                                # interactive shell in the IaC (`iac`)
 - `kit-modules/monitoring-server/` — the **Grafana + Loki** server stack: its own
   `docker-compose.yml`, `config/` (grafana, loki, nginx, ssl, certbot), its own `iac/`
   (Terraform + Ansible) and `Makefile`. A standalone deployable — not part of the app environment.
-- Both `monitoring-client` and `starter-kit-addon` are only force-updated from `dist` in CI when
-  the `IS_DEMO` repo variable is `true` (`job-deploy.yml` step "Update Monitoring & Addon" —
-  `composer update solidbunch/monitoring-client solidbunch/starter-kit-addon`); normal deploys
-  keep the locked version.
+- `monitoring-client` is only force-updated from `dist` in CI when the `IS_DEMO` repo variable is
+  `true` (`job-deploy.yml` step "Update Monitoring & Addon" — see the trailing note below for why
+  that step's name mentions an addon); normal deploys keep the locked version.
 
 ## proxy — optional multi-instance reverse proxy
 
@@ -147,3 +144,10 @@ composer require solidbunch/proxy
   (`kit-modules/proxy/README.md`) — **as of this writing those `make proxy-*` targets and the
   `APP_MULTI_INSTANCE` merge logic are not yet present in this repo's root `Makefile`/`sh/`**, so
   don't assume they exist without checking; verify current state there before relying on them.
+
+## `starter-kit-addon` — not relevant to normal project work
+
+A fifth licensed package, installed as a plugin (`web/wp-content/plugins/starter-kit-addon/`) via
+the same licensing mechanism as the kit-modules above. It exists purely for SolidBunch's own demo/
+showcase deployments — it is not something end clients use, so don't spend attention on it unless
+a task specifically touches demo/showcase deploys or `IS_DEMO`-gated CI steps.

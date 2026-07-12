@@ -16,8 +16,9 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
   with `ENVIRONMENT_TYPE=prod`, host `starter-kit.io`. There is no auto-deploy-on-push to prod.
 - `job-deploy.yml` (`workflow_call`) — build phase runs on `ubuntu-24.04`, prepares `.env` via
   `sh/env/secret-gen.sh` + `sh/env/init.sh`, switches the theme to `dev-develop` only when
-  `ENVIRONMENT_TYPE == dev`, force-updates `monitoring-client` + `starter-kit-addon` from `dist`
-  only when the `IS_DEMO` repo variable is `true`, then `sh/system/install.sh yes` (composer +
+  `ENVIRONMENT_TYPE == dev`, force-updates `monitoring-client` (+ a demo-only addon plugin, not
+  relevant outside showcase deploys — see `infrastructure.md`) from `dist` only when the `IS_DEMO`
+  repo variable is `true`, then `sh/system/install.sh yes` (composer +
   npm). Deploy phase runs on `ubuntu-22.04`, restores the cached build, `rsync`s the whole repo
   over SSH to `DEPLOY_PATH_DESTINATION` (excludes `.git*`, `node_modules`, `backups/`, `db-*/`,
   `logs/`, all `.env*` variants, `config/ssl/`, uploads/languages/cache — see the `--exclude`
