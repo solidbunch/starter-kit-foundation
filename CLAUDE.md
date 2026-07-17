@@ -33,6 +33,23 @@ demand when it reads files there — no setup needed:
 - `web/wp-content/themes/starter-kit-theme/CLAUDE.md` — theme: PHP, Carbon Fields, FSE, structure
 - `web/wp-content/themes/starter-kit-theme/blocks/CLAUDE.md` — Gutenberg blocks
 
+The theme also carries its own skills, **not** auto-discovered from here (skill auto-discovery is
+project-root-only, same caveat as rules — see `project-brief`'s known gotchas): read and follow
+these directly by path, not by name, from a foundation session —
+
+- creating a new Gutenberg block:
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/create-gutenberg-block/SKILL.md`
+- converting the theme from FSE to classic PHP templates (keeps Gutenberg/blocks, only the
+  page-assembly mechanism changes; block editor becomes per-post-type opt-in):
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/convert-to-classic-theme/SKILL.md`
+  — also reachable via `bootstrap-project`'s Step 4.5 when setting up a new project.
+
+## Skills
+
+`.claude/skills/bootstrap-project/` — run once after cloning this template to turn it into a
+named project (rename `APP_NAME`/`APP_TITLE`/`APP_DOMAIN`, optionally repoint the theme,
+`make secret`/`env`/`install`, architect review, then refresh this file via `project-brief`).
+
 ## Commands
 
 ```bash
