@@ -44,6 +44,23 @@ these directly by path, not by name, from a foundation session —
   `web/wp-content/themes/starter-kit-theme/.claude/skills/convert-to-classic-theme/SKILL.md`
   — also reachable via `bootstrap-project`'s Step 4.5 when setting up a new project.
 
+Each **kit-module** is also its own separate VCS repo (see `infrastructure.md` for the
+install/licensing mechanism) and carries its own `CLAUDE.md`, auto-loaded on demand when Claude
+reads a file under that module's directory — no setup needed. `infrastructure.md` documents these
+modules from the *outside* (how the foundation integrates with them: install paths, licensing
+gate, `make` command surface); each module's own `CLAUDE.md` documents its *internals* (own
+conventions, own gotchas) and points back to `infrastructure.md` rather than repeating it:
+
+- `kit-modules/basis/CLAUDE.md` — Terraform apply order, Ansible partial-ordering convention,
+  known `stage`-env gap
+- `kit-modules/monitoring-client/CLAUDE.md` — fluent-bit pipeline (tail → Lua filter → Loki)
+- `kit-modules/monitoring-server/CLAUDE.md` — Grafana + Loki stack; large enough to split into its
+  own `@import`-ed topic files (`stack.md`, `env-and-lifecycle.md`, `iac.md`) under its own
+  `.claude/rules/`, same reasoning as the theme's topic-file split
+- `kit-modules/proxy/CLAUDE.md` — Traefik reverse proxy; **flags that the README's `make
+  proxy-up`/`APP_MULTI_INSTANCE` wiring doesn't exist yet in this repo's `Makefile`/`sh/`** — check
+  there before assuming that integration works
+
 ## Skills
 
 `.claude/skills/bootstrap-project/` — run once after cloning this template to turn it into a
@@ -58,6 +75,9 @@ make up [local|dev|stage|prod]           # Start containers (rebuilds .env first
 make down                                # Stop and REMOVE containers + volumes
 make restart [local|dev|stage|prod]      # Restart containers without removing volumes
 make recreate [local|dev|stage|prod]     # Rebuild .env then `docker compose up -d --force-recreate`
+make core-install                        # Run WP core install script inside the php container (used by CI deploy)
+make run <service> [cmd]                 # One-off container run via docker-compose.toolkit.yml (sh/dev/run.sh)
+make exec <service> [cmd]                # Exec into a running container (sh/dev/run.sh)
 make watch                               # npm watch + BrowserSync for theme development
 make lint                                # Lint theme: PHP (PSR-12) + JS — run before committing theme changes
 make secret                              # Generate .env.secret from template (skips if it exists)

@@ -64,11 +64,6 @@ under a `flock` lock), daily/weekly DB+media backup (`sh/cron/start-backup.sh`),
 + nginx restart at 03:30, and Let's Encrypt log rotation. Edits apply on save — no container
 restart needed. Keep new jobs `flock`-guarded if they must not overlap runs.
 
-**Note:** the comments inside `config/environment/.env.type.*` (`# Edit file in ./config/crontabs
-folder to setup backup time`) point at a stale path — the real file is
-`config/cron/crontabs/root`. Pre-existing doc drift in the repo itself, not this rule file;
-flag it if you touch that area, don't silently "fix" the comment as a side effect of unrelated work.
-
 ### Automatic backups
 
 Gated by `APP_WP_BACKUP_ENABLE` (`1`/`0`) in each `config/environment/.env.type.*` — on by
