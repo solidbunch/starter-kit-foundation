@@ -35,14 +35,7 @@ demand when it reads files there — no setup needed:
 
 The theme also carries its own skills, **not** auto-discovered from here (skill auto-discovery is
 project-root-only, same caveat as rules — see `project-brief`'s known gotchas): read and follow
-these directly by path, not by name, from a foundation session —
-
-- creating a new Gutenberg block:
-  `web/wp-content/themes/starter-kit-theme/.claude/skills/create-gutenberg-block/SKILL.md`
-- converting the theme from FSE to classic PHP templates (keeps Gutenberg/blocks, only the
-  page-assembly mechanism changes; block editor becomes per-post-type opt-in):
-  `web/wp-content/themes/starter-kit-theme/.claude/skills/convert-to-classic-theme/SKILL.md`
-  — also reachable via `bootstrap-project`'s Step 4.5 when setting up a new project.
+these directly by path, not by name, from a foundation session — full list under `## Skills` below.
 
 Each **kit-module** is also its own separate VCS repo (see `infrastructure.md` for the
 install/licensing mechanism) and carries its own `CLAUDE.md`, auto-loaded on demand when Claude
@@ -66,6 +59,21 @@ conventions, own gotchas) and points back to `infrastructure.md` rather than rep
 `.claude/skills/bootstrap-project/` — run once after cloning this template to turn it into a
 named project (rename `APP_NAME`/`APP_TITLE`/`APP_DOMAIN`, optionally repoint the theme,
 `make secret`/`env`/`install`, architect review, then refresh this file via `project-brief`).
+
+**Theme skills** (separate VCS repo, not auto-discovered from here — see "Where AI rules live"
+above for why; read and follow these directly by path, not by name):
+
+- creating a new Gutenberg block:
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/create-gutenberg-block/SKILL.md`
+- converting the theme from FSE to classic PHP templates (keeps Gutenberg/blocks, only the
+  page-assembly mechanism changes; block editor becomes per-post-type opt-in):
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/convert-to-classic-theme/SKILL.md`
+  — also reachable via `bootstrap-project`'s Step 4.5 when setting up a new project.
+- turning a static HTML design handoff (designer mockup — blog, landing, listing pages) into
+  classic PHP templates, reusing existing blocks/repositories/the Page Builder Carbon Fields
+  contract instead of reinventing them; requires the theme already classic (post
+  `convert-to-classic-theme`):
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/html-handoff-to-classic-template/SKILL.md`
 
 ## Commands
 
