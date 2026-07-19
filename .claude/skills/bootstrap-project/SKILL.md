@@ -96,9 +96,11 @@ Skip entirely if the user kept the default FSE theme. Runs only after Step 4 —
 exist on disk until Composer installs it, and this conversion edits the theme's own files.
 
 The capability lives in the theme repo, not here — it is **not auto-discovered** from this
-foundation session (skill auto-discovery is project-root-only, same caveat as rules). Read and
-follow `web/wp-content/themes/starter-kit-theme/.claude/skills/convert-to-classic-theme/SKILL.md`
-directly.
+foundation session (skill auto-discovery is project-root-only, same caveat as rules). The theme's
+actual folder name is whatever `WP_DEFAULT_THEME` (`config/environment/.env.main`) currently holds
+— `starter-kit-theme` unless Step 3 renamed it. Read and follow
+`web/wp-content/themes/<WP_DEFAULT_THEME>/.claude/skills/convert-to-classic-theme/SKILL.md`
+directly, substituting the real value.
 
 ## Step 5 — Architect review
 

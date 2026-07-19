@@ -7,7 +7,8 @@ Four environments: local, dev, stage, prod.
 Three layers:
 
 - **Foundation** — Docker, env/secrets, CI/CD, IaC (this repo)
-- **Application** — `starter-kit-theme`, a custom FSE block theme (the main app codebase, separate VCS repo)
+- **Application** — the theme (`WP_DEFAULT_THEME` in `config/environment/.env.main`, default
+  `starter-kit-theme`), a custom FSE block theme (the main app codebase, separate VCS repo)
 - **kit-modules** — licensed sub-projects Composer-installs into `kit-modules/` once a valid
   license is configured (`basis`, `monitoring-client`, `monitoring-server`, plus opt-in `proxy`)
   — see `infrastructure.md`
@@ -28,7 +29,10 @@ Foundation rules — in `.claude/rules/`, auto-injected by path (`/memory` shows
 | `config.md`         | editing `config/**` — env files, nginx templates, PHP ini, cron, certbot, SSL            |
 
 The **theme** carries its own `CLAUDE.md` files inside its repo. Claude Code auto-loads them on
-demand when it reads files there — no setup needed:
+demand when it reads files there — no setup needed. Paths below use the shipped default theme
+folder name (`starter-kit-theme` = `WP_DEFAULT_THEME`'s default in `config/environment/.env.main`)
+— if this project renamed the theme (`bootstrap-project` Step 3), substitute the current
+`WP_DEFAULT_THEME` value everywhere below instead:
 
 - `web/wp-content/themes/starter-kit-theme/CLAUDE.md` — theme: PHP, Carbon Fields, FSE, structure
 - `web/wp-content/themes/starter-kit-theme/blocks/CLAUDE.md` — Gutenberg blocks
@@ -73,7 +77,7 @@ above for why; read and follow these directly by path, not by name):
   classic PHP templates, reusing existing blocks/repositories/the Page Builder Carbon Fields
   contract instead of reinventing them; requires the theme already classic (post
   `convert-to-classic-theme`):
-  `web/wp-content/themes/starter-kit-theme/.claude/skills/html-handoff-to-classic-template/SKILL.md`
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/create-classic-template/SKILL.md`
 
 ## Commands
 
@@ -123,7 +127,7 @@ its value.
 web/wp-config/wp-config.php     # SOURCE of truth for wp-config.php — tracked in git, reads DB/keys from env vars
 web/wp-core/                    # WordPress core, Composer-managed/gitignored — wp-config.php here is a COPY
 web/wp-content/
-  themes/starter-kit-theme/    # FSE theme — main app code: CPTs, blocks, meta, hooks (separate VCS repo)
+  themes/starter-kit-theme/    # FSE theme (WP_DEFAULT_THEME) — main app code: CPTs, blocks, meta, hooks (separate VCS repo)
   plugins/                     # wpackagist plugins (contact-form-7, redirection, svg-support, wordpress-seo, ...)
 kit-modules/                    # Composer-installed sub-projects (each its own VCS repo), git-ignored, licensed — see infrastructure.md
   basis/                        # IaC: Terraform (AWS) + Ansible (servers)
@@ -140,8 +144,9 @@ Package sources (`composer.json` `repositories`): wpackagist.org (community plug
 `solidbunch.github.io/wordpress-core` (WP core mirror), `licensing.starter-kit.io` (licensed
 SolidBunch packages: basis, monitoring-client/server — required, resolve to real code once
 licensed; proxy is the same licensing scheme but opt-in, not a default require — see
-`infrastructure.md` for how licensing gates these), and a direct VCS repo for `starter-kit-theme`
-(source-installed, so it's a real local git checkout, not a `dist` tarball).
+`infrastructure.md` for how licensing gates these), and a direct VCS repo for the theme
+(`starter-kit-theme` by default, `WP_DEFAULT_THEME`) — source-installed, so it's a real local git
+checkout, not a `dist` tarball.
 
 ## Hard Rules
 
