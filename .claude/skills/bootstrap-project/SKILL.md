@@ -1,6 +1,6 @@
 ---
 name: bootstrap-project
-description: Turns a freshly cloned starter-kit-foundation checkout into a named, running project - renames APP_NAME/APP_TITLE/APP_DOMAIN, optionally repoints the theme, runs make secret/env/install, has the architect sanity-check the result, then refreshes CLAUDE.md/rules via project-brief. Triggers on "bootstrap this project", "start a new project from this template", "initialize new project", or Russian "инициализируй новый проект", "забутстрапи проект", "разверни проект из шаблона". Not for editing an already-running project's config - that's config.md / infrastructure.md territory.
+description: Turns a freshly cloned starter-kit-foundation checkout into a named, running project - renames APP_NAME/APP_TITLE/APP_DOMAIN, optionally renames the theme via its own clone-theme CLI, sanity-checks the edits, then runs make secret/env/install and refreshes CLAUDE.md/rules via project-brief. Triggers on "bootstrap this project", "start a new project from this template", "initialize new project", or Russian "инициализируй новый проект", "забутстрапи проект", "разверни проект из шаблона". Not for editing an already-running project's config - that's config.md / infrastructure.md territory.
 ---
 
 # Bootstrap Project — turn the template into *your* project
@@ -8,7 +8,7 @@ description: Turns a freshly cloned starter-kit-foundation checkout into a named
 This runs once, right after `git clone` of `starter-kit-foundation`, before the user has followed
 `https://starter-kit.io/docs/overview/` by hand. It automates the pre-project setup that
 documentation describes, in the order the real Makefile/env pipeline expects. Do not skip steps
-or reorder them — later steps (`make install`) read the files earlier steps write.
+or reorder them — later steps (`make install`, theme rename) read the files earlier steps write.
 
 ## Step 0 — Collect the inputs Claude cannot guess
 
@@ -16,18 +16,14 @@ Ask once, via `AskUserQuestion` (batch what you can), whatever the user didn't a
 
 1. **Project slug** — lowercase, hyphen-safe (e.g. `acme-shop`). Becomes `APP_NAME`.
 2. **Project title** — human-readable (e.g. `"Acme Shop"`). Becomes `APP_TITLE`.
-3. **Local domain** — default `<slug>.loc` if the user has no preference. Becomes `APP_DOMAIN` in
-   `.env.type.local`.
-4. **Theme plan** — one of:
-   - Keep `starter-kit-theme` as-is for now (skip Step 3 entirely)
-   - Fork/rename it — and if so, do they already have a new git remote URL, or should that be
-     left as a manual follow-up (Claude never creates/pushes a new remote itself)
-5. **FSE or classic templates?** — the theme ships as an FSE (Full Site Editing) block theme by
-   default. If the user wants a classic PHP-template theme instead (Gutenberg blocks retained,
-   just no longer the page-assembly mechanism — see Step 3.5), note that choice now; it only runs
-   after `make install`, once the theme actually exists on disk.
-6. **GitHub org/repo for this project**, only if they're setting up CI/CD now — else defer (leaves
-   `GITHUB_ORG`/`GITHUB_REPO`/`ROLE_NAME`/Terraform vars untouched, flagged as a later task).
+3. **Local domain** (required) — default `<slug>.loc` if the user has no preference. Becomes
+   `APP_DOMAIN` in `.env.type.local`.
+   **Dev/stage/prod domains** (optional) — ask, but let the user decline/skip; if skipped, leave
+   those environments untouched (not needed until actually provisioned).
+4. **Theme name** — keep `starter-kit-theme` as-is (skip Step 6), or rename it: new theme slug
+   (folder name), display name, and package label. This is a cosmetic rename only — the theme's
+   internal PHP namespace, hook/settings prefixes, and REST API namespace stay unchanged unless
+   the user explicitly asks for a deeper rename too (see Step 6).
 
 Don't ask about anything you can default sensibly (e.g. domain slug) — ask only what's genuinely
 ambiguous. This is meant to feel like one command, not a questionnaire.
@@ -38,15 +34,13 @@ Edit only source files under `config/environment/` — never `.env` or `.env.run
 regenerated, see root `CLAUDE.md`):
 
 - `config/environment/.env.main`: `APP_NAME=<slug>`, `APP_TITLE="<title>"`
-- `config/environment/.env.type.local`: `APP_DOMAIN=<domain>` (repeat for `dev`/`stage`/`prod`
-  only if the user asked to configure those environments now)
+- `config/environment/.env.type.local`: `APP_DOMAIN=<domain>` (repeat for `.env.type.dev`/
+  `.env.type.stage`/`.env.type.prod` for any environment the user gave a domain for in Step 0)
 
-If the user gave a GitHub org/repo (Step 0, item 6), also update in `.env.main`: `GITHUB_ORG`,
-`GITHUB_REPO`, `ROLE_NAME` (`"<slug>-github-actions-role"` pattern), and the `TF_VAR_sk_*` values
-that derive from `APP_NAME` (they auto-interpolate via `${APP_NAME}`, so usually nothing to touch
-there directly — just verify). Note this changes Terraform-tracked identifiers — mention to the
-user this affects `kit-modules/basis` state per `infrastructure.md`, don't silently assume it's
-safe if state already exists.
+`GITHUB_ORG`/`GITHUB_REPO`/`ROLE_NAME`/Terraform vars in `.env.main` are **out of scope for this
+skill** — leave them untouched. They only matter for CI/CD and Terraform infra (`kit-modules/basis`),
+which is a separate task the user can ask for by name later; `infrastructure.md`/`ci.md` cover that
+ground when it comes up.
 
 Do not touch `.env.secret` — untouched by rename, regenerated secrets aren't part of identity.
 
@@ -59,24 +53,12 @@ make env local      # rebuild .env / .env.runtime from the edited sources, no do
 
 Confirm the printed values match what was just edited before moving on.
 
-## Step 3 — Theme fork/rename (only if the user chose this in Step 0)
+## Step 3 — Sanity check (before install)
 
-The theme is a **separate VCS repo**, Composer-installed with `preferred-install: source`
-(`composer.json` → `repositories[].type: vcs` entry for `starter-kit-theme`, and
-`require.solidbunch/starter-kit-theme`). Renaming it for real means:
-
-1. The user forks/clones `starter-kit-theme` into their own new repository — **Claude does not
-   create or push a new git remote itself**; if they don't have the URL yet, stop here and leave
-   this as a manual follow-up, pointing at the installation docs.
-2. Once a URL exists, Claude updates local references only:
-   - `composer.json`: the `vcs` repository `url` → the new repo, and
-     `require.solidbunch/starter-kit-theme` → the new package name (must match the new repo's own
-     `composer.json` `name`, which the user's fork needs to declare)
-   - `config/environment/.env.main`: `WP_DEFAULT_THEME=<new-theme-slug>` (must match the theme
-     folder name Composer will install under `web/wp-content/themes/`)
-3. Do not attempt to rename identifiers *inside* the theme's own code (text domain, function
-   prefixes, block namespaces) — that's the theme repo's own concern, out of scope here, and
-   belongs in that repo's own `CLAUDE.md`/`AGENTS.md` if it needs automating later.
+Before running `make install`, re-read `config/environment/.env.main`/`.env.type.local` (and any
+other `.env.type.*` touched) and confirm they match what was requested in Step 0, nothing left
+half-edited. This is just re-reading the small set of files this skill itself just wrote — no
+agent needed.
 
 ## Step 4 — Install
 
@@ -90,44 +72,71 @@ Then remind them: if `APP_DOMAIN` isn't a `.localhost` domain, add it to `/etc/h
 (`127.0.0.1 <domain>`). Admin credentials print in the terminal and land in
 `config/environment/.env.secret`.
 
-## Step 4.5 — FSE-to-classic conversion (only if the user chose this in Step 0)
+## Step 5 — Theme rename (only if the user chose this in Step 0)
 
-Skip entirely if the user kept the default FSE theme. Runs only after Step 4 — the theme doesn't
-exist on disk until Composer installs it, and this conversion edits the theme's own files.
+The theme ships its own WP-CLI command for this: `wp clone-theme`. It copies the active theme's
+folder to a new slug and search-replaces 7 identifiers throughout the copy (skipping images,
+`node_modules`, `vendor`). It needs a running, installed WordPress with the current theme active —
+that's why this step runs after Step 4, not before.
 
-The capability lives in the theme repo, not here — it is **not auto-discovered** from this
-foundation session (skill auto-discovery is project-root-only, same caveat as rules). The theme's
-actual folder name is whatever `WP_DEFAULT_THEME` (`config/environment/.env.main`) currently holds
-— `starter-kit-theme` unless Step 3 renamed it. Read and follow
-`web/wp-content/themes/<WP_DEFAULT_THEME>/.claude/skills/convert-to-classic-theme/SKILL.md`
-directly, substituting the real value.
+Read the theme's current values first (they may differ from the defaults below if this project was
+already renamed once): `web/wp-content/themes/<current-slug>/config/common/main.php` → `themeName`,
+`package`, `themeSlug`, `themeNamespace`, `hooksPrefix`, `settingsPrefix`, `restApiNamespace`.
 
-## Step 5 — Architect review
+Run it non-interactively — it's a plain sequence of stdin prompts, one value per line, in this
+exact order. Reuse the current values from `config/common/main.php` for the last four lines to
+keep this a **cosmetic-only rename** (only change theme name / package / slug), unless the user
+explicitly asked for the internal PHP namespace and prefixes to change too:
 
-Run the `architect` agent to sanity-check the result: does `.env.main`/`.env.type.local` actually
-match what was requested, are `composer.json` and `WP_DEFAULT_THEME` consistent with each other if
-Step 3 ran, is anything left half-edited. This is a config/wiring review, not a feature plan — say
-so explicitly in the agent prompt so it doesn't look for a task board. If Step 4.5 ran, its own
-`convert-to-classic-theme` skill already ran its own architect pass over the theme-internal
-changes — this step only needs to cover the foundation-level env/composer wiring, not repeat the
-theme review.
+```bash
+docker compose exec -T --user www-data php wp clone-theme <<'EOF'
+<new theme display name>
+<new package label>
+<new-theme-slug>
+<themeNamespace — unchanged unless asked>
+<hooksPrefix — unchanged unless asked>
+<settingsPrefix — unchanged unless asked>
+<restApiNamespace — unchanged unless asked>
+EOF
+```
+
+Then:
+
+1. Activate it: `docker compose exec -T --user www-data php wp theme activate <new-theme-slug>`
+2. Update `config/environment/.env.main`: `WP_DEFAULT_THEME=<new-theme-slug>`, then `make env local`
+   to regenerate `.env`/`.env.runtime` so build scripts target the new theme folder.
+3. The new folder is a **plain local copy — not Composer-managed**. The old
+   `web/wp-content/themes/<old-slug>/` directory is untouched on disk, and root `composer.json`'s
+   `require.solidbunch/starter-kit-theme` still points at it. Don't silently delete the old folder
+   or edit that `composer.json` entry — flag both as a manual decision for the user in Step 8
+   (removing/repointing it affects `composer.lock` state).
+4. Grep the new theme's own guides for leftover references to the old slug/package name and fix
+   any hits directly (plain find-and-replace) — it's a normal file edit in this working copy, the
+   theme having its own git remote doesn't change that:
+   `grep -rn <old-slug> web/wp-content/themes/<new-slug>/CLAUDE.md
+   web/wp-content/themes/<new-slug>/blocks/CLAUDE.md web/wp-content/themes/<new-slug>/.claude/`.
+   List these edits separately in the Step 8 report since they land in a different repo's working
+   tree than the rest of the bootstrap changes.
 
 ## Step 6 — Refresh AI guidelines
 
 Invoke the `project-brief` skill to re-scan the now-renamed project and update root `CLAUDE.md` /
 `.claude/rules/` — project name/title, domain, and (if changed) the theme's identity need to be
-reflected so future sessions don't describe the old template identity. If Step 4.5 ran, its own
-skill already handed off to `project-brief` for the theme's own docs (classic-theme rule,
-`content-types.md`/`architecture.md` edits) — this step covers the foundation repo's own
-`CLAUDE.md`/rules, not a second pass over the theme.
+reflected so future sessions don't describe the old template identity.
 
 ## Step 7 — Report
 
 List every changed file with its full path. Separate clearly:
 
-- **Done automatically**: env rename, regenerated `.env`, install, guideline refresh
-- **Left for the user**: new theme repo creation (if deferred), `/etc/hosts` edit, GitHub
-  repo/CI secrets setup, `kit-modules` licensing (see `infrastructure.md`) — anything this skill
-  couldn't do without an external-system action
+- **Done automatically**: env rename, regenerated `.env`, install, theme rename (if it ran),
+  guideline refresh
+- **Left for the user**: `/etc/hosts` edit, GitHub repo/CI secrets setup, `kit-modules` licensing
+  (see `infrastructure.md`), the orphaned old theme folder + `composer.json` entry (if Step 5 ran)
+  — anything this skill couldn't do without an external-system action or a destructive decision
+
+Also mention: the theme ships as FSE (Full Site Editing) by default. If the user wants classic
+PHP templates instead (Gutenberg blocks retained, only the page-assembly mechanism changes), point
+them at `web/wp-content/themes/<WP_DEFAULT_THEME>/.claude/skills/convert-to-classic-theme/SKILL.md`
+— runnable any time now that the theme exists on disk, not something this skill needs to gate on.
 
 Never commit anything in this flow — leave the diff for the user to review and commit themselves.
