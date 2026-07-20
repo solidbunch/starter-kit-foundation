@@ -72,7 +72,7 @@ above for why; read and follow these directly by path, not by name):
 - converting the theme from FSE to classic PHP templates (keeps Gutenberg/blocks, only the
   page-assembly mechanism changes; block editor becomes per-post-type opt-in):
   `web/wp-content/themes/starter-kit-theme/.claude/skills/convert-to-classic-theme/SKILL.md`
-  — also reachable via `bootstrap-project`'s Step 4.5 when setting up a new project.
+  — runnable any time post-install; `bootstrap-project`'s final report also points to it.
 - turning a static HTML design handoff (designer mockup — blog, landing, listing pages) into
   classic PHP templates, reusing existing blocks/repositories/the Page Builder Carbon Fields
   contract instead of reinventing them; requires the theme already classic (post
