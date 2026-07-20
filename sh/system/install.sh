@@ -6,6 +6,10 @@ set -e
 # Colors
 source ./sh/utils/colors.sh
 
+echo -e "------------------------------"
+echo -e "Composer and npm build"
+echo -e "------------------------------"
+
 source ./.env
 
 if [ "$1" ]; then

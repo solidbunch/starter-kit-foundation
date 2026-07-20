@@ -51,22 +51,22 @@
   "require": {
     "php": ">=8.4",
     "composer/installers": "^2.3.0",
-    "solidbunch/basis": "^1.0.0",
+    "solidbunch/basis": "^1.2.0",
     "solidbunch/composer-installers": "^1.1",
-    "solidbunch/monitoring-client": "^2.0.0",
-    "solidbunch/monitoring-server": "^2.0.0",
-    "solidbunch/starter-kit-theme": "dev-master",
-    "solidbunch/starter-kit-addon": "^1.0.3",
-    "solidbunch/wordpress-core-no-content": "^6.8.1",
-    "wpackagist-plugin/contact-form-7": "^6.0.6",
-    "wpackagist-plugin/redirection": "^5.5.2",
-    "wpackagist-plugin/svg-support": "^2.5.14",
-    "wpackagist-plugin/wordpress-seo": "^25.3.1"
+    "solidbunch/monitoring-client": "^2.0.2",
+    "solidbunch/monitoring-server": "^2.1.0",
+    "solidbunch/starter-kit-theme": "dev-develop",
+    "solidbunch/starter-kit-addon": "^1.0.5",
+    "solidbunch/wordpress-core-no-content": "^7.0",
+    "wpackagist-plugin/contact-form-7": "^6.1.6",
+    "wpackagist-plugin/redirection": "^5.7.5",
+    "wpackagist-plugin/svg-support": "^2.5.16",
+    "wpackagist-plugin/wordpress-seo": "^27.8"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
-    "wpackagist-plugin/rewrite-rules-inspector": "^1.4.0",
-    "wpackagist-plugin/query-monitor": "^3.18.0"
+    "wpackagist-plugin/rewrite-rules-inspector": "^1.6.0",
+    "wpackagist-plugin/query-monitor": "^4.0.6"
   },
   "config": {
     "optimize-autoloader": true,
