@@ -105,12 +105,22 @@ Then:
 1. Activate it: `docker compose exec -T --user www-data php wp theme activate <new-theme-slug>`
 2. Update `config/environment/.env.main`: `WP_DEFAULT_THEME=<new-theme-slug>`, then `make env local`
    to regenerate `.env`/`.env.runtime` so build scripts target the new theme folder.
-3. The new folder is a **plain local copy — not Composer-managed**. The old
+3. `wp clone-theme` skips `vendor`/`node_modules` when copying, so the new folder has neither —
+   `.env`'s `WP_DEFAULT_THEME` now points at it (previous step), so just re-run the project's own
+   build script, non-interactively:
+   ```bash
+   bash ./sh/system/install.sh yes
+   ```
+   This is the exact script `make install` calls — it re-runs root `composer install-<mode>`
+   (harmless no-op, already correct) and, scoped to `$WP_DEFAULT_THEME`, `composer install-<mode>`
+   + `npm run install-<mode>` for the **new** theme folder. Confirm `vendor/`, `node_modules/`, and
+   compiled `assets/` now exist under the new theme folder before moving on.
+4. The new folder is a **plain local copy — not Composer-managed**. The old
    `web/wp-content/themes/<old-slug>/` directory is untouched on disk, and root `composer.json`'s
    `require.solidbunch/starter-kit-theme` still points at it. Don't silently delete the old folder
    or edit that `composer.json` entry — flag both as a manual decision for the user in Step 8
    (removing/repointing it affects `composer.lock` state).
-4. Grep the new theme's own guides for leftover references to the old slug/package name and fix
+5. Grep the new theme's own guides for leftover references to the old slug/package name and fix
    any hits directly (plain find-and-replace) — it's a normal file edit in this working copy, the
    theme having its own git remote doesn't change that:
    `grep -rn <old-slug> web/wp-content/themes/<new-slug>/CLAUDE.md
