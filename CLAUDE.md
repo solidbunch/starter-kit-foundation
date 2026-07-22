@@ -67,6 +67,11 @@ named project (rename `APP_NAME`/`APP_TITLE`/`APP_DOMAIN`, optionally repoint th
 **Theme skills** (separate VCS repo, not auto-discovered from here — see "Where AI rules live"
 above for why; read and follow these directly by path, not by name):
 
+- registering a new custom post type (plus optional taxonomy, repository, Carbon Fields meta
+  container) — the full storage bundle, not just `register_post_type()`; consult before
+  hand-writing one, also handed off to from `create-classic-template`/`create-gutenberg-block`
+  when new storage is needed:
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/create-post-type/SKILL.md`
 - creating a new Gutenberg block:
   `web/wp-content/themes/starter-kit-theme/.claude/skills/create-gutenberg-block/SKILL.md`
 - converting the theme from FSE to classic PHP templates (keeps Gutenberg/blocks, only the

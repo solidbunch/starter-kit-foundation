@@ -25,11 +25,11 @@ Ask once, via `AskUserQuestion` (batch what you can), whatever the user didn't a
    supports independent theme releases/branching, e.g. the dev environment's `dev-develop` branch
    tracking). Or: bundle the theme directly into this root repo (monorepo) — no separate theme
    repo, the theme's files get tracked here instead, and Composer stops managing it. This drives
-   Step 5a below.
-5. **Theme name** — keep `starter-kit-theme` as-is (skip Step 6), or rename it: new theme slug
+   Step 6 below (it runs after Step 5 if both are chosen — see that step for why).
+5. **Theme name** — keep `starter-kit-theme` as-is (skip Step 7), or rename it: new theme slug
    (folder name), display name, and package label. This is a cosmetic rename only — the theme's
    internal PHP namespace, hook/settings prefixes, and REST API namespace stay unchanged unless
-   the user explicitly asks for a deeper rename too (see Step 6).
+   the user explicitly asks for a deeper rename too (see Step 7).
 
 Don't ask about anything you can default sensibly (e.g. domain slug) — ask only what's genuinely
 ambiguous. This is meant to feel like one command, not a questionnaire.
@@ -77,49 +77,6 @@ make install [local]
 Then remind them: if `APP_DOMAIN` isn't a `.localhost` domain, add it to `/etc/hosts`
 (`127.0.0.1 <domain>`). Admin credentials print in the terminal and land in
 `config/environment/.env.secret`.
-
-## Step 5a — Theme repository mode (only if the user chose "monorepo" in Step 0)
-
-Skip entirely if the user kept the default (separate theme repo) — no files to touch. This runs
-after Step 4 because Composer needs to have already source-installed the theme once (it's still
-how the files get onto disk the first time, even in monorepo mode).
-
-1. Detach the theme from its own git history — it landed on disk as a full VCS-source checkout
-   (its own `.git`), which would otherwise become a forgotten repo-inside-a-repo:
-   
-   ```bash
-   rm -rf web/wp-content/themes/<slug>/.git
-   ```
-2. Stop Composer from managing it — edit root `composer.json`:
-   - Remove the `solidbunch/starter-kit-theme` entry from `repositories` (the `type: vcs` block
-     pointing at `github.com/solidbunch/starter-kit-theme.git`)
-   - Remove the `"solidbunch/starter-kit-theme": "dev-..."` line from `require`
-   - Remove the `"solidbunch/starter-kit-theme": "source"` line from `config.preferred-install`
-   - Remove the `switch-theme-dev` script — dev-branch tracking via Composer no longer applies
-     (see the caveat below)
-     Then run `composer update --lock` (no network fetch needed, just drops the package from
-     `composer.lock`).
-3. Un-ignore the theme folder in root `.gitignore`. Right now the whole content directory is
-   ignored wholesale as Composer/runtime-managed (`/web/wp-content/*`, under "Content Files").
-   Add, directly after that line:
-   
-   ```gitignore
-   !/web/wp-content/themes/
-   /web/wp-content/themes/*
-   !/web/wp-content/themes/<slug>/
-   ```
-   
-   This un-ignores only the active theme's folder — `plugins/`, `uploads/`, `upgrade/`, and any
-   other theme folders stay ignored.
-4. `git add web/wp-content/themes/<slug>` and confirm with `git status` that its files show as new
-   and trackable, not still ignored.
-
-**Caveat — flag this in Step 7's report, don't silently patch around it:** the dev environment
-normally tracks the theme's `dev-develop` branch via the CI-only `composer run switch-theme-dev`
-script (see root `CLAUDE.md`'s "Intentional Quirks" and `.claude/rules/ci.md`). In monorepo mode
-there's no separate theme repo/branch left to track, so that mechanism no longer applies. Updating
-the CI dev-deploy pipeline for this is out of scope for this skill — tell the user it needs a
-manual look before their next dev deploy.
 
 ## Step 5 — Theme rename (only if the user chose this in Step 0)
 
@@ -169,32 +126,83 @@ Then:
 4. The new folder is a **plain local copy — not Composer-managed**. The old
    `web/wp-content/themes/<old-slug>/` directory is untouched on disk, and root `composer.json`'s
    `require.solidbunch/starter-kit-theme` still points at it. Don't silently delete the old folder
-   or edit that `composer.json` entry — flag both as a manual decision for the user in Step 7
+   or edit that `composer.json` entry — flag both as a manual decision for the user in Step 8
    (removing/repointing it affects `composer.lock` state).
 5. Grep the new theme's own guides for leftover references to the old slug/package name and fix
    any hits directly (plain find-and-replace) — it's a normal file edit in this working copy, the
    theme having its own git remote doesn't change that:
    `grep -rn <old-slug> web/wp-content/themes/<new-slug>/CLAUDE.md
    web/wp-content/themes/<new-slug>/blocks/CLAUDE.md web/wp-content/themes/<new-slug>/.claude/`.
-   List these edits separately in the Step 7 report since they land in a different repo's working
+   List these edits separately in the Step 8 report since they land in a different repo's working
    tree than the rest of the bootstrap changes.
 
-## Step 6 — Refresh AI guidelines
+## Step 6 — Theme repository mode (only if the user chose "monorepo" in Step 0)
+
+Skip entirely if the user kept the default (separate theme repo) — no files to touch. Runs after
+Step 5 (not before) when the user also chose to rename the theme: it must operate on the **final**
+theme slug, not the intermediate default one. Converting `starter-kit-theme` to monorepo mode and
+then renaming it afterwards would detach/un-ignore the wrong (soon-to-be-orphaned) folder while
+the actually-active renamed theme stays Composer-managed and git-ignored — always resolve the
+final `<slug>` from Step 0/Step 5 before starting this step.
+
+1. Detach the theme from its own git history — it landed on disk as a full VCS-source checkout
+   (its own `.git`), which would otherwise become a forgotten repo-inside-a-repo:
+   
+   ```bash
+   rm -rf web/wp-content/themes/<slug>/.git
+   ```
+2. Stop Composer from managing it — edit root `composer.json`:
+   - Remove the `solidbunch/starter-kit-theme` entry from `repositories` (the `type: vcs` block
+     pointing at `github.com/solidbunch/starter-kit-theme.git`)
+   - Remove the `"solidbunch/starter-kit-theme": "dev-..."` line from `require`
+   - Remove the `"solidbunch/starter-kit-theme": "source"` line from `config.preferred-install`
+   - Remove the `switch-theme-dev` script — dev-branch tracking via Composer no longer applies
+     (see the caveat below)
+   
+   Then run `composer update --no-install`. This resolves and rewrites `composer.lock` to drop the
+   package (since it's no longer in `require`) **without** touching files on disk — the theme
+   folder is already there and now tracked by git directly, so it must not be reinstalled/removed
+   by Composer. Do not use `composer update --lock`: that only refreshes the lock's content-hash
+   and does not actually remove the package from `packages`, leaving `composer.lock` inconsistent
+   with `composer.json` and liable to reinstall the theme on the next `composer install`.
+3. Un-ignore the theme folder in root `.gitignore`. Right now the whole content directory is
+   ignored wholesale as Composer/runtime-managed (`/web/wp-content/*`, under "Content Files").
+   Add, directly after that line:
+   
+   ```gitignore
+   !/web/wp-content/themes/
+   /web/wp-content/themes/*
+   !/web/wp-content/themes/<slug>/
+   ```
+   
+   This un-ignores only the active theme's folder — `plugins/`, `uploads/`, `upgrade/`, and any
+   other theme folders stay ignored.
+4. `git add web/wp-content/themes/<slug>` and confirm with `git status` that its files show as new
+   and trackable, not still ignored.
+
+**Caveat — flag this in Step 8's report, don't silently patch around it:** the dev environment
+normally tracks the theme's `dev-develop` branch via the CI-only `composer run switch-theme-dev`
+script (see root `CLAUDE.md`'s "Intentional Quirks" and `.claude/rules/ci.md`). In monorepo mode
+there's no separate theme repo/branch left to track, so that mechanism no longer applies. Updating
+the CI dev-deploy pipeline for this is out of scope for this skill — tell the user it needs a
+manual look before their next dev deploy.
+
+## Step 7 — Refresh AI guidelines
 
 Invoke the `project-brief` skill to re-scan the now-renamed project and update root `CLAUDE.md` /
 `.claude/rules/` — project name/title, domain, and (if changed) the theme's identity need to be
 reflected so future sessions don't describe the old template identity.
 
-## Step 7 — Report
+## Step 8 — Report
 
 List every changed file with its full path. Separate clearly:
 
 - **Done automatically**: env rename, regenerated `.env`, install, theme repository mode change
-  (if Step 5a ran — `.gitignore`/`composer.json` edits, detached `.git`), theme rename (if it ran),
+  (if Step 6 ran — `.gitignore`/`composer.json` edits, detached `.git`), theme rename (if it ran),
   guideline refresh
 - **Left for the user**: `/etc/hosts` edit, GitHub repo/CI secrets setup, `kit-modules` licensing
   (see `infrastructure.md`), the orphaned old theme folder + `composer.json` entry (if Step 5 ran),
-  the dev-deploy `switch-theme-dev` CI gap (if Step 5a ran monorepo mode — see its caveat)
+  the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its caveat)
   — anything this skill couldn't do without an external-system action or a destructive decision
 
 Also mention: the theme ships as FSE (Full Site Editing) by default. If the user wants classic
