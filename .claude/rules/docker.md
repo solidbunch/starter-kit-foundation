@@ -60,6 +60,21 @@ make docker-login               # registry auth only — ghcr.io login using CR_
 pushing. `login`/`docker-login` were split out from `build`/`push` deliberately — don't merge them
 back into a combined step.
 
+## Volumes — all bind mounts, no Docker-managed volumes
+
+`docker-compose.yml` has no top-level `volumes:` key — every mount on every service is a host
+bind mount (`./host/path:/container/path`), not a named/anonymous Docker volume:
+
+- `mariadb` — `./db-data:/var/lib/mysql`
+- `php` / `nginx` — `./web/wp-core`, `./web/wp-content`, plus service-specific config/log/cache
+  dirs (`./logs/wordpress`, `./cache/php`, `./config/php`, `./config/nginx`, `./config/ssl`, `./sh`)
+- `cron` — `/var/run/docker.sock`, `./config/cron/crontabs`, `${WORKING_DIR}`
+
+Practical consequence: `docker compose down -v` has nothing Docker-managed to remove — `-v` is a
+no-op here, and all data (DB, uploads, logs, cache, config) survives on the host regardless.
+Don't add a named `volumes:` entry for new persistent data without discussing it — it would
+change this behavior and break the assumption that `down -v` is always safe.
+
 ## PHP-FPM / permissions
 
 The `php` and `nginx` containers bind-mount `./web/wp-core` and `./web/wp-content` directly —
