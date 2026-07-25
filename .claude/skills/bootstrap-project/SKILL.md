@@ -1,6 +1,6 @@
 ---
 name: bootstrap-project
-description: Turns a freshly cloned starter-kit-foundation checkout into a named, running project - renames APP_NAME/APP_TITLE/APP_DOMAIN, optionally renames the theme via its own clone-theme CLI, optionally bundles the theme into this root repo instead of its own separate VCS repo (editing .gitignore/composer.json accordingly), sanity-checks the edits, then runs make secret/env/install and refreshes CLAUDE.md/rules via project-brief. Triggers on "bootstrap this project", "start a new project from this template", "initialize new project", or Russian "инициализируй новый проект", "забутстрапи проект", "разверни проект из шаблона". Not for editing an already-running project's config - that's config.md / infrastructure.md territory.
+description: Turns a freshly cloned starter-kit-foundation checkout into a named, running project - renames APP_NAME/APP_TITLE/APP_DOMAIN, optionally renames the theme via its own clone-theme CLI, optionally bundles the theme into this root repo instead of its own separate VCS repo (editing .gitignore/composer.json accordingly), sanity-checks the edits, then runs make secret/env/install and refreshes CLAUDE.md/rules via project-brief. Triggers on "bootstrap this project", "start a new project from this template", "initialize new project". Not for editing an already-running project's config - that's config.md / infrastructure.md territory.
 ---
 
 # Bootstrap Project — turn the template into *your* project
