@@ -25,10 +25,16 @@ on:
         required: false
         type: boolean
         default: false
+      PLAN_RUN_ID:
+        description: 'Run ID of a reviewed "plan" run to apply (leave empty for plan-then-apply)'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 jobs:
   provision:
@@ -94,6 +100,19 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> $GITHUB_ENV
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+
+      - name: Check TFPLAN_PASSPHRASE availability
+        # `secrets` is not a permitted context in step `if:` expressions — resolve it into
+        # a step output here so later steps can branch on it without referencing `secrets` directly.
+        id: tfplan_secret
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          if [ -n "$TFPLAN_PASSPHRASE" ]; then
+            echo "set=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "set=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Update Basis (only in demo)
         env:
@@ -182,6 +201,49 @@ jobs:
             aws sts get-caller-identity || echo 'AWS credentials test failed'
           "
 
+      - name: Download reviewed plan artifact
+        id: download_plan
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.PLAN_RUN_ID != '' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ inputs.ENVIRONMENT_TYPE }}
+          run-id: ${{ inputs.PLAN_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./tfplan-download
+
+      - name: Decrypt and unpack reviewed plan
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.PLAN_RUN_ID != '' &&
+          steps.tfplan_secret.outputs.set == 'true' &&
+          steps.download_plan.outcome == 'success'
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --decrypt --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfplans.tar.gz ./tfplan-download/tfplans.tar.gz.gpg
+          tar xzf tfplans.tar.gz
+          rm -f tfplans.tar.gz
+          {
+            echo "**Plan source:** pinned plan from run \`${{ inputs.PLAN_RUN_ID }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record plan-then-apply fallback
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          (inputs.PLAN_RUN_ID == '' || steps.tfplan_secret.outputs.set != 'true' || steps.download_plan.outcome != 'success')
+        run: |
+          {
+            echo "**Plan source:** same-run plan-then-apply (no pinned plan used)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Terraform — state backend
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
@@ -189,7 +251,22 @@ jobs:
           export CURRENT_GID=$(id -g)
           source .env
           bash kit-modules/basis/sh/terraform.sh -e state -c init
-          bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
+          if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
+            bash sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan
+          elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
+            if [ -f tfplans/state.tfplan ]; then
+              echo "- **state:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
+              if ! bash sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan; then
+                echo "::error::Pinned Terraform plan for layer 'state' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
+                exit 1
+              fi
+            else
+              echo "- **state:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
+              bash kit-modules/basis/sh/terraform.sh -e state -c apply
+            fi
+          else
+            bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
+          fi
 
       - name: Terraform — shared network
         if: steps.verify_basis.outputs.has_basis == 'true'
@@ -198,7 +275,22 @@ jobs:
           export CURRENT_GID=$(id -g)
           source .env
           bash kit-modules/basis/sh/terraform.sh -e shared -c init
-          bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
+          if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
+            bash sh/ci/tf-planfile.sh -e shared -m save -f tfplans/shared.tfplan
+          elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
+            if [ -f tfplans/shared.tfplan ]; then
+              echo "- **shared:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
+              if ! bash sh/ci/tf-planfile.sh -e shared -m apply -f tfplans/shared.tfplan; then
+                echo "::error::Pinned Terraform plan for layer 'shared' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
+                exit 1
+              fi
+            else
+              echo "- **shared:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
+              bash kit-modules/basis/sh/terraform.sh -e shared -c apply
+            fi
+          else
+            bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
+          fi
 
       - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
@@ -207,7 +299,58 @@ jobs:
           export CURRENT_GID=$(id -g)
           source .env
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
-          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
+          if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
+            bash sh/ci/tf-planfile.sh -e "${EFFECTIVE_ENV_TYPE}" -m save -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
+          elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
+            if [ -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan" ]; then
+              echo "- **${EFFECTIVE_ENV_TYPE}:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
+              if ! bash sh/ci/tf-planfile.sh -e "${EFFECTIVE_ENV_TYPE}" -m apply -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"; then
+                echo "::error::Pinned Terraform plan for layer '${EFFECTIVE_ENV_TYPE}' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
+                exit 1
+              fi
+            else
+              echo "- **${EFFECTIVE_ENV_TYPE}:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
+              bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply
+            fi
+          else
+            bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
+          fi
+
+      - name: Package and encrypt Terraform plan
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'plan' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          tar czf tfplans.tar.gz tfplans/state.tfplan tfplans/shared.tfplan "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfplans.tar.gz.gpg tfplans.tar.gz
+          rm -f tfplans.tar.gz
+
+      - name: Upload encrypted Terraform plan artifact
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'plan' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ inputs.ENVIRONMENT_TYPE }}
+          path: tfplans.tar.gz.gpg
+          retention-days: 7
+
+      - name: Warn when plan artifact upload is skipped
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'plan' &&
+          steps.tfplan_secret.outputs.set != 'true'
+        run: |
+          {
+            echo "**Warning:** \`TFPLAN_PASSPHRASE\` secret is not configured — the reviewed Terraform"
+            echo "plan was NOT uploaded as an artifact (plaintext plans are never uploaded)."
+            echo "\`apply\` will fall back to today's same-run plan-then-apply behaviour."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Ansible inventory
         if: |
