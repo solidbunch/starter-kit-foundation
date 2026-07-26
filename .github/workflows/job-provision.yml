@@ -33,6 +33,12 @@ permissions:
 jobs:
   provision:
     runs-on: ubuntu-24.04
+    # Reviewer requirement (required reviewers, wait timer, etc.) is configured in
+    # GitHub repo settings → Environments — not here. One dynamic expression covers dev/stage/prod.
+    environment: ${{ inputs.ENVIRONMENT_TYPE }}
+    concurrency:
+      group: provision-${{ inputs.ENVIRONMENT_TYPE }}
+      cancel-in-progress: false
     env:
       EFFECTIVE_ENV_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
       TF_ENV_DIR: kit-modules/basis/terraform/envs/${{ inputs.ENVIRONMENT_TYPE }}
