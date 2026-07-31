@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d1be30707a4e109815f0d228cb3a8153",
+    "content-hash": "10dd5f4fa14ace02973b0df676aa3dfa",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -969,13 +969,13 @@
         },
         {
             "name": "solidbunch/monitoring-client",
-            "version": "2.0.2",
+            "version": "1.0.2",
             "type": "metapackage",
             "description": "Unavailable without a valid license. Module is skipped."
         },
         {
             "name": "solidbunch/monitoring-server",
-            "version": "2.1.0",
+            "version": "1.1.0",
             "type": "metapackage",
             "description": "Unavailable without a valid license. Module is skipped."
         },
@@ -2462,5 +2462,5 @@
         "php": ">=8.1"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
