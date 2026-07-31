@@ -56,6 +56,7 @@
     "solidbunch/monitoring-client": "^1.0.2",
     "solidbunch/monitoring-server": "^1.1.0",
     "solidbunch/starter-kit-theme": "dev-master",
+    "solidbunch/starter-kit-addon": "^1.0.5",
     "solidbunch/wordpress-core-no-content": "^7.0.2",
     "wpackagist-plugin/contact-form-7": "^6.0.6",
     "wpackagist-plugin/redirection": "^5.5.2",
