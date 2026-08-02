@@ -58,6 +58,7 @@
     "solidbunch/starter-kit-theme": "dev-master",
     "solidbunch/starter-kit-addon": "^1.0.5",
     "solidbunch/wordpress-core-no-content": "^7.0.2",
+    "wpackagist-plugin/cloudflare":"4.14.4",
     "wpackagist-plugin/contact-form-7": "^6.1.6",
     "wpackagist-plugin/redirection": "^5.9.0",
     "wpackagist-plugin/svg-support": "^2.6.1",
