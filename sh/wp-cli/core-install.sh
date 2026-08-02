@@ -22,6 +22,10 @@ if [ -z "$WP_HOME" ]; then
   echo -e "${LIGHTRED}[Error]${RESET} WP_HOME is not defined in wp-config.php"; exit 1;
 fi
 
+echo -e "------------------------------"
+echo -e "Running wp core install"
+echo -e "------------------------------"
+
 if [ -z "$WP_ADMIN_USER" ]; then
   echo -e "${LIGHTRED}[Error]${RESET} WP_ADMIN_USER is not defined"; exit 1;
 fi
@@ -41,11 +45,20 @@ wp core install \
   --admin_password="$WP_ADMIN_PASSWORD" \
   --admin_email="$WP_ADMIN_EMAIL"
 
-wp plugin activate --all
-
-wp rewrite structure '/%postname%/'
-
+echo -e "${LIGHTGREEN}[Success]${RESET} wp core installed, admin user added"
 echo -e "${LIGHTGREEN}[Success]${RESET} Admin username: ${LIGHTYELLOW}$WP_ADMIN_USER${RESET}"
 echo -e "${LIGHTGREEN}[Success]${RESET} Admin password: ${LIGHTYELLOW}$WP_ADMIN_PASSWORD${RESET}"
 echo -e "${CYAN}[Info]${RESET} You can find this credentials in 'config/environment/.env.secret' file"
 echo -e "${LIGHTYELLOW}[Warning]${RESET} Store your password in safe place"
+
+echo -e "------------------------------"
+echo -e "Running wp plugin activate"
+echo -e "------------------------------"
+
+wp plugin activate --all
+
+echo -e "------------------------------"
+echo -e "Running wp rewrite structure"
+echo -e "------------------------------"
+
+wp rewrite structure '/%postname%/'

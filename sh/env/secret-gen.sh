@@ -6,6 +6,10 @@ set -e
 # Colors
 source ./sh/utils/colors.sh
 
+echo -e "------------------------------"
+echo -e "Generate .env.secret"
+echo -e "------------------------------"
+
 # Check .env.secret file exist
 if [ -f ./config/environment/.env.secret ]; then
     echo -e "${CYAN}[Info]${RESET} .env.secret file already exist in ./config/environment/"; exit 0;
