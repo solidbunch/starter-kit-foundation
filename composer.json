@@ -55,18 +55,18 @@
     "solidbunch/composer-installers": "^1.1",
     "solidbunch/monitoring-client": "^2.0.2",
     "solidbunch/monitoring-server": "^2.1.0",
-    "solidbunch/starter-kit-theme": "dev-develop",
+    "solidbunch/starter-kit-theme": "dev-master",
     "solidbunch/starter-kit-addon": "^1.0.5",
-    "solidbunch/wordpress-core-no-content": "^7.0",
+    "solidbunch/wordpress-core-no-content": "^7.0.2",
     "wpackagist-plugin/contact-form-7": "^6.1.6",
-    "wpackagist-plugin/redirection": "^5.7.5",
-    "wpackagist-plugin/svg-support": "^2.5.16",
-    "wpackagist-plugin/wordpress-seo": "^27.8"
+    "wpackagist-plugin/redirection": "^5.9.0",
+    "wpackagist-plugin/svg-support": "^2.6.1",
+    "wpackagist-plugin/wordpress-seo": "^28.1"
   },
   "require-dev": {
     "roave/security-advisories": "dev-latest",
     "wpackagist-plugin/rewrite-rules-inspector": "^1.6.0",
-    "wpackagist-plugin/query-monitor": "^4.0.6"
+    "wpackagist-plugin/query-monitor": "^4.0.7"
   },
   "config": {
     "optimize-autoloader": true,
