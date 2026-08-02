@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ff77f40e3dacfe97a223eefc02cd5b07",
+    "content-hash": "db93c465e590413d277b65789c825f32",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -1219,6 +1219,24 @@
                 }
             ],
             "time": "2021-04-19T16:34:45+00:00"
+        },
+        {
+            "name": "wpackagist-plugin/cloudflare",
+            "version": "4.14.4",
+            "source": {
+                "type": "svn",
+                "url": "https://plugins.svn.wordpress.org/cloudflare/",
+                "reference": "tags/4.14.4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://downloads.wordpress.org/plugin/cloudflare.4.14.4.zip"
+            },
+            "require": {
+                "composer/installers": "^1.0 || ^2.0"
+            },
+            "type": "wordpress-plugin",
+            "homepage": "https://wordpress.org/plugins/cloudflare/"
         },
         {
             "name": "wpackagist-plugin/contact-form-7",
