@@ -17,7 +17,7 @@ DB_PREFIX="${MYSQL_DB_PREFIX:-wp_}"
 
 # Default output file name
 OUTPUT_DIR="./tmp"
-OUTPUT_FILE="${OUTPUT_DIR}/${DATABASE_CONTAINER}-${MYSQL_DATABASE}-${WP_ENVIRONMENT_TYPE}-${APP_DOMAIN}-$(date +%Y-%m-%d).sql"
+OUTPUT_FILE="${OUTPUT_DIR}/${DATABASE_CONTAINER}-${MYSQL_DATABASE}-${WP_ENVIRONMENT_TYPE}-${APP_DOMAIN}-$(date +%Y-%m-%d_%H-%M-%S).sql"
 
 # Parse CLI arguments
 while getopts "f:i:h" opt; do

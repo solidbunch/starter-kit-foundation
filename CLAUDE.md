@@ -85,8 +85,8 @@ above for why; read and follow these directly by path, not by name):
 ```bash
 make install [local|dev|stage|prod]      # First-time setup: secrets → .env → composer → npm → docker → WP
 make up [local|dev|stage|prod]           # Start containers (rebuilds .env first)
-make down                                # Stop and REMOVE containers + volumes
-make restart [local|dev|stage|prod]      # Restart containers without removing volumes
+make down                                # Stop and remove containers + network; all data persists (every volume is a host bind mount)
+make restart [local|dev|stage|prod]      # Restart running containers in place (no recreate, no data change)
 make recreate [local|dev|stage|prod]     # Rebuild .env then `docker compose up -d --force-recreate`
 make core-install                        # Run WP core install script inside the php container (used by CI deploy)
 make run <service> [cmd]                 # One-off container run via docker-compose.toolkit.yml (sh/dev/run.sh)

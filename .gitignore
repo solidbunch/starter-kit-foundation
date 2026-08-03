@@ -74,8 +74,8 @@ terraform.rc
 #===================================#
 #       Vendor and npm Files        #
 #===================================#
-node_modules
-vendor
+/node_modules
+/vendor
 /kit-modules
 # If we are using custom dependency we should run composer update everywhere
 # to update to last changes without lock file

@@ -13,6 +13,14 @@ This is a mature codebase with strong conventions. Follow them — do not invent
   Composer-installed, git-ignored, and simply absent until installed — don't assume they exist
   on disk without checking
 
+## Before changing the database
+
+- Run `make export` to back up the database before making any changes that touch it — schema
+  changes, migrations, direct SQL, bulk data edits, **and** any content change made through the
+  wp-admin UI/browser (posts, pages, media, taxonomy terms, options, or any other content) —
+  dumps are written to `./tmp` with a date+time suffix (`sh/database/export.sh`), so repeated
+  backups on the same day don't overwrite each other
+
 ## Git flow
 
 - `develop` is the integration branch — it drives the `dev` environment (auto-deployed on push,
@@ -26,6 +34,9 @@ This is a mature codebase with strong conventions. Follow them — do not invent
 
 ## Scope control
 
+- Never reset a real WordPress user's password (`wp user update <user> --user_pass=...`) without
+  explicit permission in chat first — even for legitimate testing needs, ask before overwriting a
+  live account's credentials, don't act then report
 - Implement only what was asked — nothing more
 - If you spot something broken outside the current scope — report it, do not silently fix it
 - One task = one commit-ready change
