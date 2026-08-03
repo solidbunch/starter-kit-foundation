@@ -55,3 +55,8 @@ A GitHub Actions **repository variable**, not a secret. When `true`, both pipeli
 job before installing — used for the public demo/showcase deployment so it always runs the
 latest licensed module code. Normal client deployments leave this unset/`false` and rely on
 `composer.lock`.
+
+## GitLab CI alternative
+
+A parallel GitLab CI/CD pipeline (for plain GitLab.com shared runners) is also available,
+mirroring this deploy pipeline — see `gitlab-ci.md`. Independent of this one; both can coexist.
