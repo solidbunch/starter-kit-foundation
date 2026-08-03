@@ -45,11 +45,25 @@ regenerated, see root `CLAUDE.md`):
 - `config/environment/.env.main`: `APP_NAME=<slug>`, `APP_TITLE="<title>"`
 - `config/environment/.env.type.local`: `APP_DOMAIN=<domain>` (repeat for `.env.type.dev`/
   `.env.type.stage`/`.env.type.prod` for any environment the user gave a domain for in Step 0)
+- `config/environment/.env.main`: `GITHUB_ORG`/`GITHUB_REPO` — run `git remote get-url origin`; if
+  it resolves to a `github.com` remote, parse `<org>`/`<repo>` out of it and set both. If no origin
+  is set (or it isn't a GitHub URL), leave these two untouched and flag it in Step 9's report — they
+  still hold StarterKit's own values (`solidbunch`/`starter-kit-foundation`) and must be set by hand
+  before this project's CI/CD role/Terraform state work. `ROLE_NAME` and the Terraform state vars
+  (`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table`) stay out of scope regardless — a real,
+  globally-unique S3 bucket/DynamoDB table the user controls can't be invented automatically; flag
+  those in Step 9 too.
+- `.github/workflows/workflow-deploy-develop.yml` / `workflow-deploy-production.yml`: the
+  `SSH_HOST_ALIAS:` value on each (shipped as `develop.starter-kit.io` / `starter-kit.io`) — these
+  are just SSH-config aliases, not live URLs, but must stop reading as the template's own domain.
+  If the user gave dev/prod domains in Step 0, set `SSH_HOST_ALIAS: develop.<devDomain>` /
+  `SSH_HOST_ALIAS: <prodDomain>`; if they skipped those, fall back to
+  `SSH_HOST_ALIAS: develop.<slug>` / `SSH_HOST_ALIAS: <slug>`. Keep the `develop.`-prefix-on-dev,
+  bare-on-prod shape — only the domain/slug part changes.
 
-`GITHUB_ORG`/`GITHUB_REPO`/`ROLE_NAME`/Terraform vars in `.env.main` are **out of scope for this
-skill** — leave them untouched. They only matter for CI/CD and Terraform infra (`kit-modules/basis`),
-which is a separate task the user can ask for by name later; `infrastructure.md`/`ci.md` cover that
-ground when it comes up.
+`kit-modules/basis` Terraform/Ansible internals and the rest of CI/CD wiring beyond the above are a
+separate task the user can ask for by name later; `infrastructure.md`/`ci.md` cover that ground when
+it comes up.
 
 Do not touch `.env.secret` — untouched by rename, regenerated secrets aren't part of identity.
 
@@ -203,12 +217,15 @@ manual look before their next dev deploy.
 
 The template's `README.md` is StarterKit's own marketing/product page — links to
 `starter-kit.io`, generic feature list, no mention of what *this* project is or how to run it.
-Put the project itself first (description, local install, CI/CD), and move the template's
-existing content — the overview blurb, Website/Documentation links, Stay Connected links —
-down to a closing section, unchanged from what's in `README.md` today. Don't trim that part: same
-text, same links, just relocated. Keep the new top section short — this is a landing page for a
-developer opening the repo for the first time, not a manual; link out to `starter-kit.io/docs` and
-this repo's own `.claude/rules/` files for depth instead of inlining it.
+Put the project itself first (description, local install, CI/CD). The template's own marketing
+content (overview blurb, feature bullet list, video link, Stay Connected socials) must **not**
+survive into the generated README as if it were this project's own data — a developer reading
+`acme-shop`'s README should never see an "Overview" section describing "StarterKit" or a
+"Stay Connected" block linking to SolidBunch's own GitHub Discussions/LinkedIn. Replace all of it
+with a single short attribution line/paragraph at the bottom crediting the boilerplate, not a
+relocated copy of it. Keep the new top section short — this is a landing page for a developer
+opening the repo for the first time, not a manual; link out to `starter-kit.io/docs` and this
+repo's own `.claude/rules/` files for depth instead of inlining it.
 
 Write `README.md` at the repo root with this structure:
 
@@ -232,81 +249,53 @@ Admin credentials print at install time and are saved to `config/environment/.en
 
 ## CI/CD setup
 
-One-time setup, then two workflows to run by hand for infra/prod. Do this in GitHub, in the repo
-this project lives in.
+One-time setup in GitHub, then two workflows to run by hand for infra/prod:
 
-**0. Set this project's own CI/CD identity first** — `config/environment/.env.main` still ships
-with StarterKit's own values, unchanged by this skill's Step 1 on purpose. Edit these two blocks
-before step 3 below, or the AWS role and Terraform state will target the *template's* repo/bucket,
-not this project's:
-
-\`\`\`
-# lines ~75-78 — currently:
-ROLE_NAME="github-actions-role"
-GITHUB_ORG="solidbunch"
-GITHUB_REPO="starter-kit-foundation"
-\`\`\`
-→ set `GITHUB_ORG`/`GITHUB_REPO` to this project's actual GitHub org/repo name. `ROLE_NAME` can
-stay as-is unless you want a different AWS IAM role name.
-
-\`\`\`
-# lines ~85-86 — currently:
-TF_VAR_tf_backend_bucket=starter-kit-io-terraform-state-storage
-TF_VAR_tf_lock_table=terraform-locks
-\`\`\`
-→ set `TF_VAR_tf_backend_bucket` to a globally-unique S3 bucket name you control (this default is
-SolidBunch's own bucket — using it as-is means your Terraform state collides with theirs, or you
-simply don't have access to write to it). `TF_VAR_tf_lock_table` can stay `terraform-locks` unless
-you already have a DynamoDB table by that name in the same AWS account.
-
-Run `make env local` after editing so `.env` picks up the change.
-
-**1. Add repo secrets** — GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
+**1. Add repo secrets**: GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
 **Secrets** tab → **New repository secret**, one at a time:
 
-- `SSH_KEY` — the raw private key, e.g.:
+- `SSH_KEY`: the raw private key, e.g.:
   \`\`\`
   -----BEGIN OPENSSH PRIVATE KEY-----
   b3BlbnNzaC1rZXktdjEAAAAABG5vbmU...
   -----END OPENSSH PRIVATE KEY-----
   \`\`\`
 
-- `SSH_CONFIG` — an SSH client config. **The `Host` aliases must match `SSH_HOST_ALIAS` in
-  `.github/workflows/workflow-deploy-develop.yml` / `workflow-deploy-production.yml` exactly**
-  (shipped as `develop.starter-kit.io` / `starter-kit.io` — if this project didn't rename those
-  two lines, use those literal aliases even though the project itself has a different domain):
+- `SSH_CONFIG`: an SSH client config, one `Host` block per environment:
   \`\`\`
-  Host develop.starter-kit.io
+  Host <dev SSH_HOST_ALIAS>
     HostName <dev server IP or hostname>
     User admin
     IdentityFile ~/.ssh/id_rsa
     StrictHostKeyChecking no
 
-  Host starter-kit.io
+  Host <prod SSH_HOST_ALIAS>
     HostName <prod server IP or hostname>
     User admin
     IdentityFile ~/.ssh/id_rsa
     StrictHostKeyChecking no
   \`\`\`
 
-- `COMPOSER_AUTH` — a single-line JSON object with the credentials SolidBunch gives you for the
-  licensed `kit-modules` repos. Confirmed shape for a GitHub-hosted private repo (from
-  `sh/env/.env.secret.template`):
+- `COMPOSER_AUTH`: a GitHub personal access token in Composer's `github-oauth` JSON shape, quotes
+  escaped (see `sh/env/.env.secret.template` and the
+  [StarterKit CI/CD docs](https://starter-kit.io/docs/ci-cd-deployments/)):
   \`\`\`
-  {"github-oauth":{"github.com":"<GITHUB_TOKEN_FROM_SOLIDBUNCH>"}}
+  {\"github-oauth\":{\"github.com\":\"<GITHUB_PERSONAL_ACCESS_TOKEN>\"}}
   \`\`\`
-  If SolidBunch also issues separate credentials for `licensing.starter-kit.io`, merge them into
-  the same JSON object per Composer's `auth.json` schema — ask SolidBunch for the exact keys, not
-  documented in this repo.
+  If you have paid `kit-modules` licenses, add an `http-basic` entry for
+  `licensing.starter-kit.io` to the same JSON object:
+  \`\`\`
+  {\"github-oauth\":{\"github.com\":\"<GITHUB_PERSONAL_ACCESS_TOKEN>\"},\"http-basic\":{\"licensing.starter-kit.io\":{\"username\":\"<your email>\",\"password\":\"<your license password>\"}}}
+  \`\`\`
 
-**2. Add a repo variable** — same page, **Variables** tab → **New repository variable**:
+**2. Add a repo variable**: same page, **Variables** tab → **New repository variable**:
 
 | Name | Value |
 |---|---|
-| `AWS_ROLE_TO_ASSUME` | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible — see step 3 |
+| `AWS_ROLE_TO_ASSUME` | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible, see step 3 |
 
 **3. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
-not in a container — needs the AWS CLI installed locally with credentials that can read IAM:
+not in a container, needs the AWS CLI installed locally with credentials that can read IAM:
 
 \`\`\`bash
 bash ./kit-modules/basis/sh/oidc.sh -m gen -e dev
@@ -321,56 +310,38 @@ it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from ste
 right of the run list) → set:
 - `ENVIRONMENT_TYPE`: `dev`, `stage`, or `prod`
 - `ACTION_TYPE`: `plan` (preview only, always run this first), `apply` (creates/changes
-  infrastructure), or `destroy` (tears it down — only on purpose)
+  infrastructure), or `destroy` (tears it down, only on purpose)
 - `SKIP_ANSIBLE`: leave unchecked unless you specifically want Terraform-only
 
 then click **Run workflow** again to confirm.
 
-**5. Deploy to dev**: automatic — every push to `develop` deploys. To force a re-deploy without a
+**5. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
 new commit: Actions → *Deploy to Develop* → **Run workflow**.
 
 **6. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
-— this is the only way anything reaches prod.
+is the only way anything reaches prod.
 
 Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`
 (Terraform/Ansible/licensing) in this repo.
 
 ---
 
-### [Website](https://starter-kit.io) | [Documentation](https://starter-kit.io/docs/overview/)
-
-## Overview
-
-StarterKit is a baseline WordPress environment template built for rapid project initiation.
-It provides a preconfigured Docker-based infrastructure and a custom starter WordPress theme designed for modern development workflow. The kit simplifies the handling of sensitive data, and supports flexible configuration across multiple environments.
-
-- Docker-based environment
-- Infrastructure as Code with Terraform
-- Server provisioning with Ansible
-- CI/CD pipelines via GitHub Actions
-- Custom WordPress theme with FSE, SCSS, Composer and PSR-12
-- Secure, scalable, and production-ready setup by default
-
-StarterKit follows Infrastructure-as-Product principles:
-you get local, staging, and production environments configured, provisioned, and deployed consistently across all stages.
-
-[Watch the introduction video](https://youtu.be/uCQcxhVUsdc) to see how it works.
-
-## Getting Started
-
-See the [StarterKit installation guide](https://starter-kit.io/docs/installation/).
-
-## Stay Connected
-
-- Participate on [GitHub Discussions](https://github.com/solidbunch/starter-kit-foundation/discussions)
-- Connect via [LinkedIn](https://www.linkedin.com/company/solidbunch)
+Built on [SolidBunch StarterKit](https://starter-kit.io), a Docker + Terraform + Ansible + CI/CD
+WordPress boilerplate. See its [documentation](https://starter-kit.io/docs/overview/) for details
+on the underlying platform this project is built with.
 ```
 
-Everything from the `---` divider down is copied verbatim from the current `README.md` — read that
-file at run time rather than trusting this snippet, in case it has drifted since this skill was
-last updated. Fill in the placeholders above the divider from what earlier steps already collected
+The attribution line below the `---` divider is fixed text — write it as shown, don't copy the
+template's own `README.md` content (its "Overview"/"Getting Started"/"Stay Connected" sections
+describe StarterKit itself, not this project, and must not appear as if they were this project's
+own data). Fill in the placeholders above the divider from what earlier steps already collected
 (`APP_TITLE`/`APP_NAME` from Step 1, `APP_DOMAIN` from Step 1, the repo URL from
-`git remote get-url origin` if set, else omit that line rather than guessing). If Step 0 skipped
+`git remote get-url origin` if set, else omit that line rather than guessing). Fill in
+`<dev SSH_HOST_ALIAS>`/`<prod SSH_HOST_ALIAS>` by reading the actual `SSH_HOST_ALIAS` values
+straight out of `.github/workflows/workflow-deploy-develop.yml` /
+`workflow-deploy-production.yml` in this repo and writing them as plain literal text — never write
+the placeholder brackets or any commentary about whether/why they were renamed into the generated
+`README.md`. If Step 0 skipped
 the description, use the fallback line defined there. If the user chose to rename the theme
 (Step 5) or go monorepo (Step 6), the CI/CD section above still applies as-is — neither changes
 what's required in GitHub secrets/vars.
@@ -392,13 +363,19 @@ reflected so future sessions don't describe the old template identity.
 
 List every changed file with its full path. Separate clearly:
 
-- **Done automatically**: env rename, regenerated `.env`, install, theme repository mode change
-  (if Step 6 ran — `.gitignore`/`composer.json` edits, detached `.git`), theme rename (if it ran),
-  project README rewrite, guideline refresh
-- **Left for the user**: `/etc/hosts` edit, GitHub repo/CI secrets setup, `kit-modules` licensing
-  (see `infrastructure.md`), the orphaned old theme folder + `composer.json` entry (if Step 5 ran),
-  the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its caveat)
-  — anything this skill couldn't do without an external-system action or a destructive decision
+- **Done automatically**: env rename, regenerated `.env`, install, `SSH_HOST_ALIAS` rename in both
+  deploy workflow files, `GITHUB_ORG`/`GITHUB_REPO` rename (if `git remote get-url origin` resolved
+  to a GitHub URL), theme repository mode change (if Step 6 ran — `.gitignore`/`composer.json`
+  edits, detached `.git`), theme rename (if it ran), project README rewrite, guideline refresh
+- **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in `config/environment/.env.main`
+  **only if** no GitHub origin was set for Step 1 to read (still StarterKit's own template values in
+  that case); `ROLE_NAME`/`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table` in the same file (always
+  left for the user — a real S3 bucket/DynamoDB table can't be invented automatically), followed by
+  `make env local` after any of the above are edited; GitHub repo/CI secrets setup; `kit-modules`
+  licensing (see `infrastructure.md`); the orphaned old theme folder + `composer.json` entry (if
+  Step 5 ran); the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its
+  caveat) — anything this skill couldn't do without an external-system action or a destructive
+  decision
 
 Also mention: the theme ships as FSE (Full Site Editing) by default. If the user wants classic
 PHP templates instead (Gutenberg blocks retained, only the page-assembly mechanism changes), point
