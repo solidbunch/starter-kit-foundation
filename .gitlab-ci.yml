@@ -1,0 +1,45 @@
+# GitLab CI/CD — entry point
+# GitLab analog of .github/workflows/workflow-deploy-develop.yml + workflow-deploy-production.yml
+# + job-deploy.yml. .gitlab/ci/deploy.gitlab-ci.yml holds the reusable job templates (hidden,
+# leading-dot, included unconditionally — they define no real jobs on their own). Each
+# environment's concrete jobs + variables live in its own file, included only when the pipeline's
+# ref matches that environment's branch — so dev's and prod's job definitions never merge into the
+# same pipeline, which is what lets both use plain job names with no suffix.
+#
+# $CI_COMMIT_REF_NAME (not $CI_COMMIT_BRANCH) is used in the include rules below — GitLab's docs
+# list CI_COMMIT_REF_NAME as the supported variable for `include: rules:`, unlike CI_COMMIT_BRANCH.
+# The workflow: rules further down keep using CI_COMMIT_BRANCH — different scope, unaffected.
+# See .claude/rules/gitlab-ci.md for the full picture and the GitHub Actions side (ci.md).
+
+stages:
+  - build
+  - deploy
+
+variables:
+  # Keep in sync with config/environment/.env.main (APP_COMPOSER_IMAGE / APP_NODE_IMAGE) —
+  # image: is resolved at pipeline-config time, before any script can source .env.main.
+  APP_COMPOSER_IMAGE: ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.22
+  APP_NODE_IMAGE: ghcr.io/solidbunch/starter-kit-node:18-alpine3.20
+  # Keep in sync with config/environment/.env.main (WP_DEFAULT_THEME) — artifacts: paths/exclude
+  # in deploy.gitlab-ci.yml are resolved at pipeline-config time, same as image: above.
+  WP_DEFAULT_THEME: starter-kit-theme
+
+# Pipeline creation itself is gated here: auto on push to develop; on master, only a web-triggered
+# "Run pipeline" (GitLab's equivalent of GH's workflow_dispatch-only prod workflow) — a push to
+# master creates no pipeline at all. The branch literals also appear in the include: rules below;
+# include: cannot read this file's own variables: (includes are evaluated before jobs/variables),
+# so both places must be updated together on a branch rename.
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "web"'
+    - when: never
+
+include:
+  - local: .gitlab/ci/deploy.gitlab-ci.yml
+  - local: .gitlab/ci/deploy-dev.gitlab-ci.yml
+    rules:
+      - if: '$CI_COMMIT_REF_NAME == "develop"'
+  - local: .gitlab/ci/deploy-prod.gitlab-ci.yml
+    rules:
+      - if: '$CI_COMMIT_REF_NAME == "master"'
