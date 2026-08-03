@@ -13,6 +13,17 @@ This is a mature codebase with strong conventions. Follow them — do not invent
   Composer-installed, git-ignored, and simply absent until installed — don't assume they exist
   on disk without checking
 
+## Git flow
+
+- `develop` is the integration branch — it drives the `dev` environment (auto-deployed on push,
+  see `ci.md`). `main` is the release branch — it drives `prod` (manual deploy only)
+- All feature/fix branches are created from `develop`, and merge back into `develop`
+- Releases go `develop` → `main` (merge or fast-forward) once `develop` has been verified on `dev`
+- Never branch a feature from `main` — that causes `develop`/`main` divergence and duplicate
+  merges. The only exception is a `hotfix/*` branch cut from `main` for a prod-only emergency fix,
+  merged back into both `main` and `develop`
+- Never `git push --force` to `main` or `develop` (see Hard Rules in the root `CLAUDE.md`)
+
 ## Scope control
 
 - Implement only what was asked — nothing more
