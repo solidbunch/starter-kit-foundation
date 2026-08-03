@@ -26,6 +26,7 @@ Foundation rules — in `.claude/rules/`, auto-injected by path (`/memory` shows
 | `infrastructure.md` | editing `kit-modules/**`, `*.tf`, `*.tfvars` — Terraform / Ansible / licensing           |
 | `docker.md`         | editing `docker-compose*.yml`, `dockerfiles/**`, `sh/system/{docker,install,certbot}.sh` |
 | `ci.md`             | editing `.github/workflows/**` — deploy + provisioning pipelines                         |
+| `gitlab-ci.md`      | editing `.gitlab-ci.yml`, `.gitlab/ci/**` — parallel GitLab CI deploy pipeline           |
 | `config.md`         | editing `config/**` — env files, nginx templates, PHP ini, cron, certbot, SSL            |
 
 The **theme** carries its own `CLAUDE.md` files inside its repo. Claude Code auto-loads them on
