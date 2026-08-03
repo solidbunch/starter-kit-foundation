@@ -1,6 +1,6 @@
 ---
 name: bootstrap-project
-description: Turns a freshly cloned starter-kit-foundation checkout into a named, running project - renames APP_NAME/APP_TITLE/APP_DOMAIN, optionally renames the theme via its own clone-theme CLI, sanity-checks the edits, then runs make secret/env/install and refreshes CLAUDE.md/rules via project-brief. Triggers on "bootstrap this project", "start a new project from this template", "initialize new project", or Russian "инициализируй новый проект", "забутстрапи проект", "разверни проект из шаблона". Not for editing an already-running project's config - that's config.md / infrastructure.md territory.
+description: Turns a freshly cloned starter-kit-foundation checkout into a named, running project - renames APP_NAME/APP_TITLE/APP_DOMAIN, optionally renames the theme via its own clone-theme CLI, optionally bundles the theme into this root repo instead of its own separate VCS repo (editing .gitignore/composer.json accordingly), sanity-checks the edits, runs make secret/env/install, rewrites the project's own README.md (local install + CI/CD summary), and refreshes CLAUDE.md/rules via project-brief. Triggers on "bootstrap this project", "start a new project from this template", "initialize new project". Not for editing an already-running project's config - that's config.md / infrastructure.md territory.
 ---
 
 # Bootstrap Project — turn the template into *your* project
@@ -20,10 +20,19 @@ Ask once, via `AskUserQuestion` (batch what you can), whatever the user didn't a
    `APP_DOMAIN` in `.env.type.local`.
    **Dev/stage/prod domains** (optional) — ask, but let the user decline/skip; if skipped, leave
    those environments untouched (not needed until actually provisioned).
-4. **Theme name** — keep `starter-kit-theme` as-is (skip Step 6), or rename it: new theme slug
+4. **Theme repository mode** — keep the default: the theme stays in its own separate VCS repo,
+   Composer VCS-installs it as `source` into `web/wp-content/themes/<slug>` (current behavior —
+   supports independent theme releases/branching, e.g. the dev environment's `dev-develop` branch
+   tracking). Or: bundle the theme directly into this root repo (monorepo) — no separate theme
+   repo, the theme's files get tracked here instead, and Composer stops managing it. This drives
+   Step 6 below (it runs after Step 5 if both are chosen — see that step for why).
+5. **Theme name** — keep `starter-kit-theme` as-is (skip Step 5), or rename it: new theme slug
    (folder name), display name, and package label. This is a cosmetic rename only — the theme's
    internal PHP namespace, hook/settings prefixes, and REST API namespace stay unchanged unless
-   the user explicitly asks for a deeper rename too (see Step 6).
+   the user explicitly asks for a deeper rename too (see Step 5).
+6. **Project description** — one to three sentences on what this project actually is (for the
+   README this skill writes in Step 7). Optional — if skipped, fall back to a generic line built
+   from the title: `"<title> — a WordPress project built on SolidBunch StarterKit."`
 
 Don't ask about anything you can default sensibly (e.g. domain slug) — ask only what's genuinely
 ambiguous. This is meant to feel like one command, not a questionnaire.
@@ -103,35 +112,292 @@ EOF
 Then:
 
 1. Activate it: `docker compose exec -T --user www-data php wp theme activate <new-theme-slug>`
+
 2. Update `config/environment/.env.main`: `WP_DEFAULT_THEME=<new-theme-slug>`, then `make env local`
    to regenerate `.env`/`.env.runtime` so build scripts target the new theme folder.
-3. The new folder is a **plain local copy — not Composer-managed**. The old
+
+3. `wp clone-theme` skips `vendor`/`node_modules` when copying, so the new folder has neither —
+   `.env`'s `WP_DEFAULT_THEME` now points at it (previous step), so just re-run the project's own
+   build script, non-interactively:
+   
+   ```bash
+   bash ./sh/system/install.sh yes
+   ```
+   
+   This is the exact script `make install` calls — it re-runs root `composer install-<mode>`
+   (harmless no-op, already correct) and, scoped to `$WP_DEFAULT_THEME`, `composer install-<mode>`
+   
+   + `npm run install-<mode>` for the **new** theme folder. Confirm `vendor/`, `node_modules/`, and
+     compiled `assets/` now exist under the new theme folder before moving on.
+
+4. The new folder is a **plain local copy — not Composer-managed**. The old
    `web/wp-content/themes/<old-slug>/` directory is untouched on disk, and root `composer.json`'s
    `require.solidbunch/starter-kit-theme` still points at it. Don't silently delete the old folder
-   or edit that `composer.json` entry — flag both as a manual decision for the user in Step 8
+   or edit that `composer.json` entry — flag both as a manual decision for the user in Step 9
    (removing/repointing it affects `composer.lock` state).
-4. Grep the new theme's own guides for leftover references to the old slug/package name and fix
+
+5. Grep the new theme's own guides for leftover references to the old slug/package name and fix
    any hits directly (plain find-and-replace) — it's a normal file edit in this working copy, the
    theme having its own git remote doesn't change that:
    `grep -rn <old-slug> web/wp-content/themes/<new-slug>/CLAUDE.md
    web/wp-content/themes/<new-slug>/blocks/CLAUDE.md web/wp-content/themes/<new-slug>/.claude/`.
-   List these edits separately in the Step 8 report since they land in a different repo's working
+   List these edits separately in the Step 9 report since they land in a different repo's working
    tree than the rest of the bootstrap changes.
 
-## Step 6 — Refresh AI guidelines
+## Step 6 — Theme repository mode (only if the user chose "monorepo" in Step 0)
+
+Skip entirely if the user kept the default (separate theme repo) — no files to touch. Runs after
+Step 5 (not before) when the user also chose to rename the theme: it must operate on the **final**
+theme slug, not the intermediate default one. Converting `starter-kit-theme` to monorepo mode and
+then renaming it afterwards would detach/un-ignore the wrong (soon-to-be-orphaned) folder while
+the actually-active renamed theme stays Composer-managed and git-ignored — always resolve the
+final `<slug>` from Step 0/Step 5 before starting this step.
+
+1. Detach the theme from its own git history — it landed on disk as a full VCS-source checkout
+   (its own `.git`), which would otherwise become a forgotten repo-inside-a-repo:
+   
+   ```bash
+   rm -rf web/wp-content/themes/<slug>/.git
+   ```
+
+2. Stop Composer from managing it — edit root `composer.json`:
+   
+   - Remove the `solidbunch/starter-kit-theme` entry from `repositories` (the `type: vcs` block
+     pointing at `github.com/solidbunch/starter-kit-theme.git`)
+   - Remove the `"solidbunch/starter-kit-theme": "dev-..."` line from `require`
+   - Remove the `"solidbunch/starter-kit-theme": "source"` line from `config.preferred-install`
+   - Remove the `switch-theme-dev` script — dev-branch tracking via Composer no longer applies
+     (see the caveat below)
+   
+   Then run `composer update --no-install`. This resolves and rewrites `composer.lock` to drop the
+   package (since it's no longer in `require`) **without** touching files on disk — the theme
+   folder is already there and now tracked by git directly, so it must not be reinstalled/removed
+   by Composer. Do not use `composer update --lock`: that only refreshes the lock's content-hash
+   and does not actually remove the package from `packages`, leaving `composer.lock` inconsistent
+   with `composer.json` and liable to reinstall the theme on the next `composer install`.
+
+3. Un-ignore the theme folder in root `.gitignore`. Right now the whole content directory is
+   ignored wholesale as Composer/runtime-managed (`/web/wp-content/*`, under "Content Files").
+   Add, directly after that line:
+   
+   ```gitignore
+   !/web/wp-content/themes/
+   /web/wp-content/themes/*
+   !/web/wp-content/themes/<slug>/
+   ```
+   
+   This un-ignores only the active theme's folder — `plugins/`, `uploads/`, `upgrade/`, and any
+   other theme folders stay ignored.
+
+4. `git add web/wp-content/themes/<slug>` and confirm with `git status` that its files show as new
+   and trackable, not still ignored.
+
+**Caveat — flag this in Step 9's report, don't silently patch around it:** the dev environment
+normally tracks the theme's `dev-develop` branch via the CI-only `composer run switch-theme-dev`
+script (see root `CLAUDE.md`'s "Intentional Quirks" and `.claude/rules/ci.md`). In monorepo mode
+there's no separate theme repo/branch left to track, so that mechanism no longer applies. Updating
+the CI dev-deploy pipeline for this is out of scope for this skill — tell the user it needs a
+manual look before their next dev deploy.
+
+## Step 7 — Generate the project's own README
+
+The template's `README.md` is StarterKit's own marketing/product page — links to
+`starter-kit.io`, generic feature list, no mention of what *this* project is or how to run it.
+Put the project itself first (description, local install, CI/CD), and move the template's
+existing content — the overview blurb, Website/Documentation links, Stay Connected links —
+down to a closing section, unchanged from what's in `README.md` today. Don't trim that part: same
+text, same links, just relocated. Keep the new top section short — this is a landing page for a
+developer opening the repo for the first time, not a manual; link out to `starter-kit.io/docs` and
+this repo's own `.claude/rules/` files for depth instead of inlining it.
+
+Write `README.md` at the repo root with this structure:
+
+```markdown
+# <APP_TITLE>
+
+<Project description from Step 0 item 6, 1-3 sentences>
+
+## Local installation
+
+**Prerequisites:** Docker Engine v24+ (includes Compose v2), GNU Make, Git.
+
+\`\`\`bash
+git clone <this repo's URL>
+cd <APP_NAME>
+make install local
+\`\`\`
+
+Add `<APP_DOMAIN>` to `/etc/hosts` if it isn't a `.localhost` domain: `127.0.0.1 <APP_DOMAIN>`.
+Admin credentials print at install time and are saved to `config/environment/.env.secret`.
+
+## CI/CD setup
+
+One-time setup, then two workflows to run by hand for infra/prod. Do this in GitHub, in the repo
+this project lives in.
+
+**0. Set this project's own CI/CD identity first** — `config/environment/.env.main` still ships
+with StarterKit's own values, unchanged by this skill's Step 1 on purpose. Edit these two blocks
+before step 3 below, or the AWS role and Terraform state will target the *template's* repo/bucket,
+not this project's:
+
+\`\`\`
+# lines ~75-78 — currently:
+ROLE_NAME="github-actions-role"
+GITHUB_ORG="solidbunch"
+GITHUB_REPO="starter-kit-foundation"
+\`\`\`
+→ set `GITHUB_ORG`/`GITHUB_REPO` to this project's actual GitHub org/repo name. `ROLE_NAME` can
+stay as-is unless you want a different AWS IAM role name.
+
+\`\`\`
+# lines ~85-86 — currently:
+TF_VAR_tf_backend_bucket=starter-kit-io-terraform-state-storage
+TF_VAR_tf_lock_table=terraform-locks
+\`\`\`
+→ set `TF_VAR_tf_backend_bucket` to a globally-unique S3 bucket name you control (this default is
+SolidBunch's own bucket — using it as-is means your Terraform state collides with theirs, or you
+simply don't have access to write to it). `TF_VAR_tf_lock_table` can stay `terraform-locks` unless
+you already have a DynamoDB table by that name in the same AWS account.
+
+Run `make env local` after editing so `.env` picks up the change.
+
+**1. Add repo secrets** — GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
+**Secrets** tab → **New repository secret**, one at a time:
+
+- `SSH_KEY` — the raw private key, e.g.:
+  \`\`\`
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  b3BlbnNzaC1rZXktdjEAAAAABG5vbmU...
+  -----END OPENSSH PRIVATE KEY-----
+  \`\`\`
+
+- `SSH_CONFIG` — an SSH client config. **The `Host` aliases must match `SSH_HOST_ALIAS` in
+  `.github/workflows/workflow-deploy-develop.yml` / `workflow-deploy-production.yml` exactly**
+  (shipped as `develop.starter-kit.io` / `starter-kit.io` — if this project didn't rename those
+  two lines, use those literal aliases even though the project itself has a different domain):
+  \`\`\`
+  Host develop.starter-kit.io
+    HostName <dev server IP or hostname>
+    User admin
+    IdentityFile ~/.ssh/id_rsa
+    StrictHostKeyChecking no
+
+  Host starter-kit.io
+    HostName <prod server IP or hostname>
+    User admin
+    IdentityFile ~/.ssh/id_rsa
+    StrictHostKeyChecking no
+  \`\`\`
+
+- `COMPOSER_AUTH` — a single-line JSON object with the credentials SolidBunch gives you for the
+  licensed `kit-modules` repos. Confirmed shape for a GitHub-hosted private repo (from
+  `sh/env/.env.secret.template`):
+  \`\`\`
+  {"github-oauth":{"github.com":"<GITHUB_TOKEN_FROM_SOLIDBUNCH>"}}
+  \`\`\`
+  If SolidBunch also issues separate credentials for `licensing.starter-kit.io`, merge them into
+  the same JSON object per Composer's `auth.json` schema — ask SolidBunch for the exact keys, not
+  documented in this repo.
+
+**2. Add a repo variable** — same page, **Variables** tab → **New repository variable**:
+
+| Name | Value |
+|---|---|
+| `AWS_ROLE_TO_ASSUME` | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible — see step 3 |
+
+**3. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
+not in a container — needs the AWS CLI installed locally with credentials that can read IAM:
+
+\`\`\`bash
+bash ./kit-modules/basis/sh/oidc.sh -m gen -e dev
+\`\`\`
+
+This prints the exact AWS Console clicks (IAM → Identity providers → Add provider → OpenID
+Connect; IAM → Roles → Create role → Web identity) plus a ready-to-paste IAM policy JSON. Follow
+it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from step 2.
+
+**4. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
+**Actions** tab → *Provision Infrastructure* in the left sidebar → **Run workflow** button (top
+right of the run list) → set:
+- `ENVIRONMENT_TYPE`: `dev`, `stage`, or `prod`
+- `ACTION_TYPE`: `plan` (preview only, always run this first), `apply` (creates/changes
+  infrastructure), or `destroy` (tears it down — only on purpose)
+- `SKIP_ANSIBLE`: leave unchecked unless you specifically want Terraform-only
+
+then click **Run workflow** again to confirm.
+
+**5. Deploy to dev**: automatic — every push to `develop` deploys. To force a re-deploy without a
+new commit: Actions → *Deploy to Develop* → **Run workflow**.
+
+**6. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
+— this is the only way anything reaches prod.
+
+Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`
+(Terraform/Ansible/licensing) in this repo.
+
+---
+
+### [Website](https://starter-kit.io) | [Documentation](https://starter-kit.io/docs/overview/)
+
+## Overview
+
+StarterKit is a baseline WordPress environment template built for rapid project initiation.
+It provides a preconfigured Docker-based infrastructure and a custom starter WordPress theme designed for modern development workflow. The kit simplifies the handling of sensitive data, and supports flexible configuration across multiple environments.
+
+- Docker-based environment
+- Infrastructure as Code with Terraform
+- Server provisioning with Ansible
+- CI/CD pipelines via GitHub Actions
+- Custom WordPress theme with FSE, SCSS, Composer and PSR-12
+- Secure, scalable, and production-ready setup by default
+
+StarterKit follows Infrastructure-as-Product principles:
+you get local, staging, and production environments configured, provisioned, and deployed consistently across all stages.
+
+[Watch the introduction video](https://youtu.be/uCQcxhVUsdc) to see how it works.
+
+## Getting Started
+
+See the [StarterKit installation guide](https://starter-kit.io/docs/installation/).
+
+## Stay Connected
+
+- Participate on [GitHub Discussions](https://github.com/solidbunch/starter-kit-foundation/discussions)
+- Connect via [LinkedIn](https://www.linkedin.com/company/solidbunch)
+```
+
+Everything from the `---` divider down is copied verbatim from the current `README.md` — read that
+file at run time rather than trusting this snippet, in case it has drifted since this skill was
+last updated. Fill in the placeholders above the divider from what earlier steps already collected
+(`APP_TITLE`/`APP_NAME` from Step 1, `APP_DOMAIN` from Step 1, the repo URL from
+`git remote get-url origin` if set, else omit that line rather than guessing). If Step 0 skipped
+the description, use the fallback line defined there. If the user chose to rename the theme
+(Step 5) or go monorepo (Step 6), the CI/CD section above still applies as-is — neither changes
+what's required in GitHub secrets/vars.
+
+Use `make install local` alone, not `make secret`/`make env` as separate preceding lines — Step 2
+of this skill runs those separately for its own staged verification, but `make install` already
+runs secret generation, `.env` build, Composer/npm, Docker, and the WP core install in one pass
+(see `Makefile`). That reasoning belongs here, in the skill's own instructions — never write it
+into the generated `README.md` itself, which must contain nothing but the literal, final steps
+a developer follows.
+
+## Step 8 — Refresh AI guidelines
 
 Invoke the `project-brief` skill to re-scan the now-renamed project and update root `CLAUDE.md` /
 `.claude/rules/` — project name/title, domain, and (if changed) the theme's identity need to be
 reflected so future sessions don't describe the old template identity.
 
-## Step 7 — Report
+## Step 9 — Report
 
 List every changed file with its full path. Separate clearly:
 
-- **Done automatically**: env rename, regenerated `.env`, install, theme rename (if it ran),
-  guideline refresh
+- **Done automatically**: env rename, regenerated `.env`, install, theme repository mode change
+  (if Step 6 ran — `.gitignore`/`composer.json` edits, detached `.git`), theme rename (if it ran),
+  project README rewrite, guideline refresh
 - **Left for the user**: `/etc/hosts` edit, GitHub repo/CI secrets setup, `kit-modules` licensing
-  (see `infrastructure.md`), the orphaned old theme folder + `composer.json` entry (if Step 5 ran)
+  (see `infrastructure.md`), the orphaned old theme folder + `composer.json` entry (if Step 5 ran),
+  the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its caveat)
   — anything this skill couldn't do without an external-system action or a destructive decision
 
 Also mention: the theme ships as FSE (Full Site Editing) by default. If the user wants classic
