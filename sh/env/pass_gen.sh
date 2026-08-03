@@ -3,8 +3,9 @@
 # Stop when error
 set -e
 
-# Input and output file names
-input_file="/shell/env/.env.secret.template"
+# Input and output file names — resolved relative to this script's own location, so it works
+# whether the script is bind-mounted (local dev, e.g. under /shell) or run from its real repo path
+input_file="$(dirname "$0")/.env.secret.template"
 output_file=".env.secret"
 
 # Function to generate a random password
