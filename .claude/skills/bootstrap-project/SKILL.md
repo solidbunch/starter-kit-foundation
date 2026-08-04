@@ -262,18 +262,32 @@ One-time setup in GitHub, then two workflows to run by hand for infra/prod:
   \`\`\`
 
 - `SSH_CONFIG`: an SSH client config, one `Host` block per environment:
+
   \`\`\`
+  # SSH_CONFIG
+  # Example for CI/CD deployment via SSH
+  ####################################
+  Host *
+      IdentitiesOnly yes
+      StrictHostKeyChecking no
+
   Host <dev SSH_HOST_ALIAS>
     HostName <dev server IP or hostname>
     User admin
+    Port 22
     IdentityFile ~/.ssh/id_rsa
-    StrictHostKeyChecking no
+
+  Host <stage SSH_HOST_ALIAS>
+    HostName <stage server IP or hostname>
+    User admin
+    Port 22
+    IdentityFile ~/.ssh/id_rsa
 
   Host <prod SSH_HOST_ALIAS>
     HostName <prod server IP or hostname>
     User admin
+    Port 22
     IdentityFile ~/.ssh/id_rsa
-    StrictHostKeyChecking no
   \`\`\`
 
 - `COMPOSER_AUTH`: a GitHub personal access token in Composer's `github-oauth` JSON shape, quotes
@@ -341,7 +355,15 @@ own data). Fill in the placeholders above the divider from what earlier steps al
 straight out of `.github/workflows/workflow-deploy-develop.yml` /
 `workflow-deploy-production.yml` in this repo and writing them as plain literal text — never write
 the placeholder brackets or any commentary about whether/why they were renamed into the generated
-`README.md`. If Step 0 skipped
+`README.md`.
+
+If the project has a stage environment (user provided a stage domain in Step 0), include the
+`Host <stage SSH_HOST_ALIAS>` block in the SSH_CONFIG and fill `<stage SSH_HOST_ALIAS>` from the
+stage deploy workflow's `SSH_HOST_ALIAS` value — or `stage.<slug>`, matching the Step 1 convention
+if no separate stage workflow exists. If stage was skipped, **omit the stage Host block entirely**
+from the generated SSH_CONFIG.
+
+If Step 0 skipped
 the description, use the fallback line defined there. If the user chose to rename the theme
 (Step 5) or go monorepo (Step 6), the CI/CD section above still applies as-is — neither changes
 what's required in GitHub secrets/vars.
