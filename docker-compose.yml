@@ -83,8 +83,8 @@ services:
       APP_BA_USER: ${APP_BA_USER:-}
       APP_BA_PASS: ${APP_BA_PASS:-}
     ports:
-      - "${APP_HTTP_PORT}:${APP_HTTP_PORT}"
-      - "${APP_HTTPS_PORT}:${APP_HTTPS_PORT}"
+      - "80:80"
+      - "443:443"
     networks:
       default:
         # Add alias for nginx container to connect from other containers (node watcher for example)
