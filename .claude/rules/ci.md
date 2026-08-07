@@ -55,6 +55,7 @@ A GitHub Actions **repository variable**, not a secret. When `true`, both pipeli
 job before installing — used for the public demo/showcase deployment so it always runs the
 latest licensed module code. Normal client deployments leave this unset/`false` and rely on
 `composer.lock`.
+- `APP_MULTI_INSTANCE` (repo variable, optional, default absent, per-environment) — `1` enables the multi-instance (Traefik) deploy; see `infrastructure.md`.
 
 ## GitLab CI alternative
 

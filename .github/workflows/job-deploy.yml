@@ -128,6 +128,7 @@ jobs:
             set -e -o pipefail;
             cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
             make secret;
+            make APP_MULTI_INSTANCE='${{ vars.APP_MULTI_INSTANCE }}' proxy deploy '${{ inputs.ENVIRONMENT_TYPE }}';
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
             make ssl;
             make recreate '${{ inputs.ENVIRONMENT_TYPE }}';
