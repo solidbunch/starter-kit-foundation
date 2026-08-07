@@ -78,6 +78,8 @@ above for why; read and follow these directly by path, not by name):
   contract instead of reinventing them; requires the theme already classic (post
   `convert-to-classic-theme`):
   `web/wp-content/themes/starter-kit-theme/.claude/skills/create-classic-template/SKILL.md`
+- creating a new custom post type:
+  `web/wp-content/themes/starter-kit-theme/.claude/skills/create-post-type/SKILL.md`
 
 ## Commands
 
@@ -106,7 +108,8 @@ make tf [env] [init|plan|apply|destroy]  # Terraform: manage AWS infrastructure 
 make ansible [env] [inventory|playbook]  # Ansible: provision servers (kit-modules/basis)
 make basis                               # Interactive shell in the IaC container
 make monitoring [on|off]                 # Run monitoring-client scenario (alias: make mon)
-make proxy [start|stop|logs]             # Reverse proxy (Traefik) for multi-instance hosts (kit-modules/proxy)
+make proxy [start|stop|logs|deploy env]  # Reverse proxy (Traefik) for multi-instance hosts (kit-modules/proxy)
+make db-tunnel [start|stop|status] [port] # Local TCP tunnel to an instance's MariaDB (sh/system/db-tunnel.sh)
 make docker [build|push|clean] [service] # Build/push/clean Foundation Docker images
 make docker-login                        # Registry auth only (ghcr.io) — no build/push
 ```
