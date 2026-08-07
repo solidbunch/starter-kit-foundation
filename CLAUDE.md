@@ -55,9 +55,8 @@ conventions, own gotchas) and points back to `infrastructure.md` rather than rep
 - `kit-modules/monitoring-server/CLAUDE.md` — Grafana + Loki stack; large enough to split into its
   own `@import`-ed topic files (`stack.md`, `env-and-lifecycle.md`, `iac.md`) under its own
   `.claude/rules/`, same reasoning as the theme's topic-file split
-- `kit-modules/proxy/CLAUDE.md` — Traefik reverse proxy; **flags that the README's `make
-  proxy-up`/`APP_MULTI_INSTANCE` wiring doesn't exist yet in this repo's `Makefile`/`sh/`** — check
-  there before assuming that integration works
+- `kit-modules/proxy/CLAUDE.md` — Traefik reverse proxy; see `.claude/rules/infrastructure.md` for
+  how the foundation wires `APP_MULTI_INSTANCE` and `make proxy` into this module
 
 ## Skills
 
@@ -107,6 +106,7 @@ make tf [env] [init|plan|apply|destroy]  # Terraform: manage AWS infrastructure 
 make ansible [env] [inventory|playbook]  # Ansible: provision servers (kit-modules/basis)
 make basis                               # Interactive shell in the IaC container
 make monitoring [on|off]                 # Run monitoring-client scenario (alias: make mon)
+make proxy [start|stop|logs]             # Reverse proxy (Traefik) for multi-instance hosts (kit-modules/proxy)
 make docker [build|push|clean] [service] # Build/push/clean Foundation Docker images
 make docker-login                        # Registry auth only (ghcr.io) — no build/push
 ```

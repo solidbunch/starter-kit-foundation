@@ -139,11 +139,16 @@ composer require solidbunch/proxy
 - Config: `kit-modules/proxy/config/traefik.yml` (static — entrypoints, ACME resolver; set the
   real `certificatesResolvers.le.acme.email` before going live) and
   `config/dynamic/middlewares.yml` (security headers, optional rate-limit middleware, hot-reloaded).
-- Full command surface (`make proxy-up`, `make proxy-down`, `make proxy-logs`) and integration
-  wiring for `APP_MULTI_INSTANCE` are documented in the module's own README
-  (`kit-modules/proxy/README.md`) — **as of this writing those `make proxy-*` targets and the
-  `APP_MULTI_INSTANCE` merge logic are not yet present in this repo's root `Makefile`/`sh/`**, so
-  don't assume they exist without checking; verify current state there before relying on them.
+- `APP_MULTI_INSTANCE` defaults to `0` in `config/environment/.env.main`. The Makefile exposes a
+  single `make proxy` target — `make proxy start|stop|logs`, and `make proxy deploy <env>` (used
+  by CI) — that delegates to `kit-modules/proxy/bin/proxy.sh`; if the module isn't installed it
+  prints a skip message (or fails loudly for `deploy`, since that path is CI-driven).
+- All actual proxy behaviour — which compose files to merge, starting/stopping Traefik,
+  deploy-time wiring, and apex-vs-subdomain routing — lives entirely in `kit-modules/proxy`; the
+  foundation implements none of it.
+- When `APP_MULTI_INSTANCE=1`, `sh/system/certbot.sh` and the cron SSL-renewal job both skip
+  themselves — Traefik owns TLS in multi-instance mode.
+- Full step-by-step workflows: `kit-modules/proxy/README.md`.
 
 ## `starter-kit-addon` — not relevant to normal project work
 
