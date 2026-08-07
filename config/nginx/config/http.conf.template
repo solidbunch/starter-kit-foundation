@@ -5,18 +5,17 @@
 
 # http://www > http://non-www redirect
 server {
-    listen ${APP_HTTP_PORT};
-    listen [::]:${APP_HTTP_PORT};
+    listen 80;
+    listen [::]:80;
     server_name www.${APP_DOMAIN};
 
     return 301 $scheme://${APP_DOMAIN}$request_uri;
 }
 
 # Main directive
-# ToDo return to non variable port 80 and 443
 server {
-    listen ${APP_HTTP_PORT};
-    listen [::]:${APP_HTTP_PORT};
+    listen 80;
+    listen [::]:80;
     server_name ${APP_DOMAIN};
 
     root /srv/web;

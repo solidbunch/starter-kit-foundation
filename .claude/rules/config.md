@@ -39,8 +39,9 @@ folder, never by branching on environment inside `php.ini` itself.
 
 Files are `.conf.template`, not `.conf` — the official nginx image's entrypoint renders every
 `/etc/nginx/templates/*.template` to `/etc/nginx/conf.d/*.conf` via `envsubst` on container start,
-substituting vars like `${APP_DOMAIN}`, `${APP_HTTP_PORT}`, `${APP_HTTPS_PORT}`, `${APP_PROTOCOL}`,
-`${APP_BA}` from the container's environment. **Never edit a rendered `.conf` file directly** — it
+substituting vars like `${APP_DOMAIN}`, `${APP_PROTOCOL}`, `${APP_BA}` from the container's
+environment (nginx always listens on 80/443, hardcoded in the templates). **Never edit a rendered
+`.conf` file directly** — it
 is overwritten on every container start; edit the `.conf.template` and restart/recreate.
 
 - `default.conf.template` — entrypoint that includes `config/{http,https}.conf.template` based on

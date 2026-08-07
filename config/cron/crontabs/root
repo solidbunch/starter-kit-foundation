@@ -29,7 +29,7 @@
 15 4 * * 1 cd ${WORKING_DIR} && NO_COLOR=1 bash ./sh/cron/start-backup.sh weekly >> /var/log/cron.log 2>&1
 
 # SSL certificate renew by Certbot
-30 3 * * *  cd ${WORKING_DIR} && docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "certbot renew" && docker compose restart nginx >> /var/log/cron.log 2>&1
+30 3 * * *  [ "${APP_MULTI_INSTANCE:-0}" = "0" ] && cd ${WORKING_DIR} && docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "certbot renew" && docker compose restart nginx >> /var/log/cron.log 2>&1 || true
 
 # Remove old SSL logs
 35 3 * * * ls -t ${WORKING_DIR}/logs/letsencrypt/letsencrypt.log.* | tail -n +12 | xargs -r rm -f

@@ -60,6 +60,14 @@ make docker-login               # registry auth only — ghcr.io login using CR_
 pushing. `login`/`docker-login` were split out from `build`/`push` deliberately — don't merge them
 back into a combined step.
 
+## Multi-instance override (`COMPOSE_OVERRIDE`)
+
+`Makefile`'s `COMPOSE_OVERRIDE` var runs `kit-modules/proxy/bin/compose-flags.sh` (if present) and
+splices its output into every `docker compose` call (`up`, `down`, `restart`, `recreate`, `import`,
+`replace`, `install`, `core-install`). When `kit-modules/proxy` is installed and active
+(`APP_MULTI_INSTANCE=1`), this is what drops nginx's host port bindings and joins the shared
+`proxy` network — see `infrastructure.md`. A no-op otherwise.
+
 ## Volumes — all bind mounts, no Docker-managed volumes
 
 `docker-compose.yml` has no top-level `volumes:` key — every mount on every service is a host

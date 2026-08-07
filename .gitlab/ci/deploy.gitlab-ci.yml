@@ -117,6 +117,7 @@
         set -e -o pipefail;
         cd $DEPLOY_PATH;
         make secret;
+        make APP_MULTI_INSTANCE='$APP_MULTI_INSTANCE' proxy deploy '$ENVIRONMENT_TYPE';
         bash ./sh/env/init.sh '$ENVIRONMENT_TYPE';
         make ssl;
         make recreate '$ENVIRONMENT_TYPE';

@@ -55,6 +55,7 @@
     "solidbunch/composer-installers": "^1.1",
     "solidbunch/monitoring-client": "^2.0.2",
     "solidbunch/monitoring-server": "^2.1.0",
+    "solidbunch/proxy": "^1.0.0",
     "solidbunch/starter-kit-theme": "dev-master",
     "solidbunch/starter-kit-addon": "^1.0.5",
     "solidbunch/wordpress-core-no-content": "^7.0.2",

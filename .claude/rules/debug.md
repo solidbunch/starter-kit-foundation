@@ -59,7 +59,7 @@ file, or a hardcoded `XDEBUG_TRIGGER` param in a URL.
 | Symptom | Cause / fix |
 |---|---|
 | `Cannot connect to the Docker daemon` | Docker isn't running — `docker info` / `docker ps` to confirm |
-| `bind: address already in use` on 80/443 | Another local web server holds the port — check `sudo lsof -i :80`, stop it or change `APP_HTTP_PORT`/`APP_HTTPS_PORT` |
+| `bind: address already in use` on 80/443 | Another local web server holds the port — check `sudo lsof -i :80`, stop it, or use `APP_MULTI_INSTANCE`/Traefik to co-host |
 | Composer: `Could not delete /srv/web/wp-core/wp-content` | `make down`, remove the empty leftover dir, retry `composer update` — happens when core install-path and content dir collide after a partial run |
 | GitHub Composer repo hits API rate limit (60/hr unauthenticated) | Add a GitHub token to `.env.secret` (`COMPOSER_AUTH`, see `infrastructure.md`) or switch the affected repo URL to SSH |
 | MariaDB: `Bad magic header in tc log` / crash recovery failed | `make down`, delete `db-data/tc.log`, `make up` to let it recreate |

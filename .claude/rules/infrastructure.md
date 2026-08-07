@@ -10,19 +10,29 @@ paths:
 `kit-modules/` holds Composer-installed sub-projects — each is its **own VCS repo**, git-ignored
 in the foundation root. Never run `terraform` / `ansible` directly — always go through `make`.
 
-Three modules: `basis` (IaC), `monitoring-client`, `monitoring-server` — plus opt-in `proxy`
-(multi-instance reverse proxy, see below). A fourth licensed package, `starter-kit-addon`, follows
-the same licensing mechanism but is a demo-only plugin, not part of normal project work — see the
-one-line note at the end of this file instead of treating it as a fifth kit-module.
+Four modules: `basis` (IaC), `monitoring-client`, `monitoring-server`, `proxy` (multi-instance
+reverse proxy, see below) — all installed and licensed the same way. A fifth licensed package,
+`starter-kit-addon`, follows the same licensing mechanism but is a demo-only plugin, not part of
+normal project work — see the one-line note at the end of this file instead of treating it as a
+sixth kit-module.
 
 ## How kit-modules are installed — licensing gates real code, not just presence
 
-`composer.json` declares `basis`, `monitoring-client`, and `monitoring-server` as regular requires
-(`solidbunch/basis`, `solidbunch/monitoring-client`, `solidbunch/monitoring-server`), resolved
-from the private Composer repository `https://licensing.starter-kit.io/wp-json/skl/v1/`. `proxy`
-is **not** a default require — it's opt-in, added manually with `composer require solidbunch/proxy`
-on servers that need it (see below). Composer's `installer-paths` (`composer.json` →
-`extra.installer-paths`) map packages of `type:kit-module` into `kit-modules/{$name}/`.
+`composer.json` declares `basis`, `monitoring-client`, `monitoring-server`, and `proxy` as regular
+requires (`solidbunch/basis`, `solidbunch/monitoring-client`, `solidbunch/monitoring-server`,
+`solidbunch/proxy`), resolved from the private Composer repository
+`https://licensing.starter-kit.io/wp-json/skl/v1/`. Being installed (real code resolved from a
+valid license) is separate from being *active*: `proxy` only does anything once
+`APP_MULTI_INSTANCE=1` is also set (see below) — the other three modules activate simply by being
+present. Composer's `installer-paths` (`composer.json` → `extra.installer-paths`) map packages of
+`type:kit-module` into `kit-modules/{$name}/`.
+
+`solidbunch/proxy`'s `composer.json` constraint is currently `dev-main`, not a tagged `^x.y.z`
+range like the other three — the licensing repo's catalog for this package only exposes
+`dev-main` today, even though the module's own repo already carries a real `1.0.0` tag (confirmed
+2026-08-07: `composer show solidbunch/proxy --all` lists only `versions: dev-main`). Switch the
+constraint to `^1.0.0` once the licensing server picks up the tagged release — check with
+`composer show solidbunch/proxy --all` before changing it.
 
 **With a valid SolidBunch license/auth token, `composer install`/`update` always resolves the
 real module code** — the three required modules are not optional once licensed; they're a normal
@@ -117,17 +127,16 @@ make basis                                # interactive shell in the IaC (`iac`)
   `true` (`job-deploy.yml` step "Update Monitoring & Addon" — see the trailing note below for why
   that step's name mentions an addon); normal deploys keep the locked version.
 
-## proxy — optional multi-instance reverse proxy
+## proxy — multi-instance reverse proxy (opt-in by activation, not by install)
 
 `kit-modules/proxy/` (package `solidbunch/proxy`) is a **Traefik v3** reverse proxy for running
-several StarterKit instances on one server. Unlike the other three modules, it's **not** in
-`composer.json`'s `require` — install it manually only when needed:
+several StarterKit instances on one server. It's a regular `composer.json` require, same as
+`basis`/`monitoring-client`/`monitoring-server` — resolves to a licensed metapackage stub without
+a valid license, real code with one. Nothing manual to install; the opt-in is entirely at
+*activation* time via `APP_MULTI_INSTANCE`, not at install time.
 
-```bash
-composer require solidbunch/proxy
-```
-
-- Default setup (one instance per server) needs none of this — nginx binds 80/443 directly.
+- Default setup (one instance per server) needs none of this active — nginx binds 80/443 directly,
+  and the module sits unused even once installed.
 - With the module installed, each instance opts in via `APP_MULTI_INSTANCE=1` in `.env.main`;
   the foundation kit then merges the module's `docker-compose.instance.yml` into the instance
   stack (drops nginx's host port bindings, joins the shared `proxy` Docker network, adds Traefik
@@ -139,11 +148,16 @@ composer require solidbunch/proxy
 - Config: `kit-modules/proxy/config/traefik.yml` (static — entrypoints, ACME resolver; set the
   real `certificatesResolvers.le.acme.email` before going live) and
   `config/dynamic/middlewares.yml` (security headers, optional rate-limit middleware, hot-reloaded).
-- Full command surface (`make proxy-up`, `make proxy-down`, `make proxy-logs`) and integration
-  wiring for `APP_MULTI_INSTANCE` are documented in the module's own README
-  (`kit-modules/proxy/README.md`) — **as of this writing those `make proxy-*` targets and the
-  `APP_MULTI_INSTANCE` merge logic are not yet present in this repo's root `Makefile`/`sh/`**, so
-  don't assume they exist without checking; verify current state there before relying on them.
+- `APP_MULTI_INSTANCE` defaults to `0` in `config/environment/.env.main`. The Makefile exposes a
+  single `make proxy` target — `make proxy start|stop|logs`, and `make proxy deploy <env>` (used
+  by CI) — that delegates to `kit-modules/proxy/bin/proxy.sh`; if the module isn't installed it
+  prints a skip message (or fails loudly for `deploy`, since that path is CI-driven).
+- All actual proxy behaviour — which compose files to merge, starting/stopping Traefik,
+  deploy-time wiring, and apex-vs-subdomain routing — lives entirely in `kit-modules/proxy`; the
+  foundation implements none of it.
+- When `APP_MULTI_INSTANCE=1`, `sh/system/certbot.sh` and the cron SSL-renewal job both skip
+  themselves — Traefik owns TLS in multi-instance mode.
+- Full step-by-step workflows: `kit-modules/proxy/README.md`.
 
 ## `starter-kit-addon` — not relevant to normal project work
 

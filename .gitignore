@@ -126,6 +126,7 @@ tmp/**
 # ignore machine-local runtime artifacts.
 .claude/worktrees/
 .claude/plans/
+.claude/backlog/
 .claude/settings.local.json
 CLAUDE.local.md
 

@@ -209,6 +209,8 @@ job image.
   `SSH_CONFIG`.
 - `COMPOSER_AUTH` (Variable, protected, scope `All`) — Composer auth JSON, needed to unlock
   licensed packages (see `infrastructure.md`).
+- `APP_MULTI_INSTANCE` (Variable, optional, default absent, per-environment) — `1` enables the
+  multi-instance (Traefik) deploy; see `infrastructure.md`.
 
 See the "Deployment via GitLab CI" section of `README.MD` for the full variable table and setup
 steps. Secrets are provided as GitLab CI/CD variables, never committed here.

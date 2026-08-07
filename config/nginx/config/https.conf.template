@@ -6,8 +6,8 @@
 # http > https redirect. 80 port should be open
 # http://www > https://non-www redirect
 server {
-    listen ${APP_HTTP_PORT};
-    listen [::]:${APP_HTTP_PORT};
+    listen 80;
+    listen [::]:80;
     server_name ${APP_DOMAIN} www.${APP_DOMAIN};
 
     location /.well-known/acme-challenge/ {
@@ -21,8 +21,8 @@ server {
 
 # https://www > https://non-www redirect
 server {
-    listen ${APP_HTTPS_PORT} ssl;
-    listen [::]:${APP_HTTPS_PORT} ssl;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     http2 on;
     server_name www.${APP_DOMAIN};
 
@@ -33,8 +33,8 @@ server {
 
 # Main directive
 server {
-    listen ${APP_HTTPS_PORT} ssl;
-    listen [::]:${APP_HTTPS_PORT} ssl;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     http2 on;
     server_name ${APP_DOMAIN};
 
