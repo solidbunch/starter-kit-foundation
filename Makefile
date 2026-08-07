@@ -197,7 +197,7 @@ proxy:
 	if [ -f ./kit-modules/proxy/bin/proxy.sh ]; then \
 		bash ./kit-modules/proxy/bin/proxy.sh $(PARAMS); \
 	elif [ "$${APP_MULTI_INSTANCE:-0}" = "1" ]; then \
-		echo "[Error] APP_MULTI_INSTANCE=1 but kit-modules/proxy is not installed. Run: composer require solidbunch/proxy"; \
+		echo "[Error] APP_MULTI_INSTANCE=1 but kit-modules/proxy is not installed. Configure a valid SolidBunch license (COMPOSER_AUTH) and run: composer update solidbunch/proxy"; \
 		exit 1; \
 	else \
 		echo "Proxy module not found, skipping..."; \

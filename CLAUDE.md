@@ -10,8 +10,8 @@ Three layers:
 - **Application** — the theme (`WP_DEFAULT_THEME` in `config/environment/.env.main`, default
   `starter-kit-theme`), a custom FSE block theme (the main app codebase, separate VCS repo)
 - **kit-modules** — licensed sub-projects Composer-installs into `kit-modules/` once a valid
-  license is configured (`basis`, `monitoring-client`, `monitoring-server`, plus opt-in `proxy`)
-  — see `infrastructure.md`
+  license is configured (`basis`, `monitoring-client`, `monitoring-server`, `proxy`) — see
+  `infrastructure.md`
 
 <!-- This file is always loaded. Topic detail lives in path-scoped rules — see the table below. -->
 
@@ -134,7 +134,7 @@ kit-modules/                    # Composer-installed sub-projects (each its own 
   basis/                        # IaC: Terraform (AWS) + Ansible (servers)
   monitoring-client/             # Ships container logs to Loki (fluent-bit)
   monitoring-server/             # Grafana + Loki server stack (standalone deployable)
-  proxy/                         # Optional Traefik reverse proxy for multi-instance hosts — NOT a default composer require
+  proxy/                         # Traefik reverse proxy for multi-instance hosts — required like the others, active only when APP_MULTI_INSTANCE=1
 config/                          # Docker, nginx, php, ssl, cron, environment configs — see config.md
 dockerfiles/                     # 8 service images (mariadb, php, nginx, cron, composer, node, certbot, iac) — see docker.md
 sh/                              # Shell scripts (never call directly — use make)
@@ -143,9 +143,9 @@ sh/                              # Shell scripts (never call directly — use ma
 
 Package sources (`composer.json` `repositories`): wpackagist.org (community plugins),
 `solidbunch.github.io/wordpress-core` (WP core mirror), `licensing.starter-kit.io` (licensed
-SolidBunch packages: basis, monitoring-client/server — required, resolve to real code once
-licensed; proxy is the same licensing scheme but opt-in, not a default require — see
-`infrastructure.md` for how licensing gates these), and a direct VCS repo for the theme
+SolidBunch packages: basis, monitoring-client/server, proxy — all required, resolve to real code
+once licensed — see `infrastructure.md` for how licensing gates these), and a direct VCS repo for
+the theme
 (`starter-kit-theme` by default, `WP_DEFAULT_THEME`) — source-installed, so it's a real local git
 checkout, not a `dist` tarball.
 
@@ -170,11 +170,12 @@ NEVER:
   via Composer; intentional
 - Theme uses `dev-develop` branch in the dev environment via `composer run switch-theme-dev`
   (CI-only script), not a stable tag — this is correct
-- `kit-modules/` is git-ignored in root — `basis`, `monitoring-client`, `monitoring-server` are
-  required packages that resolve to real code whenever a valid license is configured (`proxy` is
-  the exception: opt-in, installed manually, not a default require); a directory being present
-  doesn't guarantee it's current either — check `composer.lock` type (`metapackage` = no valid
-  license) as the source of truth, not just what's on disk (see `infrastructure.md`)
+- `kit-modules/` is git-ignored in root — `basis`, `monitoring-client`, `monitoring-server`,
+  `proxy` are all required packages that resolve to real code whenever a valid license is
+  configured; `proxy` additionally needs `APP_MULTI_INSTANCE=1` to actually activate once
+  installed — see `infrastructure.md`. A directory being present doesn't guarantee it's current
+  either — check `composer.lock` type (`metapackage` = no valid license) as the source of truth,
+  not just what's on disk
 - `monitoring-client` is only force-updated from `dist` in CI when `IS_DEMO=true` (demo/showcase
   deployments) — normal deploys use the locked version
 
