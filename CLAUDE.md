@@ -104,6 +104,7 @@ make log [php|nginx|mariadb|cron]        # Stream container logs
 make pma                                 # Launch phpMyAdmin (docker-compose.toolkit.yml)
 make mailhog                             # Launch MailHog for email testing
 make ssl                                 # Bootstrap/renew Let's Encrypt SSL cert (see config.md)
+make local-cert [force]                  # Locally-trusted (mkcert) HTTPS cert for local dev, single- or multi-instance mode (sh/system/local-cert.sh)
 make tf [env] [init|plan|apply|destroy]  # Terraform: manage AWS infrastructure (kit-modules/basis)
 make ansible [env] [inventory|playbook]  # Ansible: provision servers (kit-modules/basis)
 make basis                               # Interactive shell in the IaC container

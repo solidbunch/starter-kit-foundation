@@ -86,3 +86,26 @@ to every certbot invocation — see `docker.md` for the full SSL bootstrap flow 
 
 Gitignored except `readme.md` and `.gitkeep`. Populate `live/<domain>/` manually per
 `config/ssl/readme.md`, or let `make ssl` generate it. Never commit real certs/keys here.
+
+### Local HTTPS with a browser-trusted certificate (`make local-cert`)
+
+`make ssl` (`sh/system/certbot.sh`) only works for publicly-resolvable domains — Let's Encrypt's
+HTTP-01 challenge can't reach a `.loc` domain. For a locally-trusted certificate instead (no
+browser warning, on `.loc` or any other local domain), use `make local-cert`
+(`sh/system/local-cert.sh`), which wraps [`mkcert`](https://github.com/FiloSottile/mkcert)
+(host prerequisite, `mkcert -install` once, never installed by the script) and writes the cert to
+whichever path the active serving mode expects:
+
+- `APP_MULTI_INSTANCE=0` (nginx, single-instance) — `config/ssl/live/<APP_DOMAIN>/
+  {fullchain,privkey}.pem`, same paths `make ssl` uses. Then set `APP_PROTOCOL=https` and
+  `make recreate <env>`.
+- `APP_MULTI_INSTANCE=1` (Traefik, multi-instance) — `kit-modules/proxy/certs/local/
+  {fullchain,privkey}.pem` + a generated `kit-modules/proxy/config/dynamic/local-tls.yml` (both
+  gitignored in that module) — Traefik's file provider serves this cert for domains ACME can't
+  reach instead of its self-signed fallback, while real domains still get real ACME certs
+  unaffected. Requires one `make proxy stop && make proxy start` after the cert first lands (a
+  running Traefik container doesn't pick up a new bind mount from a hot reload), then
+  `make recreate <env>`. See `kit-modules/proxy/CLAUDE.md` for the mechanism.
+
+Idempotent — re-running skips a still-valid certificate unless `make local-cert force` is passed.
+No secret variable involved.

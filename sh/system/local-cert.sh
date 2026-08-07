@@ -1,0 +1,148 @@
+#!/bin/bash
+# local-cert.sh - Generate a locally-trusted (mkcert) HTTPS certificate for APP_DOMAIN and drop
+# it where the active serving mode expects it, so local HTTPS shows a valid padlock instead of a
+# self-signed/browser-warning certificate.
+#
+# Usage:
+#   local-cert.sh [force]   # force regenerates even if a valid cert already exists
+#
+# Requires:
+#   - ./.env.runtime (run `make env` first)
+#   - `mkcert` on the host PATH, with `mkcert -install` run once (not installed by this script)
+#
+# Target paths, chosen from APP_MULTI_INSTANCE in ./.env.runtime:
+#   APP_MULTI_INSTANCE=0 (default, nginx) -> config/ssl/live/<APP_DOMAIN>/{fullchain,privkey}.pem
+#   APP_MULTI_INSTANCE=1 (Traefik)        -> kit-modules/proxy/certs/local/{fullchain,privkey}.pem
+#                                             + kit-modules/proxy/config/dynamic/local-tls.yml
+# In multi-instance mode, skips cleanly (exit 0) if kit-modules/proxy/ is absent, mirroring the
+# `make proxy` target's own skip branch (Makefile).
+#
+# SAN list mirrors sh/system/certbot.sh's apex/subdomain test exactly: apex APP_DOMAIN gets
+# <domain> www.<domain>, subdomain (*.*.*) gets <domain> only.
+#
+# Idempotent: if both cert files already exist, and `openssl x509 -checkend 2592000 -noout`
+# passes (not expiring within 30 days), and the SAN list covers APP_DOMAIN, this is a no-op
+# unless `force` is passed as the first argument. Degrades to an existence-only check if
+# `openssl` is not available on the host.
+set -e -o pipefail
+
+source ./sh/utils/colors.sh
+
+FORCE="${1:-}"
+
+ENV_RUNTIME="./.env.runtime"
+if [ ! -f "$ENV_RUNTIME" ]; then
+  echo -e "${RED}[Error]${RESET} $ENV_RUNTIME not found. Run 'make env' first." >&2
+  exit 1
+fi
+
+# Last occurrence wins, mirroring the env system's own merge semantics. Do NOT source the file.
+APP_DOMAIN="$(sed -n 's/^[[:space:]]*APP_DOMAIN=\([^#[:space:]]*\).*/\1/p' "$ENV_RUNTIME" | tail -n1)"
+APP_MULTI_INSTANCE="$(sed -n 's/^[[:space:]]*APP_MULTI_INSTANCE=\([^#[:space:]]*\).*/\1/p' "$ENV_RUNTIME" | tail -n1)"
+
+if [ -z "$APP_DOMAIN" ]; then
+  echo -e "${RED}[Error]${RESET} APP_DOMAIN is not set in $ENV_RUNTIME." >&2
+  exit 1
+fi
+
+if ! command -v mkcert >/dev/null 2>&1; then
+  echo -e "${RED}[Error]${RESET} mkcert is not installed on this host." >&2
+  echo "Install it first (https://github.com/FiloSottile/mkcert), e.g.:" >&2
+  echo "  macOS:   brew install mkcert" >&2
+  echo "  Linux:   see the mkcert README for your distro's package" >&2
+  echo "Then run 'mkcert -install' once to trust its local CA, and re-run this script." >&2
+  exit 1
+fi
+
+echo -e "${CYAN}[Info]${RESET} Reminder: run 'mkcert -install' once per machine (installs the local CA into your system/browser trust store) if you haven't already."
+
+# Apex/subdomain test mirrors sh/system/certbot.sh's *.*.* pattern exactly.
+if [[ "$APP_DOMAIN" == *.*.* ]]; then
+  SAN_LIST=("$APP_DOMAIN")
+else
+  SAN_LIST=("$APP_DOMAIN" "www.${APP_DOMAIN}")
+fi
+
+# Determine target paths for the active mode.
+if [ "$APP_MULTI_INSTANCE" = "1" ]; then
+  PROXY_DIR="./kit-modules/proxy"
+
+  if [ ! -d "$PROXY_DIR" ]; then
+    echo -e "${CYAN}[Info]${RESET} APP_MULTI_INSTANCE=1 but $PROXY_DIR is not installed. Configure a valid SolidBunch license (COMPOSER_AUTH) and run: composer update solidbunch/proxy. Skipping."
+    exit 0
+  fi
+
+  CERT_DIR="${PROXY_DIR}/certs/local"
+  DYNAMIC_FILE="${PROXY_DIR}/config/dynamic/local-tls.yml"
+else
+  CERT_DIR="./config/ssl/live/${APP_DOMAIN}"
+fi
+
+CERT_PATH="${CERT_DIR}/fullchain.pem"
+KEY_PATH="${CERT_DIR}/privkey.pem"
+
+# Idempotency check.
+should_generate() {
+  if [ "$FORCE" = "force" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$CERT_PATH" ] || [ ! -f "$KEY_PATH" ]; then
+    return 0
+  fi
+
+  if ! command -v openssl >/dev/null 2>&1; then
+    echo -e "${CYAN}[Info]${RESET} openssl not found — degrading to existence-only check."
+    return 1
+  fi
+
+  if ! openssl x509 -checkend 2592000 -noout -in "$CERT_PATH" >/dev/null 2>&1; then
+    echo -e "${CYAN}[Info]${RESET} Existing certificate is missing or expiring within 30 days — regenerating."
+    return 0
+  fi
+
+  SAN_TEXT="$(openssl x509 -noout -ext subjectAltName -in "$CERT_PATH" 2>/dev/null || true)"
+  for SAN in "${SAN_LIST[@]}"; do
+    if ! echo "$SAN_TEXT" | grep -q "DNS:${SAN}\b"; then
+      echo -e "${CYAN}[Info]${RESET} Existing certificate does not cover ${SAN} — regenerating."
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+if ! should_generate; then
+  echo -e "${CYAN}[Info]${RESET} Valid local certificate already exists at ${CERT_DIR}. Skipping (pass 'force' to regenerate)."
+else
+  mkdir -p "$CERT_DIR"
+
+  echo -e "${CYAN}[Info]${RESET} Generating locally-trusted certificate for ${SAN_LIST[*]}..."
+  mkcert -cert-file "$CERT_PATH" -key-file "$KEY_PATH" "${SAN_LIST[@]}"
+
+  chmod 600 "$KEY_PATH"
+  chmod 644 "$CERT_PATH"
+
+  if [ "$APP_MULTI_INSTANCE" = "1" ]; then
+    cat > "$DYNAMIC_FILE" <<EOF
+# Generated by sh/system/local-cert.sh (make local-cert) — do not edit by hand, gitignored.
+tls:
+  certificates:
+    - certFile: /local-certs/fullchain.pem
+      keyFile: /local-certs/privkey.pem
+EOF
+  fi
+
+  echo -e "${LIGHTGREEN}[Success]${RESET} Local certificate ready at ${CERT_DIR}"
+fi
+
+echo ""
+if [ "$APP_MULTI_INSTANCE" = "1" ]; then
+  echo -e "${CYAN}[Info]${RESET} Next steps (multi-instance / Traefik mode):"
+  echo "  1. make proxy stop && make proxy start   # required once so Traefik picks up the new certs/local bind mount"
+  echo "  2. make recreate local"
+else
+  echo -e "${CYAN}[Info]${RESET} Next steps (single-instance / nginx mode):"
+  echo "  1. Set APP_PROTOCOL=https in config/environment/.env.type.local.override"
+  echo "  2. make recreate local"
+fi

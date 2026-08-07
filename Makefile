@@ -83,6 +83,11 @@ env:
 ssl:
 	bash ./sh/system/certbot.sh $(PARAMS)
 
+# Locally-trusted (mkcert) HTTPS certificate for local dev, single- or multi-instance mode.
+# `make local-cert` / `make local-cert force` (force regenerates even if a valid cert exists).
+local-cert:
+	bash ./sh/system/local-cert.sh $(PARAMS)
+
 core-install:
 	docker compose $(COMPOSE_OVERRIDE) exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
 
