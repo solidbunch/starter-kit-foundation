@@ -9,6 +9,11 @@ set -e -o pipefail
 source ./sh/utils/colors.sh
 source ./.env.runtime
 
+if [ "${APP_MULTI_INSTANCE}" = "1" ]; then
+  echo -e "${CYAN}[Info]${RESET} APP_MULTI_INSTANCE=1: skipping Certbot, TLS is handled by Traefik."
+  exit 0
+fi
+
 # Paths to SSL files
 CERT_PATH="./config/ssl/live/${APP_DOMAIN}/fullchain.pem"
 KEY_PATH="./config/ssl/live/${APP_DOMAIN}/privkey.pem"

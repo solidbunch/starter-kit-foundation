@@ -3,6 +3,13 @@
 
 include ./config/environment/.env.main
 
+# Multi-instance (reverse proxy) support. All logic lives in the solidbunch/proxy kit module;
+# this line is the only hook. Expands to nothing when the module is absent or the mode is off.
+# $$ is deliberate: it survives make's expansion and is evaluated by the recipe shell, so it reads
+# .env.runtime as refreshed by `sh/env/init.sh` earlier in the same recipe — not a stale parse-time
+# value. Verified on GNU Make 3.81 and 4.3.
+COMPOSE_OVERRIDE = $$(test -f ./kit-modules/proxy/bin/compose-flags.sh && bash ./kit-modules/proxy/bin/compose-flags.sh)
+
 SHELL = /bin/sh
 
 # Share current user and group ID with container
@@ -55,11 +62,11 @@ install:
 	# Composer and npm build
 	bash ./sh/system/install.sh
 	# Run main project docker containers
-	docker compose up -d
+	docker compose $(COMPOSE_OVERRIDE) up -d
 	# Check database is up
 	bash ./sh/database/check.sh
 	# Setup WordPress database
-	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
+	docker compose $(COMPOSE_OVERRIDE) exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
 
 i:
 	$(MAKE) install
@@ -77,7 +84,7 @@ ssl:
 	bash ./sh/system/certbot.sh $(PARAMS)
 
 core-install:
-	docker compose exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
+	docker compose $(COMPOSE_OVERRIDE) exec php su -c "bash /shell/wp-cli/core-install.sh" $(DEFAULT_USER)
 
 # Run mix watch with browserSync
 watch:
@@ -88,30 +95,30 @@ watch:
 up:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up -d
+	docker compose $(COMPOSE_OVERRIDE) up -d
 
 # docker compose up with root .env file concatenation without `-d`
 upd:
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up
+	docker compose $(COMPOSE_OVERRIDE) up
 
 # Just docker compose down
 down:
-	docker compose down -v
+	docker compose $(COMPOSE_OVERRIDE) down -v
 
 restart:
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose restart
+	docker compose $(COMPOSE_OVERRIDE) restart
 
 recreate:
 	bash ./sh/env/init.sh $(PARAMS)
-	docker compose up -d --force-recreate
+	docker compose $(COMPOSE_OVERRIDE) up -d --force-recreate
 
 # Run database import script with first argument as file name and second as database name
 import:
 	bash ./sh/database/import.sh -f $(PARAM1) -t
-	docker compose exec php su -c "bash /shell/wp-cli/search-replace.sh" $(DEFAULT_USER)
+	docker compose $(COMPOSE_OVERRIDE) exec php su -c "bash /shell/wp-cli/search-replace.sh" $(DEFAULT_USER)
 
 # Run database export script with first argument as file name and second as database name
 export:
@@ -119,7 +126,7 @@ export:
 
 # Run database replacements script with first argument as search string and second as replace string
 replace:
-	docker compose run --rm php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
+	docker compose $(COMPOSE_OVERRIDE) run --rm php su -c "bash /shell/wp-cli/search-replace.sh $(PARAMS)" $(DEFAULT_USER)
 
 migrate:
 	bash ./sh/system/migrate.sh -s $(PARAM1) -d $(PARAM2) -t
@@ -183,6 +190,18 @@ monitoring:
 
 mon:
 	$(MAKE) monitoring $(PARAMS)
+
+# Reverse proxy for multi-instance mode — requires the solidbunch/proxy kit module.
+# `make proxy start|stop|logs`, and `make proxy deploy <env>` (used by CI).
+proxy:
+	if [ -f ./kit-modules/proxy/bin/proxy.sh ]; then \
+		bash ./kit-modules/proxy/bin/proxy.sh $(PARAMS); \
+	elif [ "$${APP_MULTI_INSTANCE:-0}" = "1" ]; then \
+		echo "[Error] APP_MULTI_INSTANCE=1 but kit-modules/proxy is not installed. Run: composer require solidbunch/proxy"; \
+		exit 1; \
+	else \
+		echo "Proxy module not found, skipping..."; \
+	fi
 
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run
