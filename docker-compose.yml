@@ -10,10 +10,6 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    # Open port only for the host. Need for SSH tunnel to connect to database from SQL Manager like HeidiSQL
-    # Uncomment ports directive for using SSH tunnel, and uncomment SSH_TUNNEL_EXT_PORT var in .env file
-    ports:
-      - 127.0.0.1:${SSH_TUNNEL_EXT_PORT}:3306
     # Uncomment this to reset root password and run inside container mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
     #command: --skip-grant-tables
     volumes:

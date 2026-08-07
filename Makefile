@@ -203,6 +203,11 @@ proxy:
 		echo "Proxy module not found, skipping..."; \
 	fi
 
+# Local TCP tunnel to an instance's MariaDB when APP_MULTI_INSTANCE=1 hides the host port.
+# Foundation utility, independent of the proxy module. `make db-tunnel start|stop|status [port]`.
+db-tunnel:
+	bash ./sh/system/db-tunnel.sh $(PARAMS)
+
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run
 %:
