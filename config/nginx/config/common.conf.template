@@ -17,6 +17,19 @@
     # And follow 403 errors to 404 for security reasons
     #error_page 403 =404 /404.html;
 
+    # Health check endpoint for the container healthcheck and external monitoring.
+    # Exact match, so it is resolved before every rule below and never reaches WordPress or PHP.
+    # auth_basic off: Basic Auth is applied server-wide by the ba_${APP_BA}.conf include below,
+    # which would otherwise 401 the probe. The response is a fixed literal — nothing is disclosed.
+    # access_log off: the probe runs every 30s; this keeps it out of the access log without
+    # touching the global logging setup in config/partials/logs.conf.
+    location = /health {
+        access_log off;
+        auth_basic off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$args;
     }

@@ -10,6 +10,15 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    # Official MariaDB image healthcheck script. Credentials come from the dedicated healthcheck
+    # user the image entrypoint provisions in $datadir/.my-healthcheck.cnf — nothing to configure
+    # here, and no password on the command line.
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     # Uncomment this to reset root password and run inside container mariadb> FLUSH PRIVILEGES; ALTER USER 'root'@'%' IDENTIFIED BY 'new_password';
     #command: --skip-grant-tables
     volumes:
@@ -78,6 +87,18 @@ services:
     environment:
       APP_BA_USER: ${APP_BA_USER:-}
       APP_BA_PASS: ${APP_BA_PASS:-}
+    # Liveness probe against the nginx-only /health endpoint (config/nginx/config/common.conf.template).
+    # Host header is required: without it the request falls to the `server_name _` default server
+    # in default.conf.template and gets 444. APP_PROTOCOL/APP_DOMAIN are resolved at probe time
+    # inside the container ($$ = not interpolated by Compose) so multi-instance mode, where the
+    # proxy override forces APP_PROTOCOL=http for this container only, stays correct.
+    # -k: local/dummy certs (make ssl bootstrap, make local-cert) are not publicly trusted.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -k --max-time 5 -H \"Host: $${APP_DOMAIN}\" \"$${APP_PROTOCOL:-http}://127.0.0.1/health\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     ports:
       - "80:80"
       - "443:443"
@@ -111,6 +132,15 @@ services:
       CURRENT_GID: ${CURRENT_GID:-$DEFAULT_GID}
       WORKING_DIR: ${WORKING_DIR:-$DEFAULT_PATH}
     working_dir: ${WORKING_DIR:-$DEFAULT_PATH}
+    # start-cron.sh backgrounds crond and keeps the container alive with a `cat` loop, so a dead
+    # crond leaves the container "up" and restart: unless-stopped never fires. This probe is the
+    # only thing that surfaces that state.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep crond > /dev/null || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     volumes:
       # Share docker socket to allow cron run scenarios inside other containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
