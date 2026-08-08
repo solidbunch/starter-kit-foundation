@@ -213,6 +213,10 @@ proxy:
 db-tunnel:
 	bash ./sh/system/db-tunnel.sh $(PARAMS)
 
+# Validate nginx config syntax (`nginx -t`) in a throwaway container, no app stack needed.
+validate-nginx:
+	bash ./sh/system/validate-nginx.sh $(PARAMS)
+
 # This is a hack to allow passing arguments to the make command
 # % is a wildcard. If no rule is matched (for arguments), this goal will be run
 %:

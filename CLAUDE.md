@@ -111,6 +111,7 @@ make basis                               # Interactive shell in the IaC containe
 make monitoring [on|off]                 # Run monitoring-client scenario (alias: make mon)
 make proxy [start|stop|logs|deploy env]  # Reverse proxy (Traefik) for multi-instance hosts (kit-modules/proxy)
 make db-tunnel [start|stop|status] [port] # Local TCP tunnel to an instance's MariaDB (sh/system/db-tunnel.sh)
+make validate-nginx                      # nginx config syntax check (`nginx -t`) in a throwaway container, no stack needed
 make docker [build|push|clean] [service] # Build/push/clean Foundation Docker images
 make docker-login                        # Registry auth only (ghcr.io) — no build/push
 ```
