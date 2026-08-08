@@ -127,6 +127,7 @@ tmp/**
 .claude/worktrees/
 .claude/plans/
 .claude/backlog/
+.claude/notes/
 .claude/settings.local.json
 CLAUDE.local.md
 
