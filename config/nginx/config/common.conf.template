@@ -34,6 +34,34 @@
 
     # Check and include Basic Auth config (15-setup-basic-auth.sh)
     include /etc/nginx/conf.d/config/partials/ba_${APP_BA}.conf;
+
+    # Brute-force protection for the login endpoint.
+    # Must stay ABOVE the broader wp-admin|wp-login block below — nginx matches regex
+    # locations in order. Must be a regex (not "location ="): php.conf is a nested
+    # location, which nginx forbids inside an exact-match location.
+    location ~ ^/wp-login\.php$ {
+        limit_req  zone=req_limit burst=20;
+        limit_conn conn_limit 10;
+        limit_req_status 444;
+        limit_conn_status 444;
+
+        include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
+        include /etc/nginx/conf.d/config/partials/php.conf;
+    }
+
+    # XML-RPC is denied in this project (previously via the catch-all 404 rule below).
+    # Kept denied here, with rate limiting so floods are dropped as cheaply as possible.
+    # To actually enable XML-RPC, remove "return 444;" and use the include lines instead:
+    #    include /etc/nginx/conf.d/config/partials/php.conf;
+    location = /xmlrpc.php {
+        limit_req  zone=req_limit burst=20;
+        limit_conn conn_limit 10;
+        limit_req_status 444;
+        limit_conn_status 444;
+
+        return 444;
+    }
+
     location ~* ^/(wp-admin|wp-login\.php) {
         include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
         include /etc/nginx/conf.d/config/partials/php.conf;

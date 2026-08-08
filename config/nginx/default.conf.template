@@ -5,6 +5,13 @@
 
 server_names_hash_bucket_size 128;
 
+# Rate limiting zones (http context only — applied per-location in config/common.conf)
+# req_limit / conn_limit are applied to /wp-login.php and /xmlrpc.php only.
+# req_limit_static is intentionally defined but not applied to any location yet.
+limit_req_zone  $binary_remote_addr zone=req_limit:10m rate=20r/s;
+limit_conn_zone $server_name$binary_remote_addr zone=conn_limit:10m;
+limit_req_zone  $binary_remote_addr zone=req_limit_static:10m rate=100r/s;
+
 # Headers setup
 include /etc/nginx/conf.d/config/partials/headers.conf;
 
