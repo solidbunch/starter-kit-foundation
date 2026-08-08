@@ -58,6 +58,10 @@
         limit_req_status 444;
         limit_conn_status 444;
 
+        # Relax the sitewide CSP (headers.conf) here only — pair with that file's commented
+        # Content-Security-Policy header, uncomment both or neither.
+        #add_header Content-Security-Policy "" always;
+
         include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
         include /etc/nginx/conf.d/config/partials/php.conf;
     }
@@ -76,6 +80,10 @@
     }
 
     location ~* ^/(wp-admin|wp-login\.php) {
+        # Relax the sitewide CSP (headers.conf) here only — pair with that file's commented
+        # Content-Security-Policy header, uncomment both or neither.
+        #add_header Content-Security-Policy "" always;
+
         include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
         include /etc/nginx/conf.d/config/partials/php.conf;
     }
@@ -109,15 +117,22 @@
         return 404;
     }
 
-    # Restrict access to the main theme’s style.css file for strict security reasons
-    #location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/style\.css$ {
-    #    return 404;
-    #}
+    # Restrict access to the main theme's style.css file. Only its header comment (theme name,
+    # version, ...) lives here — WordPress reads it via PHP, not HTTP. Real styles are compiled
+    # into assets/build/ by Laravel Mix, so blocking direct HTTP access to this file leaks no
+    # front-end styling and hides theme/version fingerprinting from anonymous scanners.
+    location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/style\.css$ {
+        return 404;
+    }
 
-    # Restrict access to the main theme’s screenshot.png file for strict security reasons
-    #location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/screenshot\.png$ {
-    #    return 404;
-    #}
+    # Restrict access to the main theme's screenshot.png behind the same Basic Auth gate as
+    # wp-admin/wp-login (APP_BA_WP_LOGIN). wp-admin's Appearance > Themes screen loads this file
+    # via a plain <img> HTTP request, so a real login check (not a spoofable cookie-name check)
+    # is needed to keep that thumbnail working when the gate is on. When APP_BA_WP_LOGIN is
+    # disabled, this file is simply not restricted — same as before.
+    location ~* ^/wp-content/themes/${WP_DEFAULT_THEME}/screenshot\.png$ {
+        include /etc/nginx/conf.d/config/partials/ba_${APP_BA_WP_LOGIN}.conf;
+    }
 
     # Process all allowed static asset files including images, fonts, media, etc.
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|avif|bmp|tiff|mp3|mp4|ogg|wav|webm|woff|woff2|ttf|otf|eot)$ {

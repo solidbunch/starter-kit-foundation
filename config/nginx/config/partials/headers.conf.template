@@ -18,7 +18,10 @@
     # Restricts access to browser features like geolocation, microphone, camera, etc.
     #add_header Permissions-Policy "accelerometer=(), autoplay=(), camera=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), usb=(), vr=(), screen-wake-lock=(), web-share=()" always;
 
-    # Defines which content sources are allowed to load
+    # Defines which content sources are allowed to load.
+    # This is the sitewide default. It will break /wp-admin (block editor, plugin UIs rely on
+    # inline scripts/eval) — pair it with the wp-admin override in config/common.conf.template
+    # (both are commented out together; uncomment both or neither).
     #add_header Content-Security-Policy "default-src 'self'; script-src 'self' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' https: data:; font-src 'self' https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; frame-ancestors 'self';" always;
 
     # Isolate content from other tabs. Disable if not use WebAssembly/SharedArrayBuffer
