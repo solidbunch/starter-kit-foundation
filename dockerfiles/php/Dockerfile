@@ -1,4 +1,4 @@
-FROM php:8.4-fpm-alpine3.22
+FROM php:8.4-fpm-alpine3.24
 
 ENV XDEBUG_VERSION=3.4.7
 ENV IMAGICK_VERSION=3.8.0
