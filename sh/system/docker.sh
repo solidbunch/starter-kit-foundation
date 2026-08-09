@@ -50,17 +50,12 @@ CreateBuilder() {
 }
 
 LoginToRegistry() {
-  echo -e "${CYAN}[Info]${RESET} Checking authentication status with GitHub Container Registry..."
+  echo -e "${CYAN}[Info]${RESET} Logging in to GitHub Container Registry..."
   export "$(grep -v '^#' .env | xargs)"
 
-  # Check if already logged in to ghcr.io
-  if grep -q "ghcr.io" ~/.docker/config.json 2>/dev/null; then
-    echo -e "${CYAN}[Info]${RESET} Already authenticated with ghcr.io. Skipping login."
-  else
-    echo -e "${CYAN}[Info]${RESET} Use your PAT (CR_TOKEN var) and 'USERNAME' placeholder to login to Container Registry ${RESET} "
-    echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
-  fi
-  #docker login ghcr.io
+  # A "ghcr.io" entry in config.json only proves login was attempted, not that it's still valid.
+  # Just always (re)login instead of guessing — it's idempotent and cheap.
+  echo "$CR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
   #echo "$CR_TOKEN" | docker login registry.gitlab.com -u USERNAME --password-stdin
 }
 
