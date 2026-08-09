@@ -60,6 +60,38 @@ make docker-login               # registry auth only — ghcr.io login using CR_
 pushing. `login`/`docker-login` were split out from `build`/`push` deliberately — don't merge them
 back into a combined step.
 
+### Any `dockerfiles/<service>/**` edit requires a manual rebuild + push — CI never builds images
+
+The deploy pipeline (`ci.md`) never runs `docker build` — `job-deploy.yml` only does
+`sh/env/init.sh` + `make recreate`, i.e. `docker compose up` against whatever `APP_<SERVICE>_IMAGE`
+already resolves to on `ghcr.io`. Editing a `Dockerfile`/`docker-entrypoint.d/*` and merging it
+changes nothing at runtime anywhere (dev/stage/prod, or any other machine doing a fresh clone)
+until someone manually runs `make docker build <service>` + `make docker push <service>`.
+`make docker build <service>` alone only updates the **local** Docker image cache under that tag —
+it never touches the registry.
+
+**Never push over an existing tag.** A tag other environments already pulled (dev/stage/prod, a
+teammate's machine, CI cache) will silently keep the old layer until something forces a re-pull —
+overwriting it in place means different machines run different content under an identical tag,
+with no way to tell which, and no rollback target. Always mint a new tag and update the matching
+`APP_<SERVICE>_IMAGE` in `config/environment/.env.main` to point at it, same commit as the
+Dockerfile change.
+
+Tag convention: `php`/`nginx`/`mariadb` tags are `<upstream-version>-alpine<version>` (e.g.
+`8.4-fpm-alpine3.22`), which normally only changes when the upstream base image is bumped. For a
+content-only change (Dockerfile/entrypoint edit, no base bump), append a revision suffix:
+`8.4-fpm-alpine3.22-r1`, then `-r2`, etc. — bump the trailing `-rN` on every subsequent
+content-only change, reset it (drop the suffix) whenever the base version changes. `cron` follows
+an adjacent scheme: its own independent version ahead of the alpine tag (`1.5-alpine3.20`), bumped
+whenever cron's own scripts change. Match whichever scheme the service already uses; don't invent
+a new one for a single service without discussing it first.
+
+If a `docker-compose.yml` change adds a `healthcheck` or a `depends_on: condition: service_healthy`
+that a Dockerfile change is meant to satisfy (e.g. a new binary or config the healthcheck test
+depends on), the image push is not optional — an old image without it will report unhealthy
+forever and anything gated on `condition: service_healthy` (other services' `depends_on`) will
+never start. Push before merging, or the next deploy breaks the stack.
+
 ## Multi-instance override (`COMPOSE_OVERRIDE`)
 
 `Makefile`'s `COMPOSE_OVERRIDE` var runs `kit-modules/proxy/bin/compose-flags.sh` (if present) and
