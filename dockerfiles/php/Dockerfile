@@ -24,7 +24,9 @@ RUN set -eux; \
       gettext \
 # Install wp-cli dependencies
       less \
-      mysql-client
+      mysql-client \
+# cgi-fcgi binary, used by the Docker healthcheck to hit php-fpm's ping.path directly (bypasses nginx)
+      fcgi
 
 ##################################
 #     install PHP extensions     #
@@ -93,6 +95,15 @@ RUN set -ex; \
 #
 # Clear /tmp
     rm -rf /tmp/*
+
+##################################
+#   FPM healthcheck ping.path    #
+##################################
+# www.conf ships ping.path commented out; a later php-fpm.d/*.conf can override the same [www]
+# pool (see docker.conf/zz-docker.conf already doing this upstream). Enables `cgi-fcgi ... /ping`
+# for the Docker healthcheck without touching config/php (that bind mount only covers php.ini's
+# directory, not php-fpm.d — see config.md).
+COPY zz-healthcheck.conf /usr/local/etc/php-fpm.d/zz-healthcheck.conf
 
 ##################################
 #     WordPress logs folder      #

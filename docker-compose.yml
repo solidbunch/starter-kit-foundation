@@ -29,7 +29,8 @@ services:
     container_name: "${APP_NAME}-php"
     restart: unless-stopped
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
     working_dir: /srv/web
     env_file: .env.runtime
     environment:
@@ -74,14 +75,25 @@ services:
       - ./config/php:/usr/local/etc/php
       # Share shell scripts
       - ./sh:/shell:ro
+    # Direct php-fpm ping probe (bypasses nginx entirely) via cgi-fcgi against the ping.path
+    # enabled in dockerfiles/php/zz-healthcheck.conf. Catches a wedged/dead FPM master even
+    # though nginx's own /health check (config/common.conf.template) never reaches PHP.
+    healthcheck:
+      test: ["CMD-SHELL", "REQUEST_METHOD=GET SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping cgi-fcgi -bind -connect 127.0.0.1:9000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   nginx:
     image: "${APP_NGINX_IMAGE}"
     container_name: "${APP_NAME}-nginx"
     restart: unless-stopped
     depends_on:
-      - mariadb
-      - php
+      mariadb:
+        condition: service_healthy
+      php:
+        condition: service_healthy
     working_dir: /srv/web
     env_file: .env.runtime
     environment:
@@ -124,8 +136,10 @@ services:
     container_name: "${APP_NAME}-cron"
     restart: unless-stopped
     depends_on:
-      - mariadb
-      - php
+      mariadb:
+        condition: service_healthy
+      php:
+        condition: service_healthy
     env_file: .env.runtime
     environment:
       CURRENT_UID: ${CURRENT_UID:-$DEFAULT_UID}
