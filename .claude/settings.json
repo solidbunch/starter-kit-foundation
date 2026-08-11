@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(*user *--user_pass*)",
+      "Bash(*wp_set_password*)",
+      "Bash(*UPDATE*wp_users*SET*user_pass*)",
+      "Bash(*wp shell*)"
+    ]
+  }
+}
