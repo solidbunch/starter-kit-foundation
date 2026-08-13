@@ -122,7 +122,7 @@ if [ "$MODE" == "push" ]; then
       docker buildx build \
         --build-arg \
           APP_PHP_IMAGE="${APP_PHP_IMAGE}" \
-        --platform linux/amd64,linux/arm64 \
+        --platform "${PLATFORMS}" \
         -t "${IMAGES[i]}" \
         "./dockerfiles/${SERVICES[i]}" \
         --output "type=image,name=target,annotation-index.org.opencontainers.image.description=Docker ${SERVICES[i]} [linux/amd64;linux/arm64] image,annotation-index.org.opencontainers.image.licenses=MIT License" \
