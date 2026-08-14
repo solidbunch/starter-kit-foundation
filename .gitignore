@@ -124,11 +124,13 @@ tmp/**
 # ===================================#
 # Keep shared AI instructions tracked (root CLAUDE.md, .claude/rules/);
 # ignore machine-local runtime artifacts.
-.claude/worktrees/
-.claude/plans/
-.claude/backlog/
-.claude/notes/
-.claude/settings.local.json
-CLAUDE.local.md
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/rules/
+!.claude/commands/
+!.claude/output-styles/
+!.claude/workflows/
+!.claude/settings.json
 .playwright-mcp/
 
