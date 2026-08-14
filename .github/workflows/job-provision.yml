@@ -38,7 +38,7 @@ jobs:
       TF_ENV_DIR: kit-modules/basis/terraform/envs/${{ inputs.ENVIRONMENT_TYPE }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Extract AWS region from .env.main
         id: region

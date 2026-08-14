@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Prepare .env
         run: |
@@ -73,7 +73,7 @@ jobs:
           bash ./sh/system/install.sh yes
 
       - name: Save Built job
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .
           key: build-job-${{ github.run_number }}
@@ -85,7 +85,7 @@ jobs:
 
     steps:
       - name: Use Built job
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .
           key: build-job-${{ github.run_number }}
