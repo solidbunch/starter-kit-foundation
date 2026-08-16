@@ -62,13 +62,6 @@ services:
       WP_ADMIN_USER: ${WP_ADMIN_USER}
       WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
       WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
-    # Maps licensing-server's local domain to the Docker host gateway, where the shared Traefik
-    # proxy listens on port 80/443 (APP_MULTI_INSTANCE=1). Without this, this container's default
-    # DNS resolves licensing.starter-kit.loc to 127.0.0.1 (the host's own .loc resolver) and every
-    # server-to-server call to licensing-server times out — verified, see the order-status proxy
-    # plan's Architecture notes / Risks ("Local reachability").
-    extra_hosts:
-      - "licensing.starter-kit.loc:host-gateway"
     volumes:
       # Web root folder
       - ./web/wp-core:/srv/web
