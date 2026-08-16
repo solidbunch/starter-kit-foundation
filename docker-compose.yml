@@ -62,13 +62,6 @@ services:
       WP_ADMIN_USER: ${WP_ADMIN_USER}
       WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
       WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
-
-      # licensing-server order-status proxy route (backlog item 1.3)
-      SKL_ORDER_REF_SECRET: ${SKL_ORDER_REF_SECRET:-}
-      SKL_LICENSING_URL: ${SKL_LICENSING_URL:-}
-      SKA_PAYMENTS_SANDBOX: ${SKA_PAYMENTS_SANDBOX:-}
-      SKL_STRIPE_SANDBOX_WEBHOOK_SECRET: ${SKL_STRIPE_SANDBOX_WEBHOOK_SECRET:-}
-      SKL_FREE_LICENSE_SECRET: ${SKL_FREE_LICENSE_SECRET:-}
     # Maps licensing-server's local domain to the Docker host gateway, where the shared Traefik
     # proxy listens on port 80/443 (APP_MULTI_INSTANCE=1). Without this, this container's default
     # DNS resolves licensing.starter-kit.loc to 127.0.0.1 (the host's own .loc resolver) and every
