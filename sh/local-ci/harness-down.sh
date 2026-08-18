@@ -78,9 +78,19 @@ run_step() {
 
 # ------------------------------------------------------------------
 # 1. Stop docker-compose.localci.yml's services
+#
+# IMPORTANT: docker-compose.localci.yml deliberately shares its Compose project name with
+# docker-compose.toolkit.yml/docker-compose.yml (so `localstack` is reachable from the `iac`
+# service's network — see docker-compose.localci.yml's own header comment). That means a plain
+# `docker compose -f docker-compose.localci.yml down --remove-orphans` treats the user's own
+# main dev stack (nginx/php/mariadb/cron, started separately e.g. via `make up`) as "orphan
+# containers" of this project and DESTROYS them too — verified live during harness development,
+# see sh/local-ci/EVIDENCE.md. Never use `down`/`--remove-orphans` here. Stop and remove ONLY the
+# services this file actually defines, by explicit service name.
 # ------------------------------------------------------------------
 if [ -f "$COMPOSE_FILE" ]; then
-    run_step "Stopping local CI services" docker compose -f "$COMPOSE_FILE" down --remove-orphans
+    run_step "Stopping local CI services" docker compose -f "$COMPOSE_FILE" stop localstack
+    run_step "Removing local CI service containers" docker compose -f "$COMPOSE_FILE" rm -f localstack
 else
     echo -e "${CYAN}[Info]${RESET} $COMPOSE_FILE not found, skipping compose down"
 fi

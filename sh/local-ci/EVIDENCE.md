@@ -146,3 +146,106 @@ sts), on the pinned `4.9` tag. `latest` must never be used by the harness.
 Cleanup: `docker stop localci-probe && docker rm localci-probe` — probe container and its
 `probe-bucket`/`probe-table`/VPC were throwaway, torn down, nothing persisted (LocalStack
 Community doesn't persist across restarts anyway).
+
+## Task 3.1 — LocalStack service network sharing: PROVEN
+
+```
+$ docker compose -f docker-compose.toolkit.yml run --rm iac bash -lc "curl -s http://localstack:4566/_localstack/health"
+{"services": {..., "dynamodb": "available", "ec2": "available", "s3": "available", "sts": "available", ...}, "edition": "community", "version": "4.9.2"}
+```
+`localstack:4566` resolves from inside the `iac` container — `docker-compose.localci.yml` and
+`docker-compose.toolkit.yml` share the same implicit `<project>_default` network as designed.
+
+## Task 3.2 — harness-up.sh / harness-down.sh: full up→down cycle, all 4 guard rows exercised for real
+
+### IMPORTANT finding and fix: `--remove-orphans` destroyed the user's running dev stack
+
+First real teardown run used `docker compose -f docker-compose.localci.yml down --remove-orphans`.
+Because `docker-compose.localci.yml` deliberately shares its Compose project name with
+`docker-compose.toolkit.yml`/`docker-compose.yml` (required for the `localstack` hostname to
+resolve from `iac`), `--remove-orphans` treated the user's own separately-running dev stack
+(`starter-kit-nginx`, `starter-kit-php`, `starter-kit-mariadb`, `starter-kit-cron`, started via
+`make up local` before this session) as "orphan containers of this project" and **stopped and
+removed all four of them**. Confirmed via `docker ps -a --filter name=starter-kit-` returning
+empty immediately after. No volume/bind-mount data was lost (all mounts are host bind mounts per
+this project's Docker model), but the running containers were destroyed and had to be recreated
+with `make up local`.
+
+**Fixed**: `harness-down.sh` step 1 changed from `docker compose -f "$COMPOSE_FILE" down
+--remove-orphans` to `docker compose -f "$COMPOSE_FILE" stop localstack` +
+`docker compose -f "$COMPOSE_FILE" rm -f localstack` — scoped to exactly the one service this file
+defines, never touching containers outside it. Re-verified: the user's dev stack (`starter-kit-
+nginx`/`php`/`mariadb`/`cron`) stays untouched (`Up ... (healthy)`) across a full harness up→down
+cycle after the fix.
+
+### Scenario (a) — clean basis on `main` → allowed, full cycle
+
+```
+$ bash ./sh/local-ci/harness-up.sh
+[Info] kit-modules/basis is on branch 'main', clean and not ahead of upstream — allowed.
+[Success] Snapshot verified: .../tmp/local-ci/snapshot-20260818T235601Z.tar
+[Success] Sentinel written
+[Success] Throwaway SSH keypair generated
+[Success] Wrote config/environment/.env.type.dev.override
+[Success] LocalStack Terraform overrides written
+[Success] Local CI/CD harness is up.
+
+$ bash ./sh/local-ci/harness-down.sh
+[Success] LocalStack Terraform overrides cleaned (3 file(s) removed)
+[Success] Restore verified byte-identical against the snapshot (diff -r clean).
+[Success] Sentinel cleared
+[Success] Local CI/CD harness teardown complete.
+```
+Dev stack (`starter-kit-nginx`/`php`/`mariadb`/`cron`) confirmed `Up ... (healthy)` before, during,
+and after — untouched.
+
+### Scenario (b) — dirty basis on `main` (not allow-listed) → refused
+
+```
+$ echo "# harness test dirt" >> kit-modules/basis/README.MD
+$ bash ./sh/local-ci/harness-up.sh
+[Error] kit-modules/basis is on branch 'main' (not the allow-listed 'fix/provisioning-epic') and is dirty and/or ahead of its upstream.
+[Error]   HEAD: 0bbf75dd9239c843fa8ac67f769c81e0c1e341a8   Ahead of upstream: 0
+[Error]   Dirty paths:
+[Error]      M README.MD
+[Error] Commit this work onto 'fix/provisioning-epic', or set LOCALCI_BASIS_ALLOWED_BRANCH='main' deliberately if this state is intentional.
+exit: 1
+```
+No sentinel written, no snapshot taken, nothing mutated.
+
+### Scenario (c) — same dirt on the allow-listed branch → allowed, banner printed
+
+```
+$ git -C kit-modules/basis checkout -b fix/provisioning-epic
+$ bash ./sh/local-ci/harness-up.sh
+[Info] kit-modules/basis is on the allow-listed branch (fix/provisioning-epic) — allowed regardless of dirty/ahead state.
+[Warning] ==============================================
+[Warning] kit-modules/basis is not in a clean, at-origin state
+[Warning]   Branch: fix/provisioning-epic
+[Warning]   HEAD:   0bbf75dd9239c843fa8ac67f769c81e0c1e341a8
+[Warning]   Ahead of upstream: no-upstream
+[Warning]   Dirty paths:
+[Warning]      M README.MD
+[Warning] ==============================================
+[Success] Local CI/CD harness is up.
+```
+Full teardown afterward restored basis to exactly this state (still on `fix/provisioning-epic`,
+still carrying the test-dirt line — restore reproduces the snapshot, it doesn't "clean" legitimate
+work). Test dirt then discarded via `git restore README.MD` (my own scratch edit, not real work) —
+`kit-modules/basis` is left on a clean `fix/provisioning-epic` branch, which satisfies Stage 6
+task 6.1's own "done when" criteria as a side effect of this test.
+
+### Scenario (d) — second `harness-up.sh` while a sentinel is active → refused
+
+```
+$ bash ./sh/local-ci/harness-up.sh   # while a previous run's sentinel is still active
+[Error] A harness run is already active (sentinel: .../tmp/local-ci/harness-state.env)
+[Error]   LOCALCI_STARTED_AT=2026-08-18T23:54:22Z
+[Error]   BASIS_BRANCH=main BASIS_HEAD=0bbf75dd9239c843fa8ac67f769c81e0c1e341a8
+[Error] Run 'bash ./sh/local-ci/harness-down.sh' first to tear it down and restore.
+[Error] If that run crashed (hard kill), use 'bash ./sh/local-ci/harness-down.sh --force-restore'.
+```
+
+**All 4 guard rows verified for real**, plus the `--remove-orphans` finding fixed and re-verified.
+`kit-modules/basis` ends this task on branch `fix/provisioning-epic`, clean, HEAD unchanged from
+`origin/main` (`0bbf75dd9239c843fa8ac67f769c81e0c1e341a8`) — ready for Stage 6.
