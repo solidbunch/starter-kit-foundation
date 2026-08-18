@@ -76,13 +76,15 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
       - name: Set up SSH config
+        env:
+          SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
         run: |
-          if [ -z "${{ secrets.SSH_CONFIG }}" ]; then
+          if [ -z "$SSH_CONFIG" ]; then
             echo "Error: SSH_CONFIG secret is not available"
             exit 1
           fi
           mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+          printf '%s\n' "$SSH_CONFIG" > ~/.ssh/config
 
       - name: Prepare .env
         run: |
@@ -156,6 +158,8 @@ jobs:
 
       - name: Extract SSH public key for Terraform
         if: steps.verify_basis.outputs.has_basis == 'true'
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
           # Guarantee cleanup of SSH key even if script fails
           trap "rm -f ~/.ssh/id_rsa ~/.ssh/config" EXIT
@@ -164,7 +168,7 @@ jobs:
           source .env
 
           # Write private key to file
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
           # Extract public key from private key using ssh-keygen -y
@@ -381,11 +385,11 @@ jobs:
 
           # Get instance details
           IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" 2>/dev/null || echo "N/A")
+            -w "/srv/$TF_ENV_DIR" \
+            iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" || echo "N/A")
           IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" 2>/dev/null || echo "N/A")
+            -w "/srv/$TF_ENV_DIR" \
+            iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" || echo "N/A")
 
           if [ "$IPV4" != "N/A" ] || [ "$IPV6" != "N/A" ]; then
             echo "### Instance Details" >> $GITHUB_STEP_SUMMARY
