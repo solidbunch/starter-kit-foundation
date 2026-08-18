@@ -28,6 +28,7 @@ Foundation rules — in `.claude/rules/`, auto-injected by path (`/memory` shows
 | `ci.md`             | editing `.github/workflows/**` — deploy + provisioning pipelines                         |
 | `gitlab-ci.md`      | editing `.gitlab-ci.yml`, `.gitlab/ci/**` — parallel GitLab CI deploy pipeline           |
 | `config.md`         | editing `config/**` — env files, nginx templates, PHP ini, cron, certbot, SSL            |
+| `design-verification.md` | editing theme/addon blocks, FSE `templates`/`parts`/`patterns`, or any `*.scss` — how a layout change gets verified (measured, not eyeballed) |
 
 The **theme** carries its own `CLAUDE.md` files inside its repo. Claude Code auto-loads them on
 demand when it reads files there — no setup needed. Paths below use the shipped default theme
