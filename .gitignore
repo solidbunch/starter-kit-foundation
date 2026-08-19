@@ -52,6 +52,11 @@ logs/**/*.out
 /config/ssl/**
 !/config/ssl/readme.md
 
+# act (local CI/CD emulation harness) — real values only, never committed;
+# sh/local-ci/act-secrets.example is the committed placeholder-only template.
+.secrets.act
+.vars.act
+
 #=============================#
 #          Terraform          #
 #=============================#
