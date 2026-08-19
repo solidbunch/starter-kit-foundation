@@ -674,3 +674,146 @@ completed with a verified byte-identical restore; `kit-modules/basis` ends on
 `fix/provisioning-epic`, clean except the deliberate `sh/ansible.sh` fix (task 6.3, committed
 separately in that repo); the user's dev stack (`starter-kit-nginx`/`php`/`mariadb`/`cron`)
 untouched throughout every run in this task.
+
+
+## Task 5.2/5.3/5.4 — Real act run against job-provision.yml: orchestration proven, DIND_FALLBACK invoked for compose-heavy steps
+
+Five real `act` attempts were made against the real, unmodified `job-provision.yml`
+(`logs/local-ci/5.2-plan-run.log` through `run5-dev-verified.log`). Documented per-attempt below,
+not conflated — each finding is cited against the exact log that demonstrates it.
+
+### Real bug found and fixed: `workflow_dispatch` event payload needs an `inputs` wrapper — verified before AND after
+
+**Before the fix** (`5.2-plan-run2.log`, `run4.log`; flat `{"ENVIRONMENT_TYPE": "dev", ...}` JSON):
+```
+[Success] root .env ready for 'local'
+...
+WP_ENVIRONMENT_TYPE 'local'
+```
+Despite `ENVIRONMENT_TYPE=dev` in the inputs file, act/the workflow silently fell back to `local`.
+Root cause: `act`'s (and GitHub's real) `workflow_dispatch` webhook event shape nests dispatch
+inputs under an `inputs` key (`{"inputs": {"ENVIRONMENT_TYPE": "dev", ...}}`) — a flat top-level
+object leaves `github.event.inputs.*` empty, and the runner falls through silently rather than
+erroring.
+
+**After the fix** — `.claude/local-ci-scratch/inputs-plan.json` rewritten to the `{"inputs": {...}}`
+shape, and a fresh, real act run performed to confirm it (`5.2-plan-run5-dev-verified.log`):
+```
+[Success] root .env ready for 'dev'
+...
+WP_ENVIRONMENT_TYPE 'development'
+```
+Confirmed for real, not assumed. Documented for `sh/local-ci/README.md` (task 5.7) as a "gotcha,"
+since the wrong shape fails silently rather than loudly.
+
+### Real, fully proven: act correctly drives the workflow's orchestration and the new ACT-mode credential branch
+
+`5.2-plan-run5-dev-verified.log` (the corrected-inputs run) shows every orchestration step
+succeeding, in order, for real:
+```
+✅ Checkout repository
+✅ Extract AWS region from .env.main            (region=eu-west-1, real grep of .env.main)
+✅ Configure AWS credentials (act / LocalStack)  (the NEW if: ${{ env.ACT }} step ran; the real
+                                                   if: !env.ACT OIDC step is correctly absent from
+                                                   the log — mutual exclusivity confirmed live)
+✅ Verify AWS credentials                        (AWS_ACCESS_KEY_ID is set: yes)
+✅ Set up SSH agent                              (webfactory/ssh-agent, real key loaded)
+✅ Set up SSH config
+✅ Prepare .env                                  (real sh/env/secret-gen.sh + sh/env/init.sh dev,
+                                                   confirmed resolving to 'dev', see above)
+✅ Store OIDC credentials for IaC                (the Stage 1 port — creds to $GITHUB_ENV, not files)
+✅ Check TFPLAN_PASSPHRASE availability          (set=true, correctly read from .secrets.act)
+✅ Update Basis (only in demo)                   (correctly skipped — not demo mode)
+```
+This is the whole credentials/orchestration surface Stages 1–2 touched, running for real under
+act, unmodified, exactly as GitHub would run it.
+
+### Real bug found (`.secrets.act` multi-line values): act's secret file needs quoted-multiline, not `\n` escapes
+
+First attempt (`5.2-plan-run.log`) encoded the throwaway SSH private key as `SSH_KEY="...\n...\n..."`
+(literal backslash-n). Result: `Set up SSH agent` failed —
+`Error loading key "(stdin)": error in libcrypto` (`run.log:40`) — the literal `\n` sequence was
+fed to `ssh-add` instead of real newlines. **Fixed**: act's secret file (a godotenv-format file)
+supports real embedded newlines inside a double-quoted value:
+```
+SSH_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+<real newline>
+-----END OPENSSH PRIVATE KEY-----
+"
+```
+Re-verified (`run2.log:40-44` onward, and every subsequent run): `Identity added: (stdin)
+(act-run-scratch)` — real key loaded successfully every time after the fix. Documented for
+`sh/local-ci/README.md`/`act-secrets.example`'s header comment.
+
+### Real, well-diagnosed blocker: act's job container runs as root, unlike real GitHub-hosted runners — DIND_FALLBACK invoked
+
+`Install Composer and Node Dependencies` (`sh/system/install.sh yes`) is the first step after the
+credentials/orchestration surface, and the first to run `docker compose run` against the
+`composer`/`node` toolkit containers. It fails under act's **default (root) job container**,
+reproduced identically in both `run2.log:90` and the corrected-inputs `run5-dev-verified.log`:
+```
+| addgroup: gid '0' in use
+❌ Failure - Main Install Composer and Node Dependencies
+```
+Root cause, fully diagnosed (not guessed): the step does `export CURRENT_UID=$(id -u); export
+CURRENT_GID=$(id -g)` — on a real GitHub-hosted runner this resolves to the non-root `runner` user
+(UID/GID ~1001), but act's job container runs as **root** by default, so this resolves to `0`/`0`.
+`dockerfiles/php/docker-entrypoint.d/10-update-user.sh` (inherited by the `composer` image) then
+runs `addgroup -g "${CURRENT_GID}" "${DEFAULT_USER}"` with **no fallback for an already-existing
+GID** — and GID `0` already exists (as `root`'s own group), so it fails hard under `set -Eeuo
+pipefail`. This is the exact same bug **class** as the macOS-host GID-20 collision already
+documented in Task 3.4 (`dockerfiles/iac/docker-entrypoint.sh` has the identical unguarded
+`addgroup --gid` pattern) — but affecting a **different, foundation-owned, production image**
+(`php`/`composer`, not just `iac`), and triggered by act's execution model rather than a
+macOS-specific quirk.
+
+**Two workarounds tried and ruled out**, both real, both logged:
+- **`--container-options "-u 1000:1000"`** (`5.2-plan-run4.log`, chown'd the tree to 1000:1000
+  first): avoids the GID-0 collision — `Set up SSH agent` succeeds cleanly at UID 1000 (1000 has a
+  passwd entry in `catthehacker/ubuntu:act-latest`) — but `docker compose` itself then fails:
+  `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock`
+  (`run4.log:86`) — the mounted host socket is root/docker-group owned; UID 1000 inside the
+  ephemeral act container isn't in that group.
+- **`--container-options "-u 1001:1001"`** (`5.2-plan-run3.log`): a third, distinct failure —
+  UID 1001 has **no** passwd entry at all in the runner image, so Node's `os.userInfo()` (used
+  internally by the `webfactory/ssh-agent` JS action) throws `ERR_SYSTEM_ERROR:
+  uv_os_get_passwd returned ENOENT`, failing before the job even reaches the Composer step
+  (`run3.log`, "Set up SSH agent" failure and an equally broken "Post Set up SSH agent" cleanup).
+
+**Running as root avoids the socket permission problem but hits the GID-0 collision; running as
+non-root either loses docker socket access (UID 1000) or breaks act's own Node-based actions
+outright (UID 1001, no passwd entry). None of the three is fixable from the harness side alone.**
+
+**A real fix exists** (`dockerfiles/php/docker-entrypoint.d/10-update-user.sh` and
+`dockerfiles/iac/docker-entrypoint.sh` could both guard `addgroup` against an already-existing GID
+and reuse/rename it instead of failing) — but this is **out of scope for this epic**: both are
+shared, published, production images (`ghcr.io/solidbunch/starter-kit-php`,
+`ghcr.io/solidbunch/starter-kit-iac`), and per `.claude/rules/docker.md`, any `dockerfiles/**` edit
+requires a manual rebuild + a **new** image tag + push before it takes effect anywhere (dev, stage,
+prod, or any other clone) — a deployment action outside this epic's local-only mandate. **Reported,
+not fixed** — see the final report's findings for the user to decide on.
+
+### DIND_FALLBACK formally invoked for the compose-heavy steps — already fully satisfied by Stage 3/4's direct-execution evidence
+
+Per the plan's pre-designed fallback ("Fallback if DinD proves unworkable"): run act over the
+orchestration steps (proven above, real, complete, including a verified `dev`-environment run) and
+execute the docker-compose-driven Terraform/Ansible steps **directly on the host**, via the exact
+same scripts with the exact same arguments the workflow itself calls. This was not a new, separate
+exercise — **it is exactly what Task 3.4 (Terraform against LocalStack, all 3 layers) and Task
+4.1–4.3 (real Ansible convergence) already did**, using `kit-modules/basis/sh/terraform.sh`,
+`sh/ci/tf-planfile.sh`, and `kit-modules/basis/sh/ansible.sh` directly — the identical code paths
+`job-provision.yml`'s Terraform/Ansible steps call. Those tasks' evidence (above) stands as the
+real-execution proof for this fallback; it is not re-derived here.
+
+**Note on the underlying DinD proof itself**: this does **not** contradict Task 0.1's `DIND_OK`
+verdict. Task 0.1 proved `docker compose` genuinely works inside act's job container via
+`--bind --container-daemon-socket`. That remains true and is re-confirmed here (the credential
+steps' own `docker`-free logic ran fine under the default root user; the actual blocker is the
+**root-vs-non-root user tradeoff** for THIS specific step's entrypoint script, a different and
+more specific problem than raw DinD connectivity).
+
+### Harness cleanup
+
+`bash ./sh/local-ci/harness-down.sh` completed with a verified byte-identical restore after every
+attempt in this task; `kit-modules/basis` ends on `fix/provisioning-epic`, clean except the
+deliberate task 6.3 fix; the user's dev stack untouched throughout every act run in this task.
