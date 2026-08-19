@@ -59,6 +59,14 @@ latest licensed module code. Normal client deployments leave this unset/`false` 
 `composer.lock`.
 - `APP_MULTI_INSTANCE` (repo variable, optional, default absent, per-environment) — `1` enables the multi-instance (Traefik) deploy; see `infrastructure.md`.
 
+## Local emulation
+
+`job-provision.yml` can be run for real, locally, with no cloud account — Terraform against
+LocalStack, Ansible against a real SSH target container, `job-provision.yml` itself under `act`.
+See `sh/local-ci/README.md` for the full harness (what's genuinely executed vs structurally
+checked, LocalStack Community limitations, every act/macOS gotcha found, and the data-loss guard
+rails protecting `kit-modules/basis`). Entry points: `make localci [up|down|tf|ansible|act]`.
+
 ## GitLab CI alternative
 
 A parallel GitLab CI/CD pipeline (for plain GitLab.com shared runners) is also available,

@@ -49,6 +49,15 @@ GOAL := $(word 1, $(PARAMS))
 PARAM1 := $(word 2, $(PARAMS))
 PARAM2 := $(word 3, $(PARAMS))
 PARAM3 := $(word 4, $(PARAMS))
+
+# `make localci <up|down|tf|ansible|act> ...` reuses the words up/down/tf/ansible as its
+# subcommand names, which happen to collide with this Makefile's own `up`/`down`/`tf`/`ansible`
+# targets: `make localci up` lists BOTH `localci` and `up` as goals, so make would otherwise also
+# build the real `up:` target (bringing up the whole app stack) alongside `localci`'s own recipe —
+# same problem for `down` (destructive `docker compose down -v`), `tf`, `ansible`. Guard those four
+# targets to no-op whenever `localci` is also one of the goals, deferring entirely to `localci`'s
+# own recipe for that invocation. Does not change their normal (non-`localci`) behaviour at all.
+LOCALCI_GOAL := $(filter localci,$(MAKECMDGOALS))
 # Go!
 # Install project. Generate secrets, run composer and npm dependencies install
 # `make install dev composer` - will run only composer update
@@ -97,10 +106,14 @@ watch:
 	bash ./sh/dev/npm-watch.sh $(PARAMS)
 
 # Regular docker compose up with root .env file concatenation
+# Guarded no-op when invoked alongside `localci` (see LOCALCI_GOAL above) — `make localci up`
+# must only run the harness, never the app stack.
 up:
+ifeq ($(LOCALCI_GOAL),)
 	$(LOGO_SH)
 	bash ./sh/env/init.sh $(PARAMS)
 	docker compose $(COMPOSE_OVERRIDE) up -d
+endif
 
 # docker compose up with root .env file concatenation without `-d`
 upd:
@@ -109,8 +122,12 @@ upd:
 	docker compose $(COMPOSE_OVERRIDE) up
 
 # Just docker compose down
+# Guarded no-op when invoked alongside `localci` (see LOCALCI_GOAL above) — `make localci down`
+# must only tear down the harness, never the app stack.
 down:
+ifeq ($(LOCALCI_GOAL),)
 	docker compose $(COMPOSE_OVERRIDE) down -v
+endif
 
 restart:
 	bash ./sh/env/init.sh $(PARAMS)
@@ -166,16 +183,23 @@ basis:
 # Usage examples:
 # make tf dev init        -> bash ... -e dev -c init
 # make tf prod apply      -> bash ... -e prod -c apply
+# Guarded no-op when invoked alongside `localci` (see LOCALCI_GOAL above) — `make localci tf`
+# only prints the reminder from the `localci` target itself, it does not also run real Terraform.
 tf:
+ifeq ($(LOCALCI_GOAL),)
 	bash ./kit-modules/basis/sh/terraform.sh -e $(PARAM1) -c $(PARAM2)
+endif
 
 # Ansible unified command (flags-based)
 # Usage examples:
 # make ansible dev inventory        -> bash ... -e dev -a inventory
 # make ansible dev playbook         -> bash ... -e dev -a playbook
 # make ansible dev playbook static  -> bash ... -e dev -a playbook -s
+# Guarded no-op when invoked alongside `localci` (see LOCALCI_GOAL above) — same reasoning as `tf`.
 ansible:
+ifeq ($(LOCALCI_GOAL),)
 	bash ./kit-modules/basis/sh/ansible.sh -e $(PARAM1) -a $(PARAM2) $(if $(filter static,$(PARAM3)),-s)
+endif
 
 # docker build|docker push|docker clean|docker login
 docker:
@@ -212,6 +236,43 @@ proxy:
 # Foundation utility, independent of the proxy module. `make db-tunnel start|stop|status [port]`.
 db-tunnel:
 	bash ./sh/system/db-tunnel.sh $(PARAMS)
+
+# Local CI/CD provisioning emulation harness (sh/local-ci/*) — see sh/local-ci/README.md.
+# `make localci up`     -> bash ./sh/local-ci/harness-up.sh
+# `make localci down`   -> bash ./sh/local-ci/harness-down.sh
+# `make localci tf`     -> reminder: real Terraform runs go through kit-modules/basis/sh/terraform.sh
+#                          and sh/ci/tf-planfile.sh directly, once the harness is up. No parallel
+#                          abstraction here.
+# `make localci ansible`-> reminder: real Ansible runs go through kit-modules/basis/sh/ansible.sh
+#                          directly, once the harness is up.
+# `make localci act -- <act-run.sh args>` -> bash ./sh/local-ci/act-run.sh <args> — the only
+#                          allowed entry point for `act`; never call `act` directly (see
+#                          sh/local-ci/README.md, "Data-loss guard rails").
+localci:
+	if [ "$(PARAM1)" = "up" ]; then \
+		bash ./sh/local-ci/harness-up.sh; \
+	elif [ "$(PARAM1)" = "down" ]; then \
+		bash ./sh/local-ci/harness-down.sh $(if $(filter --force-restore,$(PARAM2)),--force-restore); \
+	elif [ "$(PARAM1)" = "tf" ]; then \
+		echo "Bring the harness up first: make localci up"; \
+		echo "Then run Terraform for real, per layer (state -> shared -> dev), e.g.:"; \
+		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c init"; \
+		echo "  bash ./sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan"; \
+		echo "  bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan"; \
+		echo "See sh/local-ci/README.md for the full walkthrough."; \
+	elif [ "$(PARAM1)" = "ansible" ]; then \
+		echo "Bring the harness up first: make localci up"; \
+		echo "Then run Ansible for real, e.g.:"; \
+		echo "  bash kit-modules/basis/sh/ansible.sh -e dev -a inventory"; \
+		echo "  bash kit-modules/basis/sh/ansible.sh -e dev -a playbook"; \
+		echo "See sh/local-ci/README.md for the full walkthrough."; \
+	elif [ "$(PARAM1)" = "act" ]; then \
+		bash ./sh/local-ci/act-run.sh $(wordlist 2,$(words $(PARAMS)),$(PARAMS)); \
+	else \
+		echo "Usage: make localci [up|down|tf|ansible|act]"; \
+		echo "See sh/local-ci/README.md."; \
+		exit 1; \
+	fi
 
 # Validate nginx config syntax (`nginx -t`) in a throwaway container, no app stack needed.
 validate-nginx:
