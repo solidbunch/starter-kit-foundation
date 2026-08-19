@@ -115,10 +115,22 @@ EOF
 }
 
 write_backend_block() {
+    # $1: the layer's state-file key, copied verbatim from its tracked backend.tf. Terraform's
+    # override merge for a `terraform { backend "s3" {} }` block was found (empirically, running
+    # `terraform init` for real against this override — a static `-backend=false` validate pass
+    # does NOT catch this) to require every attribute to be restated, not just the ones being
+    # added: omitting `key` here left it unset after merge, and `terraform init` fell back to an
+    # interactive prompt for it (fatal on a non-interactive CI runner). Restating `key` and
+    # `encrypt` from the original per-layer backend.tf avoids that. See sh/local-ci/EVIDENCE.md,
+    # task 3.4.
+    local state_key="$1"
     cat <<EOF
 
 terraform {
   backend "s3" {
+    key     = "$state_key"
+    encrypt = true
+
     endpoints = {
       s3       = "$ENDPOINT_URL"
       dynamodb = "$ENDPOINT_URL"
@@ -176,17 +188,18 @@ do_write() {
     echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $state_dir/$OVERRIDE_FILENAME"
 
     # terraform/envs/shared uses an s3 backend — provider + backend override.
+    # key copied verbatim from envs/shared/backend.tf.
     {
         write_provider_block
-        write_backend_block
+        write_backend_block "envs/shared/network.tfstate"
     } > "$shared_dir/$OVERRIDE_FILENAME"
     echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $shared_dir/$OVERRIDE_FILENAME"
 
     # terraform/envs/dev uses an s3 backend AND reads shared's state via terraform_remote_state —
-    # provider + backend + remote-state override.
+    # provider + backend + remote-state override. key copied verbatim from envs/dev/backend.tf.
     {
         write_provider_block
-        write_backend_block
+        write_backend_block "envs/dev/terraform.tfstate"
         write_remote_state_override
     } > "$dev_dir/$OVERRIDE_FILENAME"
     echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $dev_dir/$OVERRIDE_FILENAME"

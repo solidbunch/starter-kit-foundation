@@ -249,3 +249,122 @@ $ bash ./sh/local-ci/harness-up.sh   # while a previous run's sentinel is still 
 **All 4 guard rows verified for real**, plus the `--remove-orphans` finding fixed and re-verified.
 `kit-modules/basis` ends this task on branch `fix/provisioning-epic`, clean, HEAD unchanged from
 `origin/main` (`0bbf75dd9239c843fa8ac67f769c81e0c1e341a8`) — ready for Stage 6.
+
+## Task 3.4 — Real Terraform execution against LocalStack: PROVEN for `state` fully, `shared` mostly, `dev` blocked by a genuine LocalStack gap
+
+### Environment quirk found and worked around (macOS-specific, not a harness bug)
+
+`export CURRENT_UID=$(id -u); export CURRENT_GID=$(id -g)` (the exact pattern `job-provision.yml`
+and `terraform.sh` invocations use) fails on this machine: host GID is `20` ("staff" on macOS),
+which collides with a group already present in the `iac` image, so
+`dockerfiles/iac/docker-entrypoint.sh`'s `addgroup --gid "${CURRENT_GID}" www-data` errors:
+```
+addgroup: The GID `20' is already in use.
+```
+This is a real, macOS-host-specific quirk (GitHub Actions Linux runners use UIDs/GIDs that don't
+collide this way) — not something in scope to fix in tracked code. Worked around for local-ci runs
+by leaving `CURRENT_UID`/`CURRENT_GID` unset, which falls back to the image's own
+`DEFAULT_UID`/`DEFAULT_GID=1000/1000` (`config/environment/.env.main:69-70`) — proven to work
+identically in Stage 0's DinD probe. Documented for `sh/local-ci/README.md` (task 5.7).
+
+### `state` layer — FULLY APPLIED
+
+```
+$ bash kit-modules/basis/sh/terraform.sh -e state -c init
+Terraform has been successfully initialized!
+
+$ bash ./sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan
+Plan: 5 to add, 0 to change, 0 to destroy.
+Saved the plan to: /srv/tfplans/state.tfplan
+
+$ bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan
+aws_s3_bucket.terraform_state: Creation complete after 0s [id=localci-terraform-state]
+aws_s3_bucket_public_access_block.public_access: Creation complete after 0s [id=localci-terraform-state]
+aws_s3_bucket_versioning.versioning: Creation complete after 2s [id=localci-terraform-state]
+aws_dynamodb_table.terraform_locks: Creation complete after 2s [id=localci-terraform-locks]
+aws_s3_bucket_lifecycle_configuration.lifecycle: Creation complete after 56s [id=localci-terraform-state]
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+```
+
+### Real bug found and fixed: `tf-localstack-override.sh`'s backend override omitted `key`/`encrypt`
+
+`shared` layer's `terraform init` failed:
+```
+Error: Error asking for input to configure backend "s3": key: EOF
+```
+Root cause: Terraform's override-merge for a `terraform { backend "s3" {} }` block requires every
+attribute to be **restated**, not just the ones being added — omitting `key` (present in the
+tracked `envs/shared/backend.tf`/`envs/dev/backend.tf`) left it unset after merge, causing
+`terraform init` to fall back to an interactive prompt (fatal on a non-interactive runner). This
+is a real Terraform override-merge behavior that a static `-backend=false` validate pass (used
+during Stage 3.1-3.3's authoring review) cannot catch — only real `terraform init` execution
+surfaced it. **Fixed** in `sh/local-ci/tf-localstack-override.sh`: `write_backend_block()` now
+takes the layer's state-file `key` as a parameter and restates both `key` and `encrypt = true`
+verbatim from each layer's tracked `backend.tf`. Re-verified: `terraform init` for `shared` now
+succeeds cleanly ("Successfully configured the backend \"s3\"!").
+
+### `shared` layer — VPC/IGW/route-table/key-pair created for real; subnets blocked by a genuine LocalStack Community limitation
+
+```
+$ bash ./sh/ci/tf-planfile.sh -e shared -m save -f tfplans/shared.tfplan
+Plan: 10 to add, 0 to change, 0 to destroy.
+
+$ bash ./sh/ci/tf-planfile.sh -e shared -m apply -f tfplans/shared.tfplan
+aws_key_pair.deploy: Creation complete after 0s [id=starter-kit_deploy_key]
+module.network.aws_vpc.main_vpc: Creation complete after 20s [id=vpc-88723279fd9c7d7c2]
+module.network.aws_internet_gateway.main: Creation complete after 0s [id=igw-b1d0b5ce777a325ab]
+module.network.aws_route_table.main_route_table: Creation complete after 0s [id=rtb-5a53212960a0b4ca6]
+Error: waiting for EC2 Subnet (subnet-92c8cb1003b882f00) IPv6 CIDR block (subnet-cidr-assoc-4571ab84f385f8a2e) to become associated: unexpected state '{'State': 'associated'}', wanted target 'associated'. last error: %!s(<nil>)
+(same error for all 3 subnets)
+```
+**Reproduced deterministically** — retried with a fresh `terraform apply` (destroy+recreate of the
+3 subnets), identical error on every one of the 3 subnets both times. Not a flake. The AWS
+provider's waiter for `AssociateSubnetCidrBlock`/IPv6-association status expects a plain string
+enum; LocalStack's mock EC2 API returns a Python-dict-repr string (`{'State': 'associated'}`)
+instead, which the waiter's parser rejects. `kit-modules/basis/terraform/modules/network/subnet.tf`
+unconditionally sets `ipv6_cidr_block` on every subnet (no toggle) — this is a resource declared
+inside a child module, so it cannot be overridden per-attribute from an env-level `*_override.tf`
+(Terraform's override-file merge only applies to resources declared directly in the same
+directory as the override file, not to resources inside a module the directory calls) without
+editing basis's tracked module code, which is out of scope for this local-only harness.
+
+The resources DID get created in LocalStack despite the waiter error (confirmed via
+`terraform state list`): `aws_vpc.main_vpc`, `aws_internet_gateway.main`,
+`aws_route_table.main_route_table`, `aws_key_pair.deploy`, and all 3
+`module.network.aws_subnet.subnets[*]` are all present in Terraform state with real LocalStack
+IDs. What did NOT complete: the root module's `subnet_ids` output (apply exits non-zero before
+computing it), so `vpc_id` and `deploy_key_name` outputs are present but `subnet_ids` is absent.
+
+**This is a genuine, reported LocalStack Community-tier limitation, per the plan's explicit
+instruction ("If a resource type genuinely cannot be created in Community tier, record the
+verbatim error and report it — do not substitute a mock")** — not a defect in this epic's harness,
+override design, or the ported pipeline code. Everything up to the IPv6 wait (provider wiring,
+S3/DynamoDB-backed state backend for two of three layers, `tf-planfile.sh`'s save/apply flow,
+VPC/IGW/route-table/key-pair creation) is proven genuinely working.
+
+### `dev` layer — cleanly blocked, exactly as expected, tracing back to the same root cause
+
+```
+$ bash kit-modules/basis/sh/terraform.sh -e dev -c init
+Terraform has been successfully initialized!
+
+$ bash ./sh/ci/tf-planfile.sh -e dev -m save -f tfplans/dev.tfplan
+... aws_security_group.allow_ssh: vpc_id = "vpc-88723279fd9c7d7c2"   # correctly resolved from remote state
+Plan: 2 to add, 0 to change, 0 to destroy.
+Error: Unsupported attribute
+  on main.tf line 35, in module "instances":
+  35:   subnet_ids = data.terraform_remote_state.shared.outputs.subnet_ids
+    data.terraform_remote_state.shared.outputs is object with 2 attributes
+    This object does not have an attribute named "subnet_ids".
+```
+This confirms the `envs/dev` remote-state override (contract 4's third override block) correctly
+reads real values from `shared`'s state (`vpc_id` resolved correctly, security-group plan
+succeeded — "Plan: 2 to add" before hitting the missing attribute) — the chain is proven correct
+end-to-end; it fails exactly and only where `shared`'s own incomplete output (caused by the
+IPv6 limitation above) makes `subnet_ids` genuinely unavailable. Not a new/separate defect.
+
+**Verdict for task 3.4: the harness, the ported pipeline code, and the Terraform↔LocalStack wiring
+are all proven correct by real execution. The one blocker to a fully green 3-layer apply is
+LocalStack Community's IPv6 subnet-association emulation gap — documented, reproduced, and
+reported per the plan's own instruction, not worked around with a mock or a scope-violating
+change to basis's tracked module.**
