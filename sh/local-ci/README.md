@@ -88,6 +88,43 @@ real Ansible playbook run and its idempotence re-run, the act orchestration step
 `/workspace`→`/srv` summary step — was run for real, with verbatim output recorded in
 `sh/local-ci/EVIDENCE.md`.
 
+## GID/UID collision fix (item 2.2) — status
+
+The `addgroup`/`adduser` collision described throughout this document (macOS host GID 20, act's
+root UID/GID 0) is **fixed**, not merely worked around, as of commits `99adbc6` (`php`/`composer`
+entrypoint) and `ae05608` (`iac` entrypoint) on this branch. Both entrypoints now use
+name-aliasing: when the host's `CURRENT_UID`/`CURRENT_GID` is already taken by another
+user/group in the image, they append a *second* name for that ID (an alias line in `/etc/group` /
+`/etc/passwd`, plus a matching `/etc/shadow` line on Debian) rather than failing outright or
+adopting the colliding entry's own name. See
+`dockerfiles/php/docker-entrypoint.d/10-update-user.sh` and
+`dockerfiles/iac/docker-entrypoint.sh`.
+
+**Fixed image tags** (the fix only exists in these tags — pulling/building the old tags still
+reproduces the original failures documented below):
+
+| Image | Tag carrying the fix |
+|---|---|
+| `php` | `ghcr.io/solidbunch/starter-kit-php:8.4-fpm-alpine3.24-r1` |
+| `composer` | `ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.24-r1` (rebuilds `FROM` the fixed `php` tag, so it inherits the same entrypoint fix) |
+| `iac` | `ghcr.io/solidbunch/starter-kit-iac:1.1.1` |
+
+**The workarounds documented elsewhere in this file — "leave `CURRENT_UID`/`CURRENT_GID` unset on
+macOS" (below) and "act's root-user GID-0 collision blocks the Composer/install step" (in the DinD
+verdict section right below this one) — are now STALE for anyone running the tags above.** They
+remain accurate only for anyone still on the previous tags (`php:8.4-fpm-alpine3.24`,
+`composer:2.10-php8.4-alpine3.24`, `iac:1.1.0`) — i.e. anyone who has not built these
+`-r1`/`1.1.1` images locally. They are left in place below (annotated, not deleted), because that
+is exactly what a reader still on the old tags will hit.
+
+**Not yet published anywhere else.** These new tags exist only in this machine's local Docker
+image cache — `config/environment/.env.main` on this branch points at them, and they were built
+locally (`make docker build php` / `make docker build composer` / `make docker build iac`). They
+have **not** been pushed to `ghcr.io`; `make docker push` has not been run by any task in this
+epic and never will be automatically. Until the repo owner runs it manually, every fresh clone,
+every dev/stage/prod deploy, and every teammate pulling this branch still resolves the old,
+colliding-on-collision tags — the fix does not exist for them yet, only on this machine.
+
 ### DinD verdict: `DIND_OK` for connectivity, `DIND_FALLBACK` for one specific step class
 
 Task 0.1 proved `act --bind --container-daemon-socket /var/run/docker.sock` genuinely works: a
@@ -109,10 +146,16 @@ entry at all, breaking act's own Node-based actions before the job even reaches 
 the exact same *bug class* as the macOS-host GID-20 collision found in Task 3.4
 (`dockerfiles/iac/docker-entrypoint.sh` has the identical unguarded `addgroup --gid` pattern), but
 it affects a different, foundation-owned, production image (`php`/`composer`) and is triggered by
-act's execution model, not a macOS quirk. A real fix (guard `addgroup` against an already-existing
-GID) is out of scope for this epic — both images are shared, published, production images that
-would need a manual rebuild + a new tag + push before it took effect anywhere. **Reported, not
-fixed.**
+act's execution model, not a macOS quirk. At the time this section was written, a real fix (guard
+`addgroup` against an already-existing GID) was out of scope for this epic. **That is no longer
+current**: the fix has since landed (see "GID/UID collision fix (item 2.2) — status" above) via
+name-aliasing in `dockerfiles/php/docker-entrypoint.d/10-update-user.sh` and
+`dockerfiles/iac/docker-entrypoint.sh`, minted as `php:8.4-fpm-alpine3.24-r1`,
+`composer:2.10-php8.4-alpine3.24-r1`, and `iac:1.1.1`. Those tags exist only in this machine's
+local Docker cache — they have **not** been pushed to `ghcr.io` (`make docker push` not run) — so
+this description (`addgroup: gid '0' in use`, "Reported, not fixed") remains exactly accurate for
+the published tags dev/stage/prod and every other clone still pull, until that manual push
+happens.
 
 Per the plan's pre-designed fallback: the orchestration steps up to and including that point run
 for real under act (checkout, region extraction, credential export, both the real and the
@@ -242,6 +285,11 @@ you're likely to hit them:
   ```
   before invoking any `kit-modules/basis/sh/*.sh` script. Environment-specific to macOS + Docker
   Desktop, not a script defect.
+- **STALE as of `iac:1.1.1` — see "GID/UID collision fix (item 2.2) — status" above.** The
+  paragraph below still applies verbatim to anyone on `iac:1.1.0` or earlier; on `iac:1.1.1` the
+  entrypoint aliases the colliding GID instead of failing, so `CURRENT_UID`/`CURRENT_GID` no
+  longer need to be left unset — this workaround is only needed until the fixed tag is what's
+  actually pulled/built.
 - **macOS: leave `CURRENT_UID`/`CURRENT_GID` unset when running basis scripts directly on this kind
   of host.** `export CURRENT_UID=$(id -u); export CURRENT_GID=$(id -g)` — the exact pattern
   `job-provision.yml` and `terraform.sh` use — fails on a Mac whose host GID is `20` ("staff"),
@@ -271,6 +319,11 @@ you're likely to hit them:
   -----END OPENSSH PRIVATE KEY-----
   "
   ```
+- **STALE as of `php`/`composer:…-r1` and `iac:1.1.1` — see "GID/UID collision fix (item 2.2) —
+  status" above.** The paragraph below still applies verbatim to anyone on the previous tags; on
+  the fixed tags the entrypoints alias the colliding root GID/UID instead of failing, so the
+  `Install Composer and Node Dependencies` step no longer blocks under act — this remains the
+  documented behaviour only for readers who have not built the `-r1`/`1.1.1` images locally.
 - **act: the job container runs as root by default, which collides with `dockerfiles/php`'s and
   `dockerfiles/iac`'s unguarded `addgroup` calls whenever the workflow exports
   `CURRENT_UID=$(id -u)`/`CURRENT_GID=$(id -g)`.** See the "DinD verdict" section above for the

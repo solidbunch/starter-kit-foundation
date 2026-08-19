@@ -64,6 +64,99 @@ to `tmp/local-ci/` beforehand as a precaution (`snapshot-basis-pretest.tar.gz`,
 ran, but the real Stage 5 act runs against `job-provision.yml` itself will need it, per the plan's
 guard-rail design.
 
+## Fix landed for item 2.2 (2026-08-19) — GID/UID collision, name-aliasing, and the php-fpm pool-config constraint
+
+Every collision reproduced elsewhere in this file (macOS host GID 20 in Task 3.4, act's root
+UID/GID 0 in Task 5.2/5.3/5.4) is now **fixed**, not merely worked around, by commits `99adbc6`
+(`php`/`composer` entrypoint, `dockerfiles/php/docker-entrypoint.d/10-update-user.sh`) and
+`ae05608` (`iac` entrypoint, `dockerfiles/iac/docker-entrypoint.sh`) on this branch. Both
+entrypoints now use **name-aliasing**: when the host's `CURRENT_UID`/`CURRENT_GID` collides with an
+ID already assigned to another user/group in the image, they append a *second* name for that ID
+(an alias line in `/etc/group`/`/etc/passwd`, plus a matching `/etc/shadow` line on Debian, since
+`su` fails against a passwd-only alias there) rather than failing hard or adopting the colliding
+entry's own existing name.
+
+**Fixed tags**: `ghcr.io/solidbunch/starter-kit-php:8.4-fpm-alpine3.24-r1`,
+`ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.24-r1` (rebuilds `FROM` the fixed
+`php` tag, so it inherits the same entrypoint), `ghcr.io/solidbunch/starter-kit-iac:1.1.1`.
+
+**These tags are local-only.** They were built on this machine (`make docker build php` /
+`make docker build composer` / `make docker build iac`) and `config/environment/.env.main` on this
+branch points at them, but `make docker push` has **not** been run — the fix is not on `ghcr.io`,
+not on dev/stage/prod, and not visible to any other clone of this repo until that manual push
+happens. Every quirk documented below in this file (the macOS `addgroup: gid '20' in use` in Task
+3.4, the act `addgroup: gid '0' in use` in Task 5.2/5.3/5.4) remains exactly accurate for anyone
+still pulling the old tags (`php:8.4-fpm-alpine3.24`, `composer:2.10-php8.4-alpine3.24`,
+`iac:1.1.0`) — which is everyone except this machine's local cache, today.
+
+### Why the obvious fix was rejected: php-fpm resolves its pool user/group *by name*
+
+The first fix attempted (v1, superseded) reused whatever name `getent group "${CURRENT_GID}"`
+returned for the colliding GID — on this machine's macOS host (GID 20) that's `dialout`. That
+mechanism passes a shell-level identity check (`su -c "id" www-data` succeeds, uid/gid are
+numerically correct) but is fatally incomplete, because it never accounts for **php-fpm's own pool
+configuration**, which resolves its `user`/`group` directives **by string name, at master-process
+startup**, from a pool file this repo does not override:
+
+```
+/usr/local/etc/php-fpm.d/www.conf:28:user = www-data
+/usr/local/etc/php-fpm.d/www.conf:29:group = www-data
+```
+
+Both directives are uncommented and hardcoded to the literal name `www-data`, inherited unmodified
+from the upstream `php:8.4-fpm-alpine3.24` base — confirmed by direct inspection of the published
+image, and confirmed there is no repo-side override (`config/php/` holds only `.ini` files;
+`dockerfiles/php/Dockerfile` adds only `zz-healthcheck.conf` to `php-fpm.d/`).
+
+Proven live that the naive "adopt the colliding group's name" approach breaks php-fpm startup
+outright, on the exact primary motivating scenario (macOS, GID 20):
+
+```
+$ GROUP_NAME=$(getent group 20 | cut -d: -f1)      # -> dialout
+$ adduser -u 501 -D -G "$GROUP_NAME" www-data      (rc=0)   # user creation SUCCEEDS
+$ php-fpm -tt
+[19-Aug-2026 21:34:11] ERROR: [pool www] cannot get gid for group 'www-data'
+[19-Aug-2026 21:34:11] ERROR: FPM initialization failed
+$ php-fpm -F
+[19-Aug-2026 21:34:11] ERROR: [pool www] cannot get gid for group 'www-data'
+[19-Aug-2026 21:34:11] ERROR: FPM initialization failed
+```
+
+No group literally named `www-data` exists after that fix, so php-fpm's own by-name lookup fails
+even though the entrypoint itself exits 0 — a different failure than the original bug, but still a
+failure, on the one path the whole fix exists to repair. This is exactly why the shipped mechanism
+is name-**aliasing** (add a second name for the colliding ID) rather than name-**adoption** (reuse
+the colliding entry's existing name) — see the entrypoint comments in both fixed scripts for the
+same reasoning inline.
+
+Proven live that the shipped aliasing mechanism satisfies the pool contract, same scenario, with
+real worker processes inspected rather than a shell-level `id` check:
+
+```
+$ php-fpm -tt
+[19-Aug-2026 21:34:21] NOTICE: configuration file /usr/local/etc/php-fpm.conf test is successful
+$ php-fpm -D
+[19-Aug-2026 21:34:21] NOTICE: fpm is running, pid 16
+$ ps -o pid,user,group,args
+   12 www-data dialout  php-fpm: pool www
+   13 www-data dialout  php-fpm: pool www
+$ # /proc/<pid>/status — numeric, authoritative
+pid=12 Uid=501 501 501 501   Gid=20 20 20 20
+pid=13 Uid=501 501 501 501   Gid=20 20 20 20
+```
+
+Workers run at the real host UID/GID (501/20), which is the entire point of the entrypoint. `ps`
+still cosmetically displays the aliased group as `dialout` (reverse GID→name lookup returns the
+first match in `/etc/group`) — that is expected and not a failure; the numeric GID is what
+bind-mount permissions and php-fpm's `setgid()` actually use.
+
+A separate, related constraint (not a rejected-alternative story, just a boundary of the fix):
+**php-fpm refuses to run its pool as root** by design (`please specify user and group other than
+root`), so UID/GID 0 (the act path) was never a php-fpm scenario to begin with — it is proven
+instead against the `composer` image doing real work (`su -c "composer --version" www-data`
+succeeding at UID/GID 0). This is why the act-path evidence below (Task 5.2/5.3/5.4) is phrased in
+terms of the Composer install step, not php-fpm.
+
 ## Task 0.2 — LocalStack Community covers the resource set: PROVEN, verdict LOCALSTACK_OK (with one real finding)
 
 ### Finding: the `latest` image tag is NOT usable — requires a Pro license
@@ -253,6 +346,12 @@ $ bash ./sh/local-ci/harness-up.sh   # while a previous run's sentinel is still 
 ## Task 3.4 — Real Terraform execution against LocalStack: PROVEN for `state` fully, `shared` mostly, `dev` blocked by a genuine LocalStack gap
 
 ### Environment quirk found and worked around (macOS-specific, not a harness bug)
+
+**STALE as of `iac:1.1.1` — see "Fix landed for item 2.2" above.** The collision reproduced below
+was hit against `iac:1.1.0`. On `iac:1.1.1` the entrypoint aliases the colliding GID instead of
+failing, so this workaround is no longer needed once the fixed tag is what's actually
+pulled/built — that tag is currently local-only (not pushed to `ghcr.io`), so this section remains
+accurate for every other environment today.
 
 `export CURRENT_UID=$(id -u); export CURRENT_GID=$(id -g)` (the exact pattern `job-provision.yml`
 and `terraform.sh` invocations use) fails on this machine: host GID is `20` ("staff" on macOS),
@@ -747,6 +846,15 @@ Re-verified (`run2.log:40-44` onward, and every subsequent run): `Identity added
 
 ### Real, well-diagnosed blocker: act's job container runs as root, unlike real GitHub-hosted runners — DIND_FALLBACK invoked
 
+**STALE as of `php`/`composer:…-r1` — see "Fix landed for item 2.2" above.** The collision
+reproduced below was hit against the pre-fix `php:8.4-fpm-alpine3.24` /
+`composer:2.10-php8.4-alpine3.24` tags. On the fixed `-r1` tags the entrypoint aliases the
+colliding root GID/UID instead of failing (proven against real `composer --version` at UID/GID 0
+in "Fix landed for item 2.2" above), so this step no longer blocks under act. Those tags are
+currently local-only (not pushed to `ghcr.io`), so this section — including "A real fix... is out
+of scope for this epic" and "Reported, not fixed" below — remains accurate for the tags every
+other environment still pulls, until the manual push happens.
+
 `Install Composer and Node Dependencies` (`sh/system/install.sh yes`) is the first step after the
 credentials/orchestration surface, and the first to run `docker compose run` against the
 `composer`/`node` toolkit containers. It fails under act's **default (root) job container**,
@@ -784,14 +892,21 @@ macOS-specific quirk.
 non-root either loses docker socket access (UID 1000) or breaks act's own Node-based actions
 outright (UID 1001, no passwd entry). None of the three is fixable from the harness side alone.**
 
-**A real fix exists** (`dockerfiles/php/docker-entrypoint.d/10-update-user.sh` and
-`dockerfiles/iac/docker-entrypoint.sh` could both guard `addgroup` against an already-existing GID
-and reuse/rename it instead of failing) — but this is **out of scope for this epic**: both are
-shared, published, production images (`ghcr.io/solidbunch/starter-kit-php`,
+At the time this section was written, a real fix (guard `addgroup` against an already-existing GID
+and reuse/rename it instead of failing) was **out of scope for this epic**: both are shared,
+published, production images (`ghcr.io/solidbunch/starter-kit-php`,
 `ghcr.io/solidbunch/starter-kit-iac`), and per `.claude/rules/docker.md`, any `dockerfiles/**` edit
 requires a manual rebuild + a **new** image tag + push before it takes effect anywhere (dev, stage,
-prod, or any other clone) — a deployment action outside this epic's local-only mandate. **Reported,
-not fixed** — see the final report's findings for the user to decide on.
+prod, or any other clone) — a deployment action outside this epic's local-only mandate. It was
+**reported, not fixed**, at that point.
+
+**That is no longer current.** The fix has since landed — see "Fix landed for item 2.2" near the
+top of this file — via name-aliasing in `dockerfiles/php/docker-entrypoint.d/10-update-user.sh`
+and `dockerfiles/iac/docker-entrypoint.sh`, minted as `php:8.4-fpm-alpine3.24-r1`,
+`composer:2.10-php8.4-alpine3.24-r1`, and `iac:1.1.1`. Consistent with the constraint named above
+(new tag required before it takes effect anywhere), those tags exist only in this machine's local
+Docker cache — `make docker push` has not been run — so **this remains "reported, not fixed" for
+every environment other than this local machine** until that manual push happens.
 
 ### DIND_FALLBACK formally invoked for the compose-heavy steps — already fully satisfied by Stage 3/4's direct-execution evidence
 
