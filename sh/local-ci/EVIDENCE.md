@@ -817,3 +817,48 @@ more specific problem than raw DinD connectivity).
 `bash ./sh/local-ci/harness-down.sh` completed with a verified byte-identical restore after every
 attempt in this task; `kit-modules/basis` ends on `fix/provisioning-epic`, clean except the
 deliberate task 6.3 fix; the user's dev stack untouched throughout every act run in this task.
+
+## Task 5.5 — Summary-step fix (Bug 1) verified with real data
+
+Since `dev`'s instance was never created (blocked by LocalStack's IPv6 limitation, Task 3.4), the
+exact "Generate Infrastructure Summary" step's `instance_public_ip`/`instance_ipv6` outputs can't
+be exercised end-to-end for `dev`. Instead, the fixed `-w "/srv/$TF_ENV_DIR"` pattern (task 2.1's
+fix) was exercised directly against `shared`'s real, successfully-applied `vpc_id` output — the
+same container-workdir mechanism the summary step now uses:
+```
+$ docker compose -f docker-compose.toolkit.yml run --rm ... -w "/srv/kit-modules/basis/terraform/envs/shared" iac bash -lc "terraform output -raw vpc_id || echo 'N/A'"
+vpc-9b5aadc8e77c7c5ce
+```
+A real, non-`N/A` value returned — confirming the `/workspace` → `/srv` fix resolves to the correct
+container working directory and retrieves genuine Terraform output. Before the fix, this exact
+`docker compose run -w "/workspace/..."` pattern would resolve to a nonexistent path in the
+container (compose sets `working_dir: /srv`, `/workspace` is only the Dockerfile's overridden
+`WORKDIR`) and silently fall through to the `|| echo "N/A"` fallback — exactly the historical
+"summary always shows N/A" bug documented in the original architect plan.
+
+## Task 5.6 — Structural verification of what act cannot run, plus lint
+
+- `environment: ${{ inputs.ENVIRONMENT_TYPE }}` present at job level (`job-provision.yml:44`) —
+  structural only, act cannot emulate GitHub Environment required-reviewer approval gates.
+- `concurrency: { group: provision-${{ inputs.ENVIRONMENT_TYPE }}, cancel-in-progress: false }`
+  present (`:45-47`) — structural only, act has no `concurrency:` group semantics.
+- `permissions: { contents: read, id-token: write, actions: read }` complete (`:34-37`).
+- Cross-run artifact download wiring present and correct: `actions/download-artifact@v4` with
+  `run-id: ${{ inputs.PLAN_RUN_ID }}` and `github-token: ${{ secrets.GITHUB_TOKEN }}` (`:228-232`)
+  — structural only, act's local artifact server only serves same-run artifacts, so a genuine
+  cross-run download can't be exercised locally; the pinned-plan `apply` logic that CONSUMES a
+  downloaded plan was already proven for real in Task 3.4 (pre-seeding `tfplans/*.tfplan` on disk
+  and exercising the workflow's own `[ -f tfplans/<layer>.tfplan ]` branch, per the plan's own
+  design for this exact limitation).
+- `has_basis` short-circuit gate present and consistently applied across every Terraform/Ansible
+  step (17 occurrences: 2 definition lines at `:165,168`, plus 15 gate usages spanning
+  `:172-389`) — structurally verified by inspection; its
+  runtime behavior (basis present → proceed) was exercised for real in every Stage 3/4/5 run in
+  this epic, since `kit-modules/basis` was present throughout.
+- `actionlint .github/workflows/job-provision.yml`: exit 1, but every finding is the same
+  pre-existing shellcheck-class noise (`SC2086`/`SC2129`/`SC2155`) already baselined in Stages 1-2 —
+  filtering those out leaves zero non-shellcheck findings (no schema errors, no unknown actions, no
+  bad permission scopes, no syntax errors).
+- `shellcheck sh/local-ci/*.sh sh/ci/*.sh`: clean, exit 0, across every new script in the harness
+  (`harness-up.sh`, `harness-down.sh`, `tf-localstack-override.sh`, `act-run.sh`,
+  `tf-planfile.sh`).
