@@ -368,3 +368,171 @@ are all proven correct by real execution. The one blocker to a fully green 3-lay
 LocalStack Community's IPv6 subnet-association emulation gap — documented, reproduced, and
 reported per the plan's own instruction, not worked around with a mock or a scope-violating
 change to basis's tracked module.**
+
+## Task 4.1 — Ansible target container: built, SSH-verified live, Bug 3 reproduced before any fix
+
+### Part A — image build + `docker compose config`
+
+```
+$ docker compose -f docker-compose.localci.yml config
+```
+Resolves cleanly, both `localstack` and `ansible-target` present, `ansible-target` shows
+`cgroup: host`, `privileged: true`, `command: [/lib/systemd/systemd]`, the read-only bind mount of
+`kit-modules/basis/terraform/public_keys` → `/harness-keys`, and lands on the same implicit
+`starter-kit-foundationloc_default` network as `localstack`/`iac` (no per-service `networks:` key
+on any of the three, same pattern already established by task 3.1).
+
+```
+$ docker compose -f docker-compose.localci.yml build ansible-target
+...
+ Container/Image starter-kit-localci-ansible-target Built
+```
+Builds clean (Debian 12 base, systemd + systemd-sysv + openssh-server + sudo + python3 installed,
+`ssh.service` enabled at build time, `admin` user + passwordless sudoers entry created,
+`docker-entrypoint.sh` installed as ENTRYPOINT).
+
+### Design decision: SSH public key injected at container START, not build time
+
+Chose runtime injection (bind-mounted `kit-modules/basis/terraform/public_keys/` → `/harness-keys`
+read-only, copied into `/home/admin/.ssh/authorized_keys` by `dockerfiles/ansible-target/
+docker-entrypoint.sh` before `exec`-ing `/lib/systemd/systemd`) over a build-time `COPY`. Reasons,
+grounded in what's already in this repo:
+
+- `dockerfiles/iac/Dockerfile`'s own header comment states the rule explicitly: "Do NOT bake
+  secrets into the image; mount them at runtime (env/volumes)".
+- The public key does not exist at any fixed point before `harness-up.sh` runs — it's regenerated
+  fresh (`ssh-keygen`) on **every** harness-up cycle (`harness-up.sh` step 5), and the old key is
+  deleted on every harness-down (`harness-down.sh` step 4). A build-time `COPY` would force an
+  image rebuild on every single harness-up/down cycle for a key that only ever needs to exist for
+  the container's own runtime lifetime — the runtime-injection design keeps the image itself
+  static and reusable, matching this repo's own `docker-entrypoint.d`-style convention (every
+  existing image's entrypoint runs setup logic before `exec`-ing the real command; see
+  `.claude/rules/docker.md` "All images share the same entrypoint pattern").
+- `docker-compose.localci.yml` is only ever brought up by `harness-up.sh`, which runs the SSH
+  keypair generation (step 5) strictly before `docker compose ... up -d` (step 8) — so the mounted
+  directory is always populated by the time the container's entrypoint runs.
+
+### Part A — live SSH proof from inside `iac`
+
+```
+$ bash ./sh/local-ci/harness-up.sh
+...
+[Success] Local CI/CD harness is up.
+
+$ docker exec starter-kit-localci-ansible-target systemctl is-system-running
+running
+$ docker exec starter-kit-localci-ansible-target systemctl status ssh --no-pager
+● ssh.service - OpenBSD Secure Shell server
+     Active: active (running)
+$ docker logs starter-kit-localci-ansible-target
+docker-entrypoint: installed 1 harness SSH public key(s) into /home/admin/.ssh/authorized_keys
+
+$ docker compose -f docker-compose.toolkit.yml run --rm iac bash -lc \
+    "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+     -i /srv/tmp/local-ci/starter-kit_deploy_key admin@ansible-target \
+     'whoami && hostname && sudo -n whoami && python3 --version'"
+Warning: Permanently added 'ansible-target' (ED25519) to the list of known hosts.
+admin
+ansible-target
+root
+Python 3.11.2
+```
+Real proof: SSH connects from inside the `iac` container to `ansible-target` by hostname, using
+the harness's throwaway key; `admin` logs in; passwordless `sudo -n whoami` returns `root`;
+`python3` is present at Ansible's expected interpreter path.
+
+### Part B — Bug 3 reproduced BEFORE any fix exists (read-only observation, no fix applied here)
+
+```
+$ unset CURRENT_UID CURRENT_GID && source .env
+$ bash kit-modules/basis/sh/ansible.sh -e dev -a inventory
+[Info] Environment: dev
+[Info] Action: dev
+[Info] Generating Ansible inventory for environment: dev
+[Info] Getting Terraform outputs...
+[Error] No instance IP found in Terraform outputs
+[Error] Make sure Terraform is deployed first:
+[Error]   make tf dev init
+[Error]   make tf dev apply
+$ echo "REAL EXIT: $?"
+REAL EXIT: 1
+```
+
+Root-cause confirmation — the exact `-w` flag `ansible.sh:108` builds and what actually happens
+inside the container:
+
+```
+$ TF_ENV_DIR="$(pwd)/kit-modules/basis/terraform/envs/dev"
+$ echo "$TF_ENV_DIR"
+/Users/yuriipavlov/Projects/SolidBunch/starter-kit-foundation.loc/kit-modules/basis/terraform/envs/dev
+$ echo 'Resulting -w flag:' -w "/srv/$TF_ENV_DIR"
+Resulting -w flag: -w /srv//Users/yuriipavlov/Projects/SolidBunch/starter-kit-foundation.loc/kit-modules/basis/terraform/envs/dev
+
+$ docker compose -f docker-compose.toolkit.yml run --rm \
+    -w "/srv/$TF_ENV_DIR" iac bash -lc "pwd && ls -la"
+/srv/Users/yuriipavlov/Projects/SolidBunch/starter-kit-foundation.loc/kit-modules/basis/terraform/envs/dev
+total 0
+drwxr-xr-x 1 root root 64 Aug 19 00:23 .
+drwxr-xr-x 1 root root 96 Aug 19 00:23 ..
+```
+
+More precise than the plan's assumption ("a path that does not exist in the container" implying
+`docker compose run` itself fails): Docker's `--workdir`/`-w` **auto-creates** a missing working
+directory rather than erroring. Because `/srv` is itself the bind mount of the whole repo root
+(`docker-compose.toolkit.yml`'s `./:/srv`), that auto-create physically materializes on the
+**host**, nested under the repo root, as `./Users/yuriipavlov/.../kit-modules/basis/terraform/
+envs/dev` — an empty directory with none of the real `envs/dev` Terraform config or state.
+`terraform output -raw instance_public_ip` then correctly reports "No outputs found" for that
+empty directory (not a Terraform bug), which `ansible.sh`'s `2>/dev/null || echo ''` swallows,
+leaving `IPV4`/`IPV6` empty and producing the `[Error] No instance IP found in Terraform outputs`
+above. This stray host-side directory tree was found and removed (`rm -rf ./Users`) immediately
+after each reproduction run in this task — it is a real, reproducible **side effect of Bug 3
+itself**, not a harness artifact, and is exactly why Stage 6.3's fix (repo-relative `-w` path) is
+necessary, not just a `2>/dev/null` cosmetic issue.
+
+### Real gap found and fixed: `harness-down.sh` did not stop `ansible-target`
+
+`harness-down.sh` was written (task 3.2) before this task's `ansible-target` service existed, and
+explicitly stopped/removed only `localstack` by name. First up→down cycle in this task left
+`starter-kit-localci-ansible-target` running after `harness-down.sh` reported success — caught by
+`docker ps` after teardown, not assumed. Fixed in `sh/local-ci/harness-down.sh` step 1 (added
+`ansible-target` alongside `localstack` in both the `stop` and `rm -f` calls). Re-verified with a
+full up→down cycle:
+
+```
+$ docker ps --format '{{.Names}}' | sort            # BEFORE
+act-Sleep-probe-...  mailhog  sk-licensing-server-*  starter-kit-cron  starter-kit-mariadb
+starter-kit-nginx  starter-kit-php  traefik
+
+$ bash ./sh/local-ci/harness-up.sh
+[Success] Local CI/CD harness is up.
+$ docker ps --format '{{.Names}}' | sort            # DURING
+... starter-kit-localci-ansible-target  starter-kit-localci-localstack ...
+
+$ bash ./sh/local-ci/harness-down.sh
+ Container starter-kit-localci-ansible-target Stopped
+ Container starter-kit-localci-localstack Stopped
+Going to remove starter-kit-localci-localstack, starter-kit-localci-ansible-target
+[Success] Restore verified byte-identical against the snapshot (diff -r clean).
+[Success] Local CI/CD harness teardown complete.
+
+$ docker ps --format '{{.Names}}' | sort            # AFTER — byte-identical to BEFORE
+act-Sleep-probe-...  mailhog  sk-licensing-server-*  starter-kit-cron  starter-kit-mariadb
+starter-kit-nginx  starter-kit-php  traefik
+
+$ git status --porcelain                              # foundation — only this task's own edits
+ M docker-compose.localci.yml
+ M sh/local-ci/harness-down.sh
+?? dockerfiles/ansible-target/
+
+$ git -C kit-modules/basis status --porcelain          # basis — clean
+$ git -C kit-modules/basis branch --show-current
+fix/provisioning-epic
+```
+
+**Verdict for task 4.1: the Ansible target container is real, systemd-as-PID-1-healthy, reachable
+over SSH with the harness's throwaway key from inside `iac`, and Bug 3 is reproduced with verbatim
+output tracing the failure to its exact root cause (Docker auto-creating an empty working
+directory from a doubled absolute-path `-w` flag) — before any fix exists, per the plan's
+instruction. No fix to `kit-modules/basis/sh/ansible.sh` was made here; that is Stage 6 (task
+6.3), a separate basis-repo change requiring its own approval.**

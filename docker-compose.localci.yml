@@ -23,6 +23,38 @@ services:
     # restarts regardless, and this harness is one-shot verification, not a long-lived sandbox
     # (documented limitation, see sh/local-ci/README.md once task 5.7 writes it).
 
+  # Bare Docker SSH target for kit-modules/basis's real Ansible playbook (sh/local-ci/*, task 4.x)
+  # — see contract 5 in .claude/plans/architect-plan-provisioning-epic.md. Not Molecule: basis's
+  # playbook has no roles, so there is no role-scenario unit for Molecule to drive; a plain
+  # systemd-as-PID-1 SSH target matches basis's actual connection type (default SSH via a
+  # Terraform-generated/static inventory) with no restructuring of a licensed module.
+  ansible-target:
+    build:
+      context: ./dockerfiles/ansible-target
+    image: "${APP_NAME}-localci-ansible-target"
+    container_name: "${APP_NAME}-localci-ansible-target"
+    hostname: ansible-target
+    restart: "no"
+    # systemd as PID 1 needs real privileges + its own cgroup namespace to manage services —
+    # standard practice for Ansible-against-a-container testing. `cgroup: host` (Compose
+    # Specification key, maps to `docker run --cgroupns=host`) rather than an explicit
+    # /sys/fs/cgroup bind mount: this host runs cgroup v2 (`docker info` → `Cgroup Version: 2`),
+    # where `--privileged` already grants the necessary /sys/fs/cgroup access and the extra mount
+    # is not needed — verified live at task 4.1 execution time, see sh/local-ci/EVIDENCE.md.
+    privileged: true
+    cgroup: host
+    command: /lib/systemd/systemd
+    tmpfs:
+      - /run
+      - /run/lock
+    volumes:
+      # Read-only: the harness's throwaway SSH public key, regenerated on every harness-up.sh run.
+      # Injected into admin's authorized_keys at container START by
+      # dockerfiles/ansible-target/docker-entrypoint.sh, never baked into the image — see that
+      # Dockerfile's header comment for why (rebuild avoidance + this repo's own
+      # "never bake secrets into an image" rule, already stated in dockerfiles/iac/Dockerfile).
+      - ./kit-modules/basis/terraform/public_keys:/harness-keys:ro
+
 # Mirrors the top-level `networks:` declaration already present in docker-compose.yml and
 # docker-compose.toolkit.yml. In both of those files no service declares a per-service
 # `networks:` key, so what actually joins their containers together in practice is Compose's own

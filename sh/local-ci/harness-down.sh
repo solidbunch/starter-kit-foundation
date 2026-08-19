@@ -89,8 +89,8 @@ run_step() {
 # services this file actually defines, by explicit service name.
 # ------------------------------------------------------------------
 if [ -f "$COMPOSE_FILE" ]; then
-    run_step "Stopping local CI services" docker compose -f "$COMPOSE_FILE" stop localstack
-    run_step "Removing local CI service containers" docker compose -f "$COMPOSE_FILE" rm -f localstack
+    run_step "Stopping local CI services" docker compose -f "$COMPOSE_FILE" stop localstack ansible-target
+    run_step "Removing local CI service containers" docker compose -f "$COMPOSE_FILE" rm -f localstack ansible-target
 else
     echo -e "${CYAN}[Info]${RESET} $COMPOSE_FILE not found, skipping compose down"
 fi
