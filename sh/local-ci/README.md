@@ -211,6 +211,16 @@ Ran against a real, privileged, systemd-PID-1 target with a real SSH connection.
   `state=restarted` (always reports changed by definition), and "Backup existing sshd_config" is an
   intentional unconditional backup-copy task. No genuine idempotence bug was found in anything that
   could actually run in this environment.
+- **Separate, real bug found (reported, not fixed — out of this epic's scope): `generate_ansible_inventory()`
+  in `kit-modules/basis/sh/ansible.sh` never emits a `swap_vars` map.** The tracked static
+  `inventory.yml` carries `swap_vars: { size: 2G, swappiness: 20 }` per host, but the
+  Terraform-driven "generated" inventory path (used by every normal `apply` run that doesn't pass
+  `-s`) only writes `ansible_host`/`ansible_user`. `06-setup-swap.yml`'s unconditional "Adjust
+  swappiness" task requires `swap_vars.swappiness` and fails with `'swap_vars' is undefined` against
+  a real generated inventory — reproduced live while building this harness. This affects real
+  production CI runs, not just the harness; it's a `kit-modules/basis` defect, out of scope for this
+  epic (which only covers the Bug 3 working-dir fix), and is called out explicitly for the user to
+  decide on.
 
 ## Real gotchas discovered while building this harness
 

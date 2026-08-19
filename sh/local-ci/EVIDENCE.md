@@ -862,3 +862,56 @@ container (compose sets `working_dir: /srv`, `/workspace` is only the Dockerfile
 - `shellcheck sh/local-ci/*.sh sh/ci/*.sh`: clean, exit 0, across every new script in the harness
   (`harness-up.sh`, `harness-down.sh`, `tf-localstack-override.sh`, `act-run.sh`,
   `tf-planfile.sh`).
+
+## Task 5.3 (closure) — negative cases: missing plan → fallback, stale plan → loud rejection, real execution
+
+A delivery-mode audit correctly flagged that 5.3's positive path (apply a pinned plan) was covered
+by Task 3.4, but the two negative cases in the plan's own "Done when" — missing plan file falls
+back to plan-then-apply, and a *stale* plan fails loudly with no state change — were never
+actually executed. Closed here for real, against the `state` layer (the one layer that fully
+applies under LocalStack), replicating `job-provision.yml`'s exact branching logic
+(`job-provision.yml:271-286`).
+
+### Negative case (a): missing `tfplans/state.tfplan` → falls back to plan-then-apply
+
+```
+$ rm -f tfplans/state.tfplan
+$ [ -f tfplans/state.tfplan ] && echo PINNED || echo FALLBACK
+FALLBACK
+$ bash kit-modules/basis/sh/terraform.sh -e state -c apply
+...
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+```
+Matches the workflow's own `else` branch (`job-provision.yml:281-284`, "plan-then-apply (no pinned
+plan)" → `terraform.sh -c apply`) exactly — real execution, not inspection.
+
+### Negative case (b): a stale pinned plan fails loudly, applies nothing
+
+1. Saved a valid plan against the already-applied `state` layer: `terraform plan -out=tfplans/state.tfplan` → `No changes.`
+2. Applied a genuine out-of-band change (`terraform apply -auto-approve -replace='aws_dynamodb_table.terraform_locks'`) — bumps the remote state's serial, exactly the class of drift the pinned-plan mechanism exists to protect against.
+3. Applied the now-stale saved plan via the exact script the workflow calls:
+```
+$ bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan
+Error: Saved plan is stale
+The given plan file can no longer be applied because the state was changed
+by another operation after the plan was created.
+$ echo $?
+1
+```
+4. `terraform state list` before and after the rejected apply is byte-identical (`aws_dynamodb_table.terraform_locks`, `aws_s3_bucket.terraform_state`, `aws_s3_bucket_lifecycle_configuration.lifecycle`, `aws_s3_bucket_public_access_block.public_access`, `aws_s3_bucket_versioning.versioning` — same 5 resources, no change) — confirming the rejected apply changed nothing.
+
+`tf-planfile.sh`'s `set -Eeuo pipefail` correctly propagates Terraform's own non-zero exit through
+to the caller — matching `job-provision.yml`'s `if ! bash sh/ci/tf-planfile.sh ...; then
+::error::... exit 1` branch (`:274-278`) with no auto-retry, exactly as designed.
+
+Cleanup: stray `tfplans/state.tfplan` removed; harness torn down with a verified byte-identical
+restore.
+
+## Note carried forward from Task 4.2 (delivery-audit follow-up)
+
+The delivery-mode audit flagged that Task 4.2's `swap_vars`-missing-in-`generate_ansible_inventory()`
+finding (a real, separate defect in `kit-modules/basis/sh/ansible.sh` affecting every real
+production `apply` run using the generated-inventory path) was documented in this file but not
+carried through to `sh/local-ci/README.md` or explicitly into a hand-off list. It is carried
+forward explicitly here and included in the final report's findings for the user to decide on —
+see Task 4.2's original entry above for the full technical detail.
