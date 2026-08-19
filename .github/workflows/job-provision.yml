@@ -281,7 +281,11 @@ jobs:
               bash kit-modules/basis/sh/terraform.sh -e state -c apply
             fi
           else
-            bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
+            # Only 'destroy' reaches this branch (plan/apply handled above). -y makes
+            # terraform.sh's destroy path non-interactive — without it, `read -p` on a
+            # TTY-less runner silently cancels the destroy or aborts under set -e, so
+            # infrastructure was never actually destroyed despite a green run.
+            bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }} -y
           fi
 
       - name: Terraform — shared network
@@ -305,7 +309,8 @@ jobs:
               bash kit-modules/basis/sh/terraform.sh -e shared -c apply
             fi
           else
-            bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
+            # Only 'destroy' reaches this branch — see the 'state' step's comment above.
+            bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }} -y
           fi
 
       - name: Terraform — environment
@@ -329,7 +334,8 @@ jobs:
               bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply
             fi
           else
-            bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
+            # Only 'destroy' reaches this branch — see the 'state' step's comment above.
+            bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }} -y
           fi
 
       - name: Package and encrypt Terraform plan
