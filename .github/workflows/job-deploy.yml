@@ -81,6 +81,10 @@ jobs:
   deploy:
     runs-on: ubuntu-22.04
 
+    # Scopes vars/secrets to the GitHub Environment named after the target env
+    # (dev/stage/prod) — lets APP_MULTI_INSTANCE differ per environment.
+    environment: ${{ inputs.ENVIRONMENT_TYPE }}
+
     needs: [ build ]
 
     steps:
