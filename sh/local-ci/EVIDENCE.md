@@ -536,3 +536,141 @@ output tracing the failure to its exact root cause (Docker auto-creating an empt
 directory from a doubled absolute-path `-w` flag) — before any fix exists, per the plan's
 instruction. No fix to `kit-modules/basis/sh/ansible.sh` was made here; that is Stage 6 (task
 6.3), a separate basis-repo change requiring its own approval.**
+
+
+## Task 4.1/4.2/4.3 — Real Ansible convergence against the ansible-target container
+
+### Real environment quirk: macOS SSH agent forwarding requires the Docker Desktop socket path, not the raw host path
+
+`docker-compose.toolkit.yml`'s `iac` service defaults `SSH_AUTH_SOCK` to
+`/run/host-services/ssh-auth.sock` (Docker Desktop's macOS SSH-agent proxy) — but
+`kit-modules/basis/sh/ansible.sh`'s explicit `-e SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}"` passes
+whatever value is in the *invoking shell's* env through, overriding that default. If the shell's
+own `SSH_AUTH_SOCK` is exported to the raw macOS launchd path
+(`/var/run/com.apple.launchd.*/Listeners`), agent forwarding into the container breaks with
+`Error connecting to agent: Connection refused` (reproduced directly, see below). **Fix for
+local-ci runs on macOS**: `ssh-add` the harness's throwaway private key
+(`tmp/local-ci/<key-name>`) into the default agent, then explicitly
+`export SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock` before invoking any `kit-modules/basis/sh/*.sh`
+script. Documented for `sh/local-ci/README.md` (task 5.7) — environment-specific (macOS + Docker
+Desktop), not a script defect.
+
+Direct reproduction of the broken case (raw launchd socket exported):
+```
+$ export SSH_AUTH_SOCK=/var/run/com.apple.launchd.6voUS4myAa/Listeners
+$ docker compose -f docker-compose.toolkit.yml run --rm -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" iac bash -lc "ssh-add -l; ssh -v admin@ansible-target whoami"
+Error connecting to agent: Connection refused
+...Permission denied (publickey,password).
+```
+And the fixed case (Docker Desktop proxy socket exported instead):
+```
+$ export SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
+$ docker compose -f docker-compose.toolkit.yml run --rm -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" iac bash -lc "ssh-add -l; ssh admin@ansible-target whoami"
+256 SHA256:... local-ci-harness (ED25519)
+admin
+```
+
+### Real image fix: `dbus` was missing from `ansible-target`, blocking the `hostname` module
+
+First playbook run (`kit-modules/basis/sh/ansible.sh -e dev -a playbook`, real `playbook.yml`,
+real generated inventory) failed at "Update hostname" with `Failed to connect to bus: No such
+file or directory` — `dockerfiles/ansible-target/Dockerfile` didn't install `dbus`, and the
+Ansible `hostname` module (Debian strategy) talks to `systemd-hostnamed` over D-Bus. **Fixed**:
+added `dbus` to the Dockerfile's package list, rebuilt
+(`docker compose -f docker-compose.localci.yml build ansible-target`). Re-verified live:
+`systemctl is-system-running` → `running`, `which dbus-daemon` → `/usr/bin/dbus-daemon`.
+
+### Real, un-fixable container limitation: setting the hostname itself — confirmed reproducible twice
+
+Even with `dbus` present, "Update hostname" still fails, identically on two separate full-harness
+runs (`logs/local-ci/4.2-full-playbook-hostname-check.log`, and an earlier run before the
+idempotence re-test):
+```
+$ bash kit-modules/basis/sh/ansible.sh -e dev -a playbook
+TASK [Update hostname] ***
+[ERROR]: Task failed: Module failed: Command failed rc=1, out=, err=Could not set static hostname: Failed to set static hostname: Device or resource busy
+fatal: [provisioned-host]: FAILED! => {"changed": false, ...}
+PLAY RECAP: provisioned-host : ok=10  changed=2  unreachable=0  failed=1  skipped=0  rescued=0  ignored=0
+```
+This is Docker's own container-hostname management (`/etc/hostname` is a file Docker itself
+manages inside the container's UTS namespace) refusing a `sethostname()`-class change from
+inside — a well-known Docker limitation, not fixable by any package install or `privileged: true`
+alone (would need `--uts=host`, a bigger architectural change out of scope here). **This is the
+ONE genuinely container-hostile task found in the entire playbook** — documented per the plan's
+"record verbatim error, document individually, never silently skip" rule.
+
+### Partials 03-07: real, clean convergence — better than the plan anticipated
+
+To test partials 03-07 independently of the hostname blocker (partial 02), a scratch playbook
+(`kit-modules/basis/ansible/scratch-partials-03-07.yml`, harness-local only, deleted after use,
+never committed) included exactly those five partial files with a synthetic
+`generated.inventory.yml` carrying a `swap_vars` map (see the separate finding below for why that
+was needed). Two back-to-back runs against the same live target, in the same harness session,
+using the harness's proper `SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock` setup:
+
+**Run A** (`logs/local-ci/4.2-partials-03-07-runA.log`):
+```
+PLAY RECAP: provisioned-host : ok=30  changed=13  unreachable=0  failed=0  skipped=5  rescued=0  ignored=0
+```
+**Run B**, immediately after, playbook unchanged (`logs/local-ci/4.2-partials-03-07-runB.log`):
+```
+PLAY RECAP: provisioned-host : ok=30  changed=4   unreachable=0  failed=0  skipped=5  rescued=0  ignored=0
+```
+
+Contrary to the plan's caution that Docker-in-container, log rotation, swap, and sshd-restart
+might all be container-hostile, **all five partials (03-07) converge cleanly**:
+- **Docker-in-container genuinely works**: `docker-ce` installs and starts inside the (privileged,
+  systemd-PID-1) `ansible-target` container — real `Docker version 29.7.2` / `Docker Compose
+  version v5.5.0` output, not assumed.
+- **Log rotation config succeeds** (`/etc/docker/daemon.json` written, Docker restarted).
+- **Swap-file-creation tasks correctly self-skip**: `ansible_swaptotal_mb > 0` is true inside the
+  container (it inherits the Docker Desktop VM's host-level swap accounting), so the existing
+  `when: not swap_exists` guards skip swap-file creation — the playbook's own designed behavior
+  for an already-swapped host, not a container-specific failure. The one unconditional task,
+  "Adjust swappiness" (`sysctl vm.swappiness`), succeeds for real (needs `privileged: true`,
+  confirmed working).
+- **sshd restart survives the live SSH connection** — the play continues past it to completion in
+  the same run; the plan's flagged risk ("restarts sshd while Ansible is connected over ssh") did
+  not materialize as a problem here.
+
+### Task 4.3 — idempotence, real second run (Run A vs Run B above, same task set, no crashes in either)
+
+Run A → B: `changed` drops from 13 to 4. The 4 repeat "changed" tasks in Run B are changed **by
+design**, not idempotence bugs — confirmed identical in both runs:
+1. "Restart Docker to apply changes" — explicit `service: state=restarted`, always reports changed.
+2. "Backup existing sshd_config" — an unconditional backup-copy task, intentionally re-executes
+   every run.
+3. "Restart SSH via 'ssh' unit if present" — explicit `state=restarted`.
+4. "Restart SSH via 'sshd' unit if present" — explicit `state=restarted` (same class as #3, a
+   separate task in the partial for a different possible unit name).
+
+No genuine idempotence bug found in the partials that could actually run in this environment.
+
+### Real, separate finding: `generate_ansible_inventory()` never emits `swap_vars`
+
+`kit-modules/basis/sh/ansible.sh`'s Terraform-driven inventory generator (the "generated" path, as
+opposed to the tracked static `inventory.yml`) writes `ansible_host`/`ansible_user` only — it never
+emits the `swap_vars` map (`size`, `swappiness`) that `06-setup-swap.yml`'s "Adjust swappiness"
+task unconditionally requires. Reproduced live: the first attempt to run partials 03-07 with a
+synthetic generated-format inventory lacking `swap_vars` failed at that exact task:
+```
+Error while resolving value for 'value': 'swap_vars' is undefined
+Origin: kit-modules/basis/ansible/partials/06-setup-swap.yml:45
+```
+Adding `swap_vars` (matching the static `inventory.yml`'s real values) to the **harness's own
+synthetic inventory file only** — never to `kit-modules/basis/sh/ansible.sh` itself — resolved it.
+**This is a genuine, separate defect in `kit-modules/basis/sh/ansible.sh` that would affect real
+production CI runs using the generated-inventory path (i.e. every normal `ACTION_TYPE=apply` run
+without `-s`/static-inventory)** — out of this epic's Stage 6 scope (which covers only the Bug 3
+working-dir fix). **Reported, not fixed** — to be included in the final report's findings for the
+user to decide on. No change was made
+to any tracked `kit-modules/basis` file to work around this; `git -C kit-modules/basis status`
+confirms only the deliberate Bug 3 fix (`sh/ansible.sh`, task 6.3) remains modified.
+
+### Harness cleanup
+
+`bash ./sh/local-ci/harness-down.sh` (stopping/removing both `localstack` and `ansible-target`)
+completed with a verified byte-identical restore; `kit-modules/basis` ends on
+`fix/provisioning-epic`, clean except the deliberate `sh/ansible.sh` fix (task 6.3, committed
+separately in that repo); the user's dev stack (`starter-kit-nginx`/`php`/`mariadb`/`cron`)
+untouched throughout every run in this task.

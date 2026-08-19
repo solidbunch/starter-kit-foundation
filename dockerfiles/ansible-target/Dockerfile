@@ -31,6 +31,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        systemd \
        systemd-sysv \
+       dbus \
        openssh-server \
        sudo \
        python3 \
