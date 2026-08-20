@@ -50,7 +50,7 @@ the setup that causes GitLab to deep-merge two included files' globals into one 
 include winning (see "The bug this design avoids" below). What makes it safe here is that **the
 two files are never included in the same pipeline**: each is gated by its own `rules:` on the
 `include:` entry in `.gitlab-ci.yml` (`$CI_COMMIT_REF_NAME == "develop"` /
-`== "master"`), so only one of them is ever merged in for a given branch. Verified against
+`== "main"`), so only one of them is ever merged in for a given branch. Verified against
 `docs.gitlab.com/ci/yaml/includes/` — "Use `rules` with `include`" is GA syntax (no
 experimental/beta banner), and its own supported-variables list for `include:` explicitly names
 `$CI_COMMIT_REF_NAME` (not `$CI_COMMIT_BRANCH`, which the docs use in an example on the same page
@@ -133,14 +133,14 @@ and lets both environments use plain, unsuffixed job names.
 |---|---|---|
 | push to `develop` | yes | 3 dev jobs, automatic |
 | "Run pipeline" (web) on `develop` | yes | 3 dev jobs, automatic |
-| push to `master` | **no** | — |
-| "Run pipeline" (web) on `master` | yes | 3 prod jobs, automatic |
+| push to `main` | **no** | — |
+| "Run pipeline" (web) on `main` | yes | 3 prod jobs, automatic |
 | push or web on any other branch | **no** | — |
 | merge request / tag | **no** | — |
 
-A prod release is started from CI/CD → Pipelines → "Run pipeline" with ref `master` — this is the
+A prod release is started from CI/CD → Pipelines → "Run pipeline" with ref `main` — this is the
 GitLab equivalent of GH's `workflow_dispatch: {}` on the prod workflow, not a push-triggered
-pipeline with a manual play button. Both are "a trigger restricted to master, requiring a human
+pipeline with a manual play button. Both are "a trigger restricted to main, requiring a human
 action"; this is the GH-parity reading. The branch literals appear twice — once in `workflow:
 rules` (`$CI_COMMIT_BRANCH`), once in the `include: rules` (`$CI_COMMIT_REF_NAME`) — because
 `include:` is evaluated before jobs/variables and cannot read this file's own `variables:` block,
@@ -248,14 +248,14 @@ Claude.**
 
   # 3. Validate each branch that matters — run both, they resolve to different configs
   glab ci lint --dry-run --ref develop --include-jobs
-  glab ci lint --dry-run --ref master --include-jobs
+  glab ci lint --dry-run --ref main --include-jobs
   ```
 
   `--dry-run` is what makes this authoritative rather than a syntax check: it asks GitLab to
   actually simulate creating a pipeline for `--ref`, so unlike a plain `glab ci lint` (which only
   checks syntax) it also evaluates `workflow: rules` and `include: rules` against that ref.
   `--include-jobs` prints the resulting job list so you can eyeball it against the "Trigger
-  matrix" table above (`develop` → `build-composer`, `build-node`, `deploy-dev`; `master` →
+  matrix" table above (`develop` → `build-composer`, `build-node`, `deploy-dev`; `main` →
   the `-prod` equivalents; anything else → an explicit "pipeline would not be created" style
   result, not a 0-jobs error).
 
@@ -273,13 +273,13 @@ Downloaded on demand via `npx` (nothing installed globally), resolves `include:`
 credentials, and prints the resulting job list for a given branch. This is the check to run after
 any edit to these files, before asking a human to do the authoritative check above. Expected
 result against this repo's config: `develop` → exactly `build-composer`, `build-node`,
-`deploy-dev`; `master` (with `CI_PIPELINE_SOURCE=web`) → exactly `build-composer`, `build-node`,
+`deploy-dev`; `main` (with `CI_PIPELINE_SOURCE=web`) → exactly `build-composer`, `build-node`,
 `deploy-prod`; any other branch → zero jobs.
 
 **Real, confirmed limitation (read from its source, `node_modules/gitlab-ci-local/src` — it has no
 `workflow:` handling anywhere): it does not implement the top-level `workflow:` key.** It will
 list jobs for a ref/source combination that the real `workflow: rules` would have blocked entirely
-(e.g. a plain `git push` to `master`, which `workflow:` restricts to web-triggered runs only). A
+(e.g. a plain `git push` to `main`, which `workflow:` restricts to web-triggered runs only). A
 clean `gitlab-ci-local` run proves the `include:`/`extends:` dev-vs-prod job split is intact; it
 proves nothing about whether a pipeline gets created in the first place. Only the authoritative
 check above can confirm that.
@@ -295,12 +295,12 @@ Creates a `.gitlab-ci-local/` state directory as a side effect — gitignored, d
   YAML that resolves to the wrong pipeline.
 - A pipeline row that shows **"Failed" / "yaml invalid" / "jobs config should contain at least
   one visible job"** after clicking **"Run pipeline"** on a branch that isn't `develop` or
-  `master` — this is the *expected* result of this design (see "Trigger matrix" above:
+  `main` — this is the *expected* result of this design (see "Trigger matrix" above:
   branch-gated `include:` deliberately produces zero jobs on any other branch) presented through
   GitLab's manual-trigger error path, not a config defect. A plain `git push` to that same branch
   produces no pipeline row at all, because `workflow: rules` blocks it before the "0 jobs" case is
   ever reached — the manual "Run pipeline" button surfaces the error instead of silently doing
-  nothing. Confirm by checking `develop` / `master` instead, not by reading this as a bug.
+  nothing. Confirm by checking `develop` / `main` instead, not by reading this as a bug.
 
 ## GitHub Actions side
 
