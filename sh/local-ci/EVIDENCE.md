@@ -368,15 +368,19 @@ identically in Stage 0's DinD probe. Documented for `sh/local-ci/README.md` (tas
 
 ### `state` layer — FULLY APPLIED
 
+Re-verified 2026-08-20 after `sh/ci/tf-planfile.sh` was folded into `terraform.sh -f` (the
+duplicated container-invocation wrapper was removed; plan-file save/apply is now a first-class
+`-f <planfile>` flag on `terraform.sh` itself — see `kit-modules/basis/sh/terraform.sh`):
+
 ```
 $ bash kit-modules/basis/sh/terraform.sh -e state -c init
 Terraform has been successfully initialized!
 
-$ bash ./sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan
+$ bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan
 Plan: 5 to add, 0 to change, 0 to destroy.
 Saved the plan to: /srv/tfplans/state.tfplan
 
-$ bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan
+$ bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan
 aws_s3_bucket.terraform_state: Creation complete after 0s [id=localci-terraform-state]
 aws_s3_bucket_public_access_block.public_access: Creation complete after 0s [id=localci-terraform-state]
 aws_s3_bucket_versioning.versioning: Creation complete after 2s [id=localci-terraform-state]
@@ -404,18 +408,33 @@ succeeds cleanly ("Successfully configured the backend \"s3\"!").
 
 ### `shared` layer — VPC/IGW/route-table/key-pair created for real; subnets blocked by a genuine LocalStack Community limitation
 
+Re-verified 2026-08-20 with `terraform.sh -f` (see note above):
+
 ```
-$ bash ./sh/ci/tf-planfile.sh -e shared -m save -f tfplans/shared.tfplan
+$ bash kit-modules/basis/sh/terraform.sh -e shared -c plan -f tfplans/shared.tfplan
 Plan: 10 to add, 0 to change, 0 to destroy.
 
-$ bash ./sh/ci/tf-planfile.sh -e shared -m apply -f tfplans/shared.tfplan
+$ bash kit-modules/basis/sh/terraform.sh -e shared -c apply -f tfplans/shared.tfplan
 aws_key_pair.deploy: Creation complete after 0s [id=starter-kit_deploy_key]
-module.network.aws_vpc.main_vpc: Creation complete after 20s [id=vpc-88723279fd9c7d7c2]
-module.network.aws_internet_gateway.main: Creation complete after 0s [id=igw-b1d0b5ce777a325ab]
-module.network.aws_route_table.main_route_table: Creation complete after 0s [id=rtb-5a53212960a0b4ca6]
-Error: waiting for EC2 Subnet (subnet-92c8cb1003b882f00) IPv6 CIDR block (subnet-cidr-assoc-4571ab84f385f8a2e) to become associated: unexpected state '{'State': 'associated'}', wanted target 'associated'. last error: %!s(<nil>)
+module.network.aws_vpc.main_vpc: Creation complete after 20s [id=vpc-7dbcf5cb76bf1ca68]
+module.network.aws_internet_gateway.main: Creation complete after 0s [id=igw-710c5ca49b5a2424a]
+module.network.aws_route_table.main_route_table: Creation complete after 1s [id=rtb-71abef107b108cc5f]
+Error: waiting for EC2 Subnet (subnet-9c07b48dbc7aa096e) IPv6 CIDR block (subnet-cidr-assoc-4253521e755bda245) to become associated: unexpected state '{'State': 'associated'}', wanted target 'associated'. last error: %!s(<nil>)
 (same error for all 3 subnets)
 ```
+
+**Stale-plan rejection also re-verified for real**, exercising exactly the failure path
+`job-provision.yml`'s `if ! bash kit-modules/basis/sh/terraform.sh ... -c apply -f ...; then`
+branch is written for: re-running `apply -f tfplans/shared.tfplan` against the now-changed remote
+state (the partial apply above already mutated it) fails fast instead of silently reapplying:
+```
+$ bash kit-modules/basis/sh/terraform.sh -e shared -c apply -f tfplans/shared.tfplan
+Error: Saved plan is stale
+The given plan file can no longer be applied because the state was changed
+by another operation after the plan was created.
+```
+Exit code `1` propagates correctly through `terraform.sh`'s `set -Eeuo pipefail` in both cases.
+
 **Reproduced deterministically** — retried with a fresh `terraform apply` (destroy+recreate of the
 3 subnets), identical error on every one of the 3 subnets both times. Not a flake. The AWS
 provider's waiter for `AssociateSubnetCidrBlock`/IPv6-association status expects a plain string
@@ -438,17 +457,19 @@ computing it), so `vpc_id` and `deploy_key_name` outputs are present but `subnet
 instruction ("If a resource type genuinely cannot be created in Community tier, record the
 verbatim error and report it — do not substitute a mock")** — not a defect in this epic's harness,
 override design, or the ported pipeline code. Everything up to the IPv6 wait (provider wiring,
-S3/DynamoDB-backed state backend for two of three layers, `tf-planfile.sh`'s save/apply flow,
-VPC/IGW/route-table/key-pair creation) is proven genuinely working.
+S3/DynamoDB-backed state backend for two of three layers, `terraform.sh -f`'s pinned-plan
+save/apply flow, VPC/IGW/route-table/key-pair creation) is proven genuinely working.
 
 ### `dev` layer — cleanly blocked, exactly as expected, tracing back to the same root cause
+
+Re-verified 2026-08-20 with `terraform.sh -f` (see note above):
 
 ```
 $ bash kit-modules/basis/sh/terraform.sh -e dev -c init
 Terraform has been successfully initialized!
 
-$ bash ./sh/ci/tf-planfile.sh -e dev -m save -f tfplans/dev.tfplan
-... aws_security_group.allow_ssh: vpc_id = "vpc-88723279fd9c7d7c2"   # correctly resolved from remote state
+$ bash kit-modules/basis/sh/terraform.sh -e dev -c plan -f tfplans/dev.tfplan
+... aws_security_group.allow_ssh: vpc_id = "vpc-7dbcf5cb76bf1ca68"   # correctly resolved from remote state
 Plan: 2 to add, 0 to change, 0 to destroy.
 Error: Unsupported attribute
   on main.tf line 35, in module "instances":
@@ -915,8 +936,8 @@ orchestration steps (proven above, real, complete, including a verified `dev`-en
 execute the docker-compose-driven Terraform/Ansible steps **directly on the host**, via the exact
 same scripts with the exact same arguments the workflow itself calls. This was not a new, separate
 exercise — **it is exactly what Task 3.4 (Terraform against LocalStack, all 3 layers) and Task
-4.1–4.3 (real Ansible convergence) already did**, using `kit-modules/basis/sh/terraform.sh`,
-`sh/ci/tf-planfile.sh`, and `kit-modules/basis/sh/ansible.sh` directly — the identical code paths
+4.1–4.3 (real Ansible convergence) already did**, using `kit-modules/basis/sh/terraform.sh`
+(including its `-f` pinned-plan mode) and `kit-modules/basis/sh/ansible.sh` directly — the identical code paths
 `job-provision.yml`'s Terraform/Ansible steps call. Those tasks' evidence (above) stands as the
 real-execution proof for this fallback; it is not re-derived here.
 
@@ -974,9 +995,13 @@ container (compose sets `working_dir: /srv`, `/workspace` is only the Dockerfile
   pre-existing shellcheck-class noise (`SC2086`/`SC2129`/`SC2155`) already baselined in Stages 1-2 —
   filtering those out leaves zero non-shellcheck findings (no schema errors, no unknown actions, no
   bad permission scopes, no syntax errors).
-- `shellcheck sh/local-ci/*.sh sh/ci/*.sh`: clean, exit 0, across every new script in the harness
-  (`harness-up.sh`, `harness-down.sh`, `tf-localstack-override.sh`, `act-run.sh`,
-  `tf-planfile.sh`).
+- `shellcheck sh/local-ci/*.sh`: clean, exit 0, across every script in the harness (`harness-up.sh`,
+  `harness-down.sh`, `tf-localstack-override.sh`, `act-run.sh`). `sh/ci/tf-planfile.sh` no longer
+  exists — its plan-file save/apply behavior was folded into `kit-modules/basis/sh/terraform.sh -f`
+  (2026-08-20); `shellcheck kit-modules/basis/sh/terraform.sh` on the resulting file reports only
+  pre-existing `SC1091`/`SC2154`/`SC2162` info/warning-level findings on lines untouched by that
+  change (sourced files not followed, `TF_VAR_*` env vars, `read -p` without `-r`) — nothing new
+  introduced by the `-f` flag itself.
 
 ## Task 5.3 (closure) — negative cases: missing plan → fallback, stale plan → loud rejection, real execution
 
@@ -987,26 +1012,34 @@ actually executed. Closed here for real, against the `state` layer (the one laye
 applies under LocalStack), replicating `job-provision.yml`'s exact branching logic
 (`job-provision.yml:271-286`).
 
-### Negative case (a): missing `tfplans/state.tfplan` → falls back to plan-then-apply
+Re-verified 2026-08-20 with `terraform.sh -f` after `sh/ci/tf-planfile.sh` was folded into it (see
+note at the top of the "Real, complete provisioning proof" section above) — same harness, same
+`state` layer, same two negative cases, re-executed end to end with the current command:
+
+### Negative case (a): missing `tfplans/state.tfplan` → falls back to plain apply
 
 ```
 $ rm -f tfplans/state.tfplan
 $ [ -f tfplans/state.tfplan ] && echo PINNED || echo FALLBACK
 FALLBACK
 $ bash kit-modules/basis/sh/terraform.sh -e state -c apply
-...
+aws_s3_bucket.terraform_state: Creation complete after 1s [id=localci-terraform-state]
+aws_s3_bucket_public_access_block.public_access: Creation complete after 0s [id=localci-terraform-state]
+aws_s3_bucket_versioning.versioning: Creation complete after 1s [id=localci-terraform-state]
+aws_dynamodb_table.terraform_locks: Creation complete after 2s [id=localci-terraform-locks]
+aws_s3_bucket_lifecycle_configuration.lifecycle: Creation complete after 55s [id=localci-terraform-state]
 Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
 ```
 Matches the workflow's own `else` branch (`job-provision.yml:281-284`, "plan-then-apply (no pinned
-plan)" → `terraform.sh -c apply`) exactly — real execution, not inspection.
+plan)" → `terraform.sh -c apply`, no `-f`) exactly — real execution, not inspection.
 
 ### Negative case (b): a stale pinned plan fails loudly, applies nothing
 
-1. Saved a valid plan against the already-applied `state` layer: `terraform plan -out=tfplans/state.tfplan` → `No changes.`
-2. Applied a genuine out-of-band change (`terraform apply -auto-approve -replace='aws_dynamodb_table.terraform_locks'`) — bumps the remote state's serial, exactly the class of drift the pinned-plan mechanism exists to protect against.
-3. Applied the now-stale saved plan via the exact script the workflow calls:
+1. Saved a valid plan against the already-applied `state` layer: `bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan` → `No changes. Your infrastructure matches the configuration.`
+2. Applied a genuine out-of-band change directly (`terraform apply -auto-approve -replace='aws_dynamodb_table.terraform_locks'`, run inside the `iac` container against the same state) — bumps the remote state's serial, exactly the class of drift the pinned-plan mechanism exists to protect against. Real output: `Plan: 1 to add, 0 to change, 1 to destroy` → `Apply complete! Resources: 1 added, 0 changed, 1 destroyed.`
+3. Applied the now-stale saved plan via the exact command the workflow calls:
 ```
-$ bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan
+$ bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan
 Error: Saved plan is stale
 The given plan file can no longer be applied because the state was changed
 by another operation after the plan was created.
@@ -1015,12 +1048,11 @@ $ echo $?
 ```
 4. `terraform state list` before and after the rejected apply is byte-identical (`aws_dynamodb_table.terraform_locks`, `aws_s3_bucket.terraform_state`, `aws_s3_bucket_lifecycle_configuration.lifecycle`, `aws_s3_bucket_public_access_block.public_access`, `aws_s3_bucket_versioning.versioning` — same 5 resources, no change) — confirming the rejected apply changed nothing.
 
-`tf-planfile.sh`'s `set -Eeuo pipefail` correctly propagates Terraform's own non-zero exit through
-to the caller — matching `job-provision.yml`'s `if ! bash sh/ci/tf-planfile.sh ...; then
+`terraform.sh`'s `set -Eeuo pipefail` correctly propagates Terraform's own non-zero exit through
+to the caller — matching `job-provision.yml`'s `if ! bash kit-modules/basis/sh/terraform.sh ... -c apply -f ...; then
 ::error::... exit 1` branch (`:274-278`) with no auto-retry, exactly as designed.
 
-Cleanup: stray `tfplans/state.tfplan` removed; harness torn down with a verified byte-identical
-restore.
+Cleanup: `tfplans/` removed; harness torn down with a verified byte-identical restore.
 
 ## Note carried forward from Task 4.2 (delivery-audit follow-up)
 

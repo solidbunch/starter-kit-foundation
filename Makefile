@@ -240,9 +240,9 @@ db-tunnel:
 # Local CI/CD provisioning emulation harness (sh/local-ci/*) — see sh/local-ci/README.md.
 # `make localci up`     -> bash ./sh/local-ci/harness-up.sh
 # `make localci down`   -> bash ./sh/local-ci/harness-down.sh
-# `make localci tf`     -> reminder: real Terraform runs go through kit-modules/basis/sh/terraform.sh
-#                          and sh/ci/tf-planfile.sh directly, once the harness is up. No parallel
-#                          abstraction here.
+# `make localci tf`     -> reminder: real Terraform runs go through
+#                          kit-modules/basis/sh/terraform.sh directly, once the harness is up. No
+#                          parallel abstraction here.
 # `make localci ansible`-> reminder: real Ansible runs go through kit-modules/basis/sh/ansible.sh
 #                          directly, once the harness is up.
 # `make localci act -- <act-run.sh args>` -> bash ./sh/local-ci/act-run.sh <args> — the only
@@ -257,8 +257,8 @@ localci:
 		echo "Bring the harness up first: make localci up"; \
 		echo "Then run Terraform for real, per layer (state -> shared -> dev), e.g.:"; \
 		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c init"; \
-		echo "  bash ./sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan"; \
-		echo "  bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan"; \
+		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan"; \
+		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan"; \
 		echo "See sh/local-ci/README.md for the full walkthrough."; \
 	elif [ "$(PARAM1)" = "ansible" ]; then \
 		echo "Bring the harness up first: make localci up"; \

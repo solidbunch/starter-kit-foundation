@@ -28,11 +28,11 @@ dev/stage/prod" below for the isolation mechanisms.
 make localci up
 
 # 2a. Real Terraform, via the harness's own convenience wrapper (thin pass-through to
-#     kit-modules/basis/sh/terraform.sh and sh/ci/tf-planfile.sh — no parallel abstraction):
+#     kit-modules/basis/sh/terraform.sh — no parallel abstraction):
 make localci tf                       # prints the real commands to copy-paste, e.g.:
 bash kit-modules/basis/sh/terraform.sh -e state -c init
-bash ./sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan
-bash ./sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan
+bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan
+bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan
 # ...repeat for -e shared and -e dev
 
 # 2b. Real Ansible, same pattern:
@@ -52,9 +52,9 @@ make localci down
 
 `make localci tf` / `make localci ansible` are **not** a new abstraction over Terraform/Ansible —
 they are reminders that point at the real underlying scripts (`kit-modules/basis/sh/terraform.sh`,
-`kit-modules/basis/sh/ansible.sh`, `sh/ci/tf-planfile.sh`), which the harness only wires network/
-credentials for. Run those real scripts directly once the harness is up; `make localci tf`/`ansible`
-exist only so an operator doesn't have to remember them.
+`kit-modules/basis/sh/ansible.sh`), which the harness only wires network/credentials for. Run
+those real scripts directly once the harness is up; `make localci tf`/`ansible` exist only so an
+operator doesn't have to remember them.
 
 `make localci act` **must** go through `sh/local-ci/act-run.sh` (never a bare `act` call — see
 "Data-loss guard rails" below for why). Everything after `--` is passed straight to
@@ -82,7 +82,7 @@ emulate at all, per the plan's own table:
 | GitHub OIDC token minting | act has no OIDC provider | Static LocalStack dummy credentials (`AWS_ACCESS_KEY_ID=test`/`AWS_SECRET_ACCESS_KEY=test`) exported under a `if: ${{ env.ACT }}` step, mutually exclusive with the real `if: ${{ !env.ACT }}` OIDC step. Real OIDC minting is validated only by the user's own future real `dev`/`plan` dispatch on GitHub. |
 
 Everything else — Terraform init/plan/apply against LocalStack (all three layers), the real
-`sh/ci/tf-planfile.sh` save/apply flow, the pinned-plan vs fallback vs stale-plan branches, the
+`kit-modules/basis/sh/terraform.sh -f` pinned plan-file save/apply flow, the pinned-plan vs fallback vs stale-plan branches, the
 real Ansible playbook run and its idempotence re-run, the act orchestration steps
 (checkout → credentials → SSH setup → `.env` prep → OIDC-credential stubbing), and the fixed
 `/workspace`→`/srv` summary step — was run for real, with verbatim output recorded in
@@ -210,7 +210,7 @@ That evidence stands as the real-execution proof for this fallback; it is not a 
   from this local-only harness without editing basis's tracked module code, which is out of scope.
   This is a real, reported LocalStack Community-tier limitation, not a defect in the harness, the
   override design, or the ported pipeline code — everything up to the IPv6 wait (provider wiring,
-  the S3/DynamoDB-backed state backend for two of three layers, `tf-planfile.sh`'s save/apply flow,
+  the S3/DynamoDB-backed state backend for two of three layers, `terraform.sh -f`'s pinned-plan save/apply flow,
   VPC/IGW/route-table/key-pair creation, and the `dev` layer's remote-state read chain up to the
   exact point the missing `subnet_ids` output blocks it) is proven genuinely working.
 

@@ -251,7 +251,13 @@ Admin credentials print at install time and are saved to `config/environment/.en
 
 One-time setup in GitHub, then two workflows to run by hand for infra/prod:
 
-**1. Add repo secrets**: GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
+**1. Create the deployment environments**: GitHub repo → **Settings** → **Environments** →
+**New environment**, one per environment type: `dev`, `stage`, `prod`. The names must match
+exactly — both pipelines pin themselves to the environment named after the run's
+`ENVIRONMENT_TYPE`, and an environment that doesn't exist carries no variables. Protection rules
+(required reviewers, wait timer) are optional; add them to `prod` if you want prod runs gated.
+
+**2. Add repo secrets**: GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
 **Secrets** tab → **New repository secret**, one at a time:
 
 - `SSH_KEY`: the raw private key, e.g.:
@@ -302,13 +308,30 @@ One-time setup in GitHub, then two workflows to run by hand for infra/prod:
   {\"github-oauth\":{\"github.com\":\"<GITHUB_PERSONAL_ACCESS_TOKEN>\"},\"http-basic\":{\"licensing.starter-kit.io\":{\"username\":\"<your email>\",\"password\":\"<your license password>\"}}}
   \`\`\`
 
-**2. Add a repo variable**: same page, **Variables** tab → **New repository variable**:
+- `TFPLAN_PASSPHRASE` (optional): any strong passphrase. Enables the provisioning pipeline's
+  plan-then-apply flow — the Terraform plan is GPG-encrypted into a run artifact so an `apply`
+  can replay a reviewed plan instead of re-planning. Without it those steps skip themselves and
+  the run summary says so.
 
-| Name | Value |
-|---|---|
-| `AWS_ROLE_TO_ASSUME` | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible, see step 3 |
+**3. Add variables**: same page, **Variables** tab.
 
-**3. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
+Repository level (**New repository variable**):
+
+| Name | Required | Value |
+|---|---|---|
+| `AWS_ROLE_TO_ASSUME` | for provisioning | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible, see step 4 |
+| `IS_DEMO` | no | `true` only for SolidBunch demo/showcase stands — forces licensed modules to update from `dist` |
+
+Environment level (**Settings** → **Environments** → pick one → **Add variable**):
+
+| Name | Required | Value |
+|---|---|---|
+| `APP_MULTI_INSTANCE` | no | `1` on an environment whose server co-hosts several instances behind the Traefik proxy. Leave unset everywhere else — an unset variable means "off". Set it per environment, not repo-wide, or it applies to prod too |
+
+Do **not** add an `AWS_REGION` variable — the region comes from `TF_VAR_aws_region` in
+`config/environment/.env.main`, which the pipeline reads directly.
+
+**4. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
 not in a container, needs the AWS CLI installed locally with credentials that can read IAM:
 
 \`\`\`bash
@@ -317,9 +340,9 @@ bash ./kit-modules/basis/sh/oidc.sh -m gen -e dev
 
 This prints the exact AWS Console clicks (IAM → Identity providers → Add provider → OpenID
 Connect; IAM → Roles → Create role → Web identity) plus a ready-to-paste IAM policy JSON. Follow
-it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from step 2.
+it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from step 3.
 
-**4. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
+**5. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
 **Actions** tab → *Provision Infrastructure* in the left sidebar → **Run workflow** button (top
 right of the run list) → set:
 - `ENVIRONMENT_TYPE`: `dev`, `stage`, or `prod`
@@ -329,10 +352,10 @@ right of the run list) → set:
 
 then click **Run workflow** again to confirm.
 
-**5. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
+**6. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
 new commit: Actions → *Deploy to Develop* → **Run workflow**.
 
-**6. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
+**7. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
 is the only way anything reaches prod.
 
 Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`

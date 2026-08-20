@@ -268,11 +268,11 @@ jobs:
           source .env
           bash kit-modules/basis/sh/terraform.sh -e state -c init
           if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
-            bash sh/ci/tf-planfile.sh -e state -m save -f tfplans/state.tfplan
+            bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan
           elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
             if [ -f tfplans/state.tfplan ]; then
               echo "- **state:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
-              if ! bash sh/ci/tf-planfile.sh -e state -m apply -f tfplans/state.tfplan; then
+              if ! bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan; then
                 echo "::error::Pinned Terraform plan for layer 'state' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
                 exit 1
               fi
@@ -296,11 +296,11 @@ jobs:
           source .env
           bash kit-modules/basis/sh/terraform.sh -e shared -c init
           if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
-            bash sh/ci/tf-planfile.sh -e shared -m save -f tfplans/shared.tfplan
+            bash kit-modules/basis/sh/terraform.sh -e shared -c plan -f tfplans/shared.tfplan
           elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
             if [ -f tfplans/shared.tfplan ]; then
               echo "- **shared:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
-              if ! bash sh/ci/tf-planfile.sh -e shared -m apply -f tfplans/shared.tfplan; then
+              if ! bash kit-modules/basis/sh/terraform.sh -e shared -c apply -f tfplans/shared.tfplan; then
                 echo "::error::Pinned Terraform plan for layer 'shared' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
                 exit 1
               fi
@@ -321,11 +321,11 @@ jobs:
           source .env
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
           if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
-            bash sh/ci/tf-planfile.sh -e "${EFFECTIVE_ENV_TYPE}" -m save -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
+            bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c plan -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
           elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
             if [ -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan" ]; then
               echo "- **${EFFECTIVE_ENV_TYPE}:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
-              if ! bash sh/ci/tf-planfile.sh -e "${EFFECTIVE_ENV_TYPE}" -m apply -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"; then
+              if ! bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"; then
                 echo "::error::Pinned Terraform plan for layer '${EFFECTIVE_ENV_TYPE}' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
                 exit 1
               fi
