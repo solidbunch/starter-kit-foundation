@@ -9,11 +9,13 @@
 #
 # No `when: manual` here — the root `workflow:` rules already restrict `main` pipelines to
 # web-triggered "Run pipeline" runs, so once a pipeline exists, its jobs run automatically.
+#
+# The deploy target (SSH alias + destination path) is derived at deploy time from APP_DOMAIN in
+# config/environment/.env.type.$ENVIRONMENT_TYPE by the .deploy template — no CI/CD variable
+# needed. See .claude/rules/gitlab-ci.md.
 
 variables:
   ENVIRONMENT_TYPE: prod
-  DEPLOY_SSH_HOST: starter-kit.io
-  DEPLOY_PATH: /srv/starter-kit.io
 
 build-composer:
   extends: .build-composer
@@ -24,5 +26,4 @@ build-node:
 deploy-prod:
   extends: .deploy
   environment:
-    name: production
-    url: https://starter-kit.io
+    name: prod

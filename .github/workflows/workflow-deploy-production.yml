@@ -11,7 +11,5 @@ jobs:
       SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
       COMPOSER_AUTH: ${{ secrets.COMPOSER_AUTH }}
     with:
-      SSH_HOST_ALIAS: starter-kit.io
-      DEPLOY_PATH_DESTINATION: /srv/starter-kit.io
       DEPLOYMENT_NAME: "StarterKit push to production"
       ENVIRONMENT_TYPE: prod

@@ -25,22 +25,24 @@ untouched and keep working — this is an additional, independent pipeline, not 
   is safe to include unconditionally even though only one environment's concrete jobs will ever
   extend it in a given pipeline.
 - `.gitlab/ci/deploy-dev.gitlab-ci.yml` — the `workflow-deploy-develop.yml` analog: a top-level
-  `variables:` block (`ENVIRONMENT_TYPE: dev`, `DEPLOY_SSH_HOST: develop.starter-kit.io`,
-  `DEPLOY_PATH: /srv/develop.starter-kit.io`) and 3 concrete jobs (`build-composer`, `build-node`,
-  `deploy-dev`) via plain `extends:` on the hidden templates — no `rules:` of its own, no
-  interpolation. Only ever merged into a pipeline when the root `include:` rule matches `develop`.
+  `variables:` block holding only `ENVIRONMENT_TYPE: dev`, `environment: name: dev` (no `url:` —
+  see "Deriving the deploy target" below for why), and 3 concrete jobs (`build-composer`,
+  `build-node`, `deploy-dev`) via plain `extends:` on the hidden templates — no `rules:` of its
+  own, no interpolation. Only ever merged into a pipeline when the root `include:` rule matches
+  `develop`. Nothing in this file names the deploy target — it's derived at deploy time from
+  `APP_DOMAIN`, inside the `.deploy` template.
 - `.gitlab/ci/deploy-prod.gitlab-ci.yml` — the `workflow-deploy-production.yml` analog: same shape
-  with prod values (`ENVIRONMENT_TYPE: prod`, `DEPLOY_SSH_HOST: starter-kit.io`,
-  `DEPLOY_PATH: /srv/starter-kit.io`), jobs `build-composer`, `build-node`, `deploy-prod`. No
-  `when: manual` — triggering is controlled entirely by the root file's `workflow: rules` (see
-  "Trigger matrix" below). Pair with a **protected `production` environment**
-  (Settings → CI/CD → Protected environments) to restrict *who* can run a prod release — see
-  `README.MD`.
+  (`ENVIRONMENT_TYPE: prod` in `variables:`, `environment: name: prod`, no `url:`), jobs
+  `build-composer`, `build-node`, `deploy-prod`. Same target derivation as dev, reading
+  `.env.type.prod`. No `when: manual` — triggering is controlled entirely by the root file's
+  `workflow: rules` (see "Trigger matrix" below). Pair with a **protected `prod` environment**
+  (Settings → CI/CD → Protected environments) to restrict *who* can run a prod release.
 
-Domain/host values above (`starter-kit.io`, `develop.starter-kit.io`) are this repo's own
-placeholder convention (same ones used in `config/environment/.env.type.dev` / `.env.type.prod`
-and the GitHub Actions workflows) — replace them project-wide via `bootstrap-project`, not just
-in these files.
+The deploy target (SSH alias, destination path) is not a literal in any of these files and is not
+a GitLab CI/CD variable either — it's derived at runtime by `.deploy`'s `script:` from `APP_DOMAIN`
+in `config/environment/.env.type.$ENVIRONMENT_TYPE`, tracked in git. See "Deriving the deploy
+target" and "Required CI/CD variables" below for the full contract. `bootstrap-project` no longer
+edits these files for this purpose.
 
 ### Why the two environment files never collide
 
@@ -147,10 +149,12 @@ rules` (`$CI_COMMIT_BRANCH`), once in the `include: rules` (`$CI_COMMIT_REF_NAME
 so the two can't be factored into one shared value. Both occurrences live in the same file now
 (`.gitlab-ci.yml`), in adjacent blocks — update both on a branch rename.
 
-`SSH_KEY`/`SSH_CONFIG` CI/CD variables are **environment-scoped** in the GitLab UI (same variable
-name, scope `dev` vs `production`) rather than split into `_PROD`-suffixed variable names — keeps
-the deploy job referencing plain `$SSH_KEY`/`$SSH_CONFIG` for both environments, resolved by
-whichever `environment: name` (`dev` / `production`) the running job carries.
+`SSH_KEY`/`SSH_CONFIG` don't need per-environment scoping unless dev and prod actually use
+different values — define one `SSH_KEY`/`SSH_CONFIG` pair with scope `All` by default. Only add a
+`dev`- or `prod`-scoped override (same variable name, GitLab UI) if that environment needs a
+different key/config than the other; GitLab resolves the most specific matching scope, so an
+override coexists with the `All` default without touching the pipeline YAML — the deploy job
+always references plain `$SSH_KEY`/`$SSH_CONFIG`.
 
 ## Native secret generation — `pass_gen.sh`
 
@@ -191,6 +195,13 @@ too late for `artifacts:` to pick it up, silently producing "no files to upload"
 path. Keep it in sync with `config/environment/.env.main` by hand — including after a theme rename
 via `bootstrap-project`.
 
+`WP_DEFAULT_THEME` (and, if ever needed, `APP_COMPOSER_IMAGE`/`APP_NODE_IMAGE`) can also be
+overridden without editing `.gitlab-ci.yml` at all: GitLab's CI/CD variable precedence puts a
+project-level UI variable ahead of a file's top-level `variables:` block, so setting a same-named
+project variable in **Settings → CI/CD → Variables** wins over the committed YAML default with
+zero pipeline-YAML edits — the committed value is effectively just an overridable default, not a
+hard requirement to edit in place.
+
 ## Deploy job image
 
 `alpine:3.20` + `apk add --no-cache openssh-client rsync` in `before_script` — no toolkit image
@@ -199,21 +210,72 @@ bundles both cleanly, and the deploy job only needs `rsync`/`ssh`, not the full 
 GitLab's Docker executor performs the clone and artifact extraction in its helper image, not the
 job image.
 
+## Deriving the deploy target — `script:`, not `before_script:`
+
+`.deploy`'s `script:` opens with a `|` block that resolves `ENV_FILE` to
+`./config/environment/.env.type.${ENVIRONMENT_TYPE}`, fails the job immediately (`echo "Error:
+…"; exit 1`) if that file doesn't exist or `APP_DOMAIN` greps out empty, and otherwise `export`s
+`APP_DOMAIN` and `DEPLOY_PATH="/srv/$APP_DOMAIN"` for the rest of the job's shell. Every later
+`ssh`/`rsync` call in `.deploy` uses `"$APP_DOMAIN"` as the SSH destination alias and
+`"$DEPLOY_PATH"` as the remote path — no CI/CD variable involved at any point.
+
+This block is deliberately the **first entry of `script:`**, not `before_script:`. GitLab
+concatenates `before_script` and `script` into one shell context, so an `export` in either would
+in practice survive to the other — but relying on that undocumented-for-this-purpose behavior is
+one fewer platform assumption to make in a file nobody here can authoritatively lint. Putting it
+first in `script:` costs ~10s (the `apk add` in `before_script` still runs first) and keeps the
+derivation unconditionally in the scope that consumes it. `after_script` needs neither value (it
+only deletes `~/.ssh/*`), so it's unaffected either way.
+
+**Zero CI/CD variables are required for the deploy target on either platform.** The only
+GitLab-side configuration this pipeline needs is what already existed before this design:
+`SSH_KEY`, `SSH_CONFIG`, `COMPOSER_AUTH`, and the optional `APP_MULTI_INSTANCE` — see "Required
+CI/CD variables" below. `stage` needs no deploy-target configuration either: `.env.type.stage`
+already carries its own `APP_DOMAIN`, so `.deploy` would resolve a stage target for free the
+moment a stage environment file/pipeline exists — see `kit-modules/basis/CLAUDE.md` for the rest
+of the stage gap this does not close.
+
+**Contract: `SSH_CONFIG`'s `Host` block name must equal that environment's `APP_DOMAIN`.** This is
+now a requirement, not a coincidence — every existing install already satisfies it (its `Host`
+alias already equals the environment's domain), but a project using an unrelated alias name (e.g.
+`prod-server-1`) would now break with `Could not resolve hostname`.
+
+`environment: url:` is gone from both `deploy-dev` and `deploy-prod` — nothing replaces it.
+Deriving `https://$APP_DOMAIN` was considered and rejected: `environment:url` is expanded by
+GitLab at job level, so a value computed in `script:` can only reach it through a `report: dotenv`
+artifact, which is more machinery for a cosmetic link. The environment now simply shows no "View
+deployment" link, same as any project that never configured one. One thing worth knowing: because
+GitLab re-evaluates `environment:url` on every deployment, the first deploy after this change
+**clears** whatever URL an environment currently shows in the GitLab UI — expected, not a bug.
+
+### Migrating off the earlier `DEPLOY_SSH_HOST` / `DEPLOY_PATH` / `DEPLOY_ENV_URL` design
+
+An earlier revision of this pipeline read the deploy target from three environment-scoped GitLab
+CI/CD variables. None of them are read anywhere anymore — if a repo still has them set (scope
+`dev`/`prod`), delete them; they are dead configuration that looks load-bearing but isn't.
+On GitLab specifically, a leftover `DEPLOY_PATH` UI variable is harmless even if left in place: the
+`script:`-level `export DEPLOY_PATH=...` overwrites it before first use, so a stale UI value can't
+win — but it should still be removed so the UI doesn't accumulate configuration that looks
+load-bearing. This migration is not disruptive to deploys themselves: the derived values equal
+what those variables held for every existing install (the old alias values were already exactly
+the environment's domain), so no server-side change is needed.
+
 ## Required CI/CD variables
 
-- `SSH_KEY` (File, protected, environment-scoped `dev`/`production`) — private deploy key for
-  that server.
-- `SSH_CONFIG` (File, protected, environment-scoped `dev`/`production`) — SSH client config
-  defining the host alias used by `DEPLOY_SSH_HOST`.
-- `SSH_KNOWN_HOSTS` (File, optional) — only needed if host-key trust isn't already handled inside
-  `SSH_CONFIG`.
+- `SSH_KEY` (File, protected, scope `All`; scope `dev`/`prod` only to override) — private deploy
+  key for the target server(s).
+- `SSH_CONFIG` (File, protected, scope `All`; scope `dev`/`prod` only to override) — SSH client
+  config; must define a `Host` block whose name is that environment's `APP_DOMAIN` (see "Deriving
+  the deploy target" above).
 - `COMPOSER_AUTH` (Variable, protected, scope `All`) — Composer auth JSON, needed to unlock
   licensed packages (see `infrastructure.md`).
+- `IS_DEMO` (Variable, optional, scope `All`) — demo/showcase mode — forces a `composer update` of
+  demo-only packages from `dist`; normal deployments leave this unset.
 - `APP_MULTI_INSTANCE` (Variable, optional, default absent, per-environment) — `1` enables the
   multi-instance (Traefik) deploy; see `infrastructure.md`.
 
-See the "Deployment via GitLab CI" section of `README.MD` for the full variable table and setup
-steps. Secrets are provided as GitLab CI/CD variables, never committed here.
+That's the complete list — no deploy-target variable belongs here. Secrets/variables are provided
+as GitLab CI/CD variables, never committed here.
 
 ## Linting / validating changes to these files
 

@@ -166,6 +166,13 @@ NEVER:
   Edit the source file in `web/wp-config/`, not the copy
 - Hardcode environment-specific values — use `getenv()` or config files
 - Run `git push --force` to `main` or `develop`
+- Add detailed setup, configuration, CI/CD, or deployment instructions to this repo's root
+  `README.MD` — it stays a short overview plus links; detailed documentation lives in the separate
+  `starter-kit-docs` repo (https://github.com/solidbunch/starter-kit-docs), and in-repo AI-facing
+  detail lives in `.claude/rules/*`. This governs **this repository's own root README only** — it
+  does not apply to the per-project `README.md` that `bootstrap-project` Step 7 generates for a
+  downstream project, which is expected to be a detailed local-install + CI/CD guide for that
+  project's own repo
 
 (Working process and per-language rules: see `workflow.md`, `debug.md`, and the path-scoped rules.)
 

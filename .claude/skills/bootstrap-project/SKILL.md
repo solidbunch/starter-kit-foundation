@@ -53,13 +53,16 @@ regenerated, see root `CLAUDE.md`):
   (`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table`) stay out of scope regardless — a real,
   globally-unique S3 bucket/DynamoDB table the user controls can't be invented automatically; flag
   those in Step 9 too.
-- `.github/workflows/workflow-deploy-develop.yml` / `workflow-deploy-production.yml`: the
-  `SSH_HOST_ALIAS:` value on each (shipped as `develop.starter-kit.io` / `starter-kit.io`) — these
-  are just SSH-config aliases, not live URLs, but must stop reading as the template's own domain.
-  If the user gave dev/prod domains in Step 0, set `SSH_HOST_ALIAS: develop.<devDomain>` /
-  `SSH_HOST_ALIAS: <prodDomain>`; if they skipped those, fall back to
-  `SSH_HOST_ALIAS: develop.<slug>` / `SSH_HOST_ALIAS: <slug>`. Keep the `develop.`-prefix-on-dev,
-  bare-on-prod shape — only the domain/slug part changes.
+- The deploy target (SSH destination / destination path) needs **no configuration at all**, on
+  either platform — there is no deploy-target CI/CD variable to set. Both pipelines derive it at
+  runtime from the `APP_DOMAIN` value just edited above in this same step
+  (`config/environment/.env.type.dev`/`.stage`/`.prod`), computing the deploy path as
+  `/srv/$APP_DOMAIN` and using `$APP_DOMAIN` itself as the SSH destination alias. The only thing
+  that must be true is that each environment's `SSH_CONFIG` secret/variable has a `Host` block
+  named after that environment's `APP_DOMAIN` (e.g. `Host develop.<devDomain>`,
+  `Host <prodDomain>`) — full contract: `.claude/rules/ci.md` (GitHub) and
+  `.claude/rules/gitlab-ci.md` (GitLab). Step 7's generated README walks the user through setting
+  up `SSH_CONFIG` with the correct `Host` names.
 
 `kit-modules/basis` Terraform/Ansible internals and the rest of CI/CD wiring beyond the above are a
 separate task the user can ask for by name later; `infrastructure.md`/`ci.md` cover that ground when
@@ -277,24 +280,28 @@ exactly — both pipelines pin themselves to the environment named after the run
       IdentitiesOnly yes
       StrictHostKeyChecking no
 
-  Host <dev SSH_HOST_ALIAS>
+  Host <dev APP_DOMAIN>
     HostName <dev server IP or hostname>
     User admin
     Port 22
     IdentityFile ~/.ssh/id_rsa
 
-  Host <stage SSH_HOST_ALIAS>
+  Host <stage APP_DOMAIN>
     HostName <stage server IP or hostname>
     User admin
     Port 22
     IdentityFile ~/.ssh/id_rsa
 
-  Host <prod SSH_HOST_ALIAS>
+  Host <prod APP_DOMAIN>
     HostName <prod server IP or hostname>
     User admin
     Port 22
     IdentityFile ~/.ssh/id_rsa
   \`\`\`
+
+  The `Host` name in each block **must** equal that environment's `APP_DOMAIN` exactly — both
+  pipelines use `APP_DOMAIN` directly as the SSH destination alias, so a mismatch fails the deploy
+  with `Could not resolve hostname`, not a silent misdeploy.
 
 - `COMPOSER_AUTH`: a GitHub personal access token in Composer's `github-oauth` JSON shape, quotes
   escaped (see `sh/env/.env.secret.template` and the
@@ -328,8 +335,21 @@ Environment level (**Settings** → **Environments** → pick one → **Add vari
 |---|---|---|
 | `APP_MULTI_INSTANCE` | no | `1` on an environment whose server co-hosts several instances behind the Traefik proxy. Leave unset everywhere else — an unset variable means "off". Set it per environment, not repo-wide, or it applies to prod too |
 
+There is no deploy-target variable to add here — nothing else to set at this level. The deploy
+target is derived automatically from `APP_DOMAIN` (already set in
+`config/environment/.env.type.dev`/`.stage`/`.prod` back in Step 1); the only requirement is the
+`SSH_CONFIG` secret's `Host` block naming, shown above.
+
+For the GitLab pipeline, the CI/CD setup is even smaller: just `SSH_KEY`, `SSH_CONFIG`, and
+`COMPOSER_AUTH` as CI/CD variables (**Settings** → **CI/CD** → **Variables**), all scope `All` by
+default — same `SSH_CONFIG` `Host`-name contract as above. Only add a `dev`- or `prod`-scoped
+override for `SSH_KEY`/`SSH_CONFIG` if that environment needs a different key/config than the
+other. No further variable is needed for the deploy target or path; both are derived the same way
+from `APP_DOMAIN`, and there is no "View deployment" URL to configure.
+
 Do **not** add an `AWS_REGION` variable — the region comes from `TF_VAR_aws_region` in
-`config/environment/.env.main`, which the pipeline reads directly.
+`config/environment/.env.main`, which the pipeline reads directly. The same reasoning applies to
+the deploy target itself: it comes from `APP_DOMAIN` in tracked config, not a platform variable.
 
 **4. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
 not in a container, needs the AWS CLI installed locally with credentials that can read IAM:
@@ -374,17 +394,15 @@ describe StarterKit itself, not this project, and must not appear as if they wer
 own data). Fill in the placeholders above the divider from what earlier steps already collected
 (`APP_TITLE`/`APP_NAME` from Step 1, `APP_DOMAIN` from Step 1, the repo URL from
 `git remote get-url origin` if set, else omit that line rather than guessing). Fill in
-`<dev SSH_HOST_ALIAS>`/`<prod SSH_HOST_ALIAS>` by reading the actual `SSH_HOST_ALIAS` values
-straight out of `.github/workflows/workflow-deploy-develop.yml` /
-`workflow-deploy-production.yml` in this repo and writing them as plain literal text — never write
-the placeholder brackets or any commentary about whether/why they were renamed into the generated
-`README.md`.
+`<dev APP_DOMAIN>`/`<prod APP_DOMAIN>` from the actual `APP_DOMAIN` values Step 1 wrote into
+`config/environment/.env.type.dev`/`.prod` (these are the exact `Host` names both pipelines
+require — not a free-form alias). Write these as plain literal text — never write the placeholder
+brackets or any commentary about whether/why they were renamed into the generated `README.md`.
 
 If the project has a stage environment (user provided a stage domain in Step 0), include the
-`Host <stage SSH_HOST_ALIAS>` block in the SSH_CONFIG and fill `<stage SSH_HOST_ALIAS>` from the
-stage deploy workflow's `SSH_HOST_ALIAS` value — or `stage.<slug>`, matching the Step 1 convention
-if no separate stage workflow exists. If stage was skipped, **omit the stage Host block entirely**
-from the generated SSH_CONFIG.
+`Host <stage APP_DOMAIN>` block in the SSH_CONFIG and fill `<stage APP_DOMAIN>` from the
+`APP_DOMAIN` Step 1 wrote into `config/environment/.env.type.stage`. If stage was skipped, **omit
+the stage Host block entirely** from the generated SSH_CONFIG.
 
 If Step 0 skipped
 the description, use the fallback line defined there. If the user chose to rename the theme
@@ -408,11 +426,12 @@ reflected so future sessions don't describe the old template identity.
 
 List every changed file with its full path. Separate clearly:
 
-- **Done automatically**: env rename, regenerated `.env`, install, `SSH_HOST_ALIAS` rename in both
-  deploy workflow files, `GITHUB_ORG`/`GITHUB_REPO` rename (if `git remote get-url origin` resolved
+- **Done automatically**: env rename, regenerated `.env`, install,
+  `GITHUB_ORG`/`GITHUB_REPO` rename (if `git remote get-url origin` resolved
   to a GitHub URL), theme repository mode change (if Step 6 ran — `.gitignore`/`composer.json`
   edits, detached `.git`), theme rename (if it ran), project README rewrite, guideline refresh
-- **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in `config/environment/.env.main`
+- **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in
+  `config/environment/.env.main`
   **only if** no GitHub origin was set for Step 1 to read (still StarterKit's own template values in
   that case); `ROLE_NAME`/`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table` in the same file (always
   left for the user — a real S3 bucket/DynamoDB table can't be invented automatically), followed by

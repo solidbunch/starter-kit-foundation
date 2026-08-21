@@ -11,24 +11,33 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
 ## Deploy pipeline
 
 - `workflow-deploy-develop.yml` — triggers on push to `develop` (+ manual `workflow_dispatch`),
-  calls `job-deploy.yml` with `ENVIRONMENT_TYPE=dev`, host `develop.starter-kit.io`.
+  calls `job-deploy.yml` with `ENVIRONMENT_TYPE=dev`. The deploy target is not an input at all —
+  it's derived at runtime by the `deploy` job from `APP_DOMAIN` (see "GitHub configuration"
+  below).
 - `workflow-deploy-production.yml` — **manual only** (`workflow_dispatch`), calls `job-deploy.yml`
-  with `ENVIRONMENT_TYPE=prod`, host `starter-kit.io`. There is no auto-deploy-on-push to prod.
+  with `ENVIRONMENT_TYPE=prod`. Same deploy-target derivation as above, reading `prod`'s
+  `.env.type.prod`. There is no auto-deploy-on-push to prod.
 - `job-deploy.yml` (`workflow_call`) — build phase runs on `ubuntu-24.04`, prepares `.env` via
   `sh/env/secret-gen.sh` + `sh/env/init.sh`, switches the theme to `dev-develop` only when
   `ENVIRONMENT_TYPE == dev`, force-updates `monitoring-client` (+ a demo-only addon plugin, not
   relevant outside showcase deploys — see `infrastructure.md`) from `dist` only when the `IS_DEMO`
   repo variable is `true`, then `sh/system/install.sh yes` (composer +
-  npm). Deploy phase runs on `ubuntu-22.04`, restores the cached build, `rsync`s the whole repo
-  over SSH to `DEPLOY_PATH_DESTINATION` (excludes `.git*`, `node_modules`, `backups/`, `db-*/`,
-  `logs/`, all `.env*` variants, `config/ssl/`, uploads/languages/cache — see the `--exclude`
-  list before changing what ships), then over SSH on the target: `make secret`,
-  `make APP_MULTI_INSTANCE=<var> proxy deploy '<env>'` (Stage C hook — writes the instance's
-  Traefik/nginx wiring before `sh/env/init.sh` regenerates `.env`), `sh/env/init.sh`, `make ssl`,
-  `make recreate`, `make monitoring off` → `make monitoring on`, DB health check,
-  `make core-install`.
+  npm). Deploy phase runs on `ubuntu-22.04`, pinned to the run's GitHub Environment
+  (`environment: ${{ inputs.ENVIRONMENT_TYPE }}`). Immediately after restoring the cached build
+  (`Use Built job`), a `Resolve deploy target from APP_DOMAIN` step greps `APP_DOMAIN` out of
+  `config/environment/.env.type.$ENVIRONMENT_TYPE`, fails fast (naming the reason) if the file is
+  missing or `APP_DOMAIN` is empty, and exports `APP_DOMAIN` + `DEPLOY_PATH=/srv/$APP_DOMAIN` via
+  `$GITHUB_ENV` (see "GitHub configuration" below) — before `rsync`ing the whole repo over SSH to
+  `$DEPLOY_PATH` (excludes `.git*`, `node_modules`, `backups/`, `db-*/`, `logs/`, all `.env*`
+  variants, `config/ssl/`, uploads/languages/cache — see the `--exclude` list before changing what
+  ships), then over SSH on the target: `make secret`, `make APP_MULTI_INSTANCE=<var> proxy deploy
+  '<env>'` (Stage C hook — writes the instance's Traefik/nginx wiring before `sh/env/init.sh`
+  regenerates `.env`), `sh/env/init.sh`, `make ssl`, `make recreate`, `make monitoring off` →
+  `make monitoring on`, DB health check, `make core-install`.
 - Required secrets: `SSH_KEY`, `SSH_CONFIG`, `COMPOSER_AUTH` (see `infrastructure.md` for what
-  `COMPOSER_AUTH` unlocks). Full GitHub-side configuration: the section below.
+  `COMPOSER_AUTH` unlocks) — that's it. **No CI/CD variable is required for the deploy target on
+  either platform** — it's derived from `APP_DOMAIN`. Full GitHub-side configuration: the section
+  below.
 
 ## Provisioning pipeline
 
@@ -84,9 +93,43 @@ Variables (**Variables** tab, or per environment):
 | `IS_DEMO` | repo | no | demo/showcase mode, see below |
 | `APP_MULTI_INSTANCE` | **environment** | no | `1` enables the multi-instance (Traefik) deploy on that environment's server; see `infrastructure.md`. Repo-level would apply it to prod too |
 
+There is **no deploy-target variable** in this table — no `SSH_HOST_ALIAS`, no
+`DEPLOY_PATH_DESTINATION`, on either the repo or environment level. The deploy target is derived
+at runtime by the `deploy` job's `Resolve deploy target from APP_DOMAIN` step, which greps
+`APP_DOMAIN` out of `config/environment/.env.type.$ENVIRONMENT_TYPE` (already tracked in git,
+already customized per-project when `bootstrap-project` renames a project) and computes
+`DEPLOY_PATH=/srv/$APP_DOMAIN` — the same pattern already used for `TF_VAR_aws_region` (see
+below), just applied to a second value. It fails the run immediately, naming the reason, if
+`.env.type.$ENVIRONMENT_TYPE` is missing (which also catches a failed build-cache restore, a
+failure mode the job previously had no guard against at all) or if `APP_DOMAIN` is empty in that
+file — a repo with a broken/missing env file gets a clear error instead of an `rsync` to `""`.
+`APP_DOMAIN` doubles as the SSH destination alias: `ssh "$APP_DOMAIN"` /
+`rsync … "$APP_DOMAIN:$DEPLOY_PATH"`.
+
+**Contract: `SSH_CONFIG`'s `Host` block name must equal that environment's `APP_DOMAIN`.** This
+is now a requirement, not a coincidence — every existing install already satisfies it (its
+`Host` alias already equals the environment's domain), but a project using an unrelated alias
+name (e.g. `prod-server-1`) would now break with `Could not resolve hostname`.
+
+`stage` needs no deploy-target configuration either — `.env.type.stage` already carries its own
+`APP_DOMAIN`, so `job-deploy.yml` resolves a stage target for free the moment a stage trigger
+workflow exists; only the trigger is still missing (see `kit-modules/basis/CLAUDE.md` and
+`gitlab-ci.md` for the rest of the stage gap).
+
+### Migrating off the earlier `SSH_HOST_ALIAS` / `DEPLOY_PATH_DESTINATION` design
+
+An earlier revision of this pipeline read the deploy target from two GitHub Environment variables,
+`SSH_HOST_ALIAS` and `DEPLOY_PATH_DESTINATION`. Neither is read anywhere anymore — if a repo still
+has them set on its `dev`/`stage`/`prod` Environments, delete them; they are dead configuration
+that looks load-bearing but isn't. This migration is **not disruptive to deploys themselves**: the
+derived values equal what those variables held for every existing install (the old alias values
+were already exactly the environment's domain), so no server-side change is needed — only the UI
+variables become stale and worth cleaning up.
+
 There is no `AWS_REGION` variable — the region is read out of `config/environment/.env.main`
 (`TF_VAR_aws_region`) by the "Extract AWS region" step, and reaches containers through
-`docker-compose.toolkit.yml`'s `AWS_DEFAULT_REGION`. Don't reintroduce a GitHub-side copy.
+`docker-compose.toolkit.yml`'s `AWS_DEFAULT_REGION`. Don't reintroduce a GitHub-side copy — the
+same reasoning now applies to the deploy target derived from `APP_DOMAIN` above.
 
 ## Demo mode (`IS_DEMO`)
 

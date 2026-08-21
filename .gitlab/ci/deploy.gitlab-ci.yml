@@ -84,10 +84,23 @@
     - chmod 400 ~/.ssh/id_rsa
     - cp "$SSH_CONFIG" ~/.ssh/config
     - chmod 600 ~/.ssh/config
-    - if [ -n "$SSH_KNOWN_HOSTS" ]; then cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts; fi
   script:
+    - |
+      ENV_FILE="./config/environment/.env.type.${ENVIRONMENT_TYPE}"
+      if [ ! -f "$ENV_FILE" ]; then
+        echo "Error: $ENV_FILE not found"
+        exit 1
+      fi
+      APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ENV_FILE" | cut -d '=' -f2)
+      if [ -z "$APP_DOMAIN" ]; then
+        echo "Error: APP_DOMAIN is not set in $ENV_FILE"
+        exit 1
+      fi
+      export APP_DOMAIN
+      export DEPLOY_PATH="/srv/$APP_DOMAIN"
+      echo "Deploy target: $APP_DOMAIN:$DEPLOY_PATH"
     - echo "Deploying to ${DEPLOY_PATH}"
-    - ssh "$DEPLOY_SSH_HOST" mkdir -p "$DEPLOY_PATH"
+    - ssh "$APP_DOMAIN" mkdir -p "$DEPLOY_PATH"
     - |
       rsync -og \
         --chmod=Dug=rwx,Fug=rw \
@@ -111,9 +124,9 @@
         --exclude "web/wp-content/languages" \
         --exclude "web/wp-content/uploads" \
         --include "web/wp-content/cache" \
-        ./ "$DEPLOY_SSH_HOST:$DEPLOY_PATH"
+        ./ "$APP_DOMAIN:$DEPLOY_PATH"
     - |
-      ssh "$DEPLOY_SSH_HOST" "
+      ssh "$APP_DOMAIN" "
         set -e -o pipefail;
         cd $DEPLOY_PATH;
         make secret;
@@ -126,4 +139,4 @@
         bash ./sh/database/check.sh;
         make core-install"
   after_script:
-    - rm -f ~/.ssh/id_rsa ~/.ssh/config ~/.ssh/known_hosts
+    - rm -f ~/.ssh/id_rsa ~/.ssh/config

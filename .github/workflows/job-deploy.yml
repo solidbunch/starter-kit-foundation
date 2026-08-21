@@ -10,12 +10,6 @@ on:
       COMPOSER_AUTH:
         required: true
     inputs:
-      SSH_HOST_ALIAS:
-        required: true
-        type: string
-      DEPLOY_PATH_DESTINATION:
-        required: true
-        type: string
       DEPLOYMENT_NAME:
         required: true
         type: string
@@ -94,6 +88,24 @@ jobs:
           path: .
           key: build-job-${{ github.run_number }}
 
+      - name: Resolve deploy target from APP_DOMAIN
+        env:
+          ENVIRONMENT_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
+        run: |
+          ENV_FILE="./config/environment/.env.type.${ENVIRONMENT_TYPE}"
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "Error: $ENV_FILE not found (build cache restore may have failed)"
+            exit 1
+          fi
+          APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ENV_FILE" | cut -d '=' -f2)
+          if [ -z "$APP_DOMAIN" ]; then
+            echo "Error: APP_DOMAIN is not set in $ENV_FILE"
+            exit 1
+          fi
+          echo "APP_DOMAIN=$APP_DOMAIN" >> "$GITHUB_ENV"
+          echo "DEPLOY_PATH=/srv/$APP_DOMAIN" >> "$GITHUB_ENV"
+          echo "Deploy target: $APP_DOMAIN:/srv/$APP_DOMAIN"
+
       - name: Set up SSH key
         run: |
           mkdir -p ~/.ssh/
@@ -103,8 +115,8 @@ jobs:
 
       - name: Deploy via SSH
         run: |
-          echo "Deploying to ${{ inputs.DEPLOY_PATH_DESTINATION }}"
-          ssh ${{ inputs.SSH_HOST_ALIAS }} mkdir -p ${{ inputs.DEPLOY_PATH_DESTINATION }}
+          echo "Deploying to $DEPLOY_PATH"
+          ssh "$APP_DOMAIN" mkdir -p "$DEPLOY_PATH"
           rsync -og \
             --chmod=Dug=rwx,Fug=rw \
             --checksum \
@@ -127,10 +139,10 @@ jobs:
             --exclude "web/wp-content/languages" \
             --exclude "web/wp-content/uploads" \
             --include "web/wp-content/cache" \
-            ./ ${{ inputs.SSH_HOST_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
-          ssh ${{ inputs.SSH_HOST_ALIAS }} "
+            ./ "$APP_DOMAIN:$DEPLOY_PATH"
+          ssh "$APP_DOMAIN" "
             set -e -o pipefail;
-            cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
+            cd $DEPLOY_PATH;
             make secret;
             make APP_MULTI_INSTANCE='${{ vars.APP_MULTI_INSTANCE }}' proxy deploy '${{ inputs.ENVIRONMENT_TYPE }}';
             bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
