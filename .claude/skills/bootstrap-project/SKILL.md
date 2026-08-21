@@ -49,10 +49,11 @@ regenerated, see root `CLAUDE.md`):
   it resolves to a `github.com` remote, parse `<org>`/`<repo>` out of it and set both. If no origin
   is set (or it isn't a GitHub URL), leave these two untouched and flag it in Step 9's report — they
   still hold StarterKit's own values (`solidbunch`/`starter-kit-foundation`) and must be set by hand
-  before this project's CI/CD role/Terraform state work. `ROLE_NAME` and the Terraform state vars
-  (`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table`) stay out of scope regardless — a real,
-  globally-unique S3 bucket/DynamoDB table the user controls can't be invented automatically; flag
-  those in Step 9 too.
+  before this project's CI/CD role/Terraform state work. `ROLE_NAME` and `TF_VAR_tf_lock_table`
+  stay out of scope regardless — a real DynamoDB table the user controls can't be invented
+  automatically; flag those in Step 9 too. `TF_VAR_tf_backend_bucket` is already handled — it
+  derives from `${APP_NAME}` via `.env.main`'s existing default, same as `TF_VAR_sk_vpc_name`/
+  `TF_VAR_sk_ssh_key_name`.
 - The deploy target (SSH destination / destination path) needs **no configuration at all**, on
   either platform — there is no deploy-target CI/CD variable to set. Both pipelines derive it at
   runtime from the `APP_DOMAIN` value just edited above in this same step
@@ -433,8 +434,8 @@ List every changed file with its full path. Separate clearly:
 - **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in
   `config/environment/.env.main`
   **only if** no GitHub origin was set for Step 1 to read (still StarterKit's own template values in
-  that case); `ROLE_NAME`/`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table` in the same file (always
-  left for the user — a real S3 bucket/DynamoDB table can't be invented automatically), followed by
+  that case); `ROLE_NAME`/`TF_VAR_tf_lock_table` in the same file (always
+  left for the user — a real DynamoDB table can't be invented automatically), followed by
   `make env local` after any of the above are edited; GitHub repo/CI secrets setup; `kit-modules`
   licensing (see `infrastructure.md`); the orphaned old theme folder + `composer.json` entry (if
   Step 5 ran); the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its
