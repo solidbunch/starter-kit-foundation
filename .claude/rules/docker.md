@@ -32,12 +32,12 @@ Eight images, each built from `dockerfiles/<service>/Dockerfile`, versioned in
 | Service | Base | Notes |
 |---|---|---|
 | `mariadb` | `mariadb:11.5.2-noble` | + `pv` for dump progress |
-| `php` | `php:8.4-fpm-alpine3.22` | + WP-CLI (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
-| `nginx` | `nginx:1.29-alpine3.22` | + Basic Auth setup script (`15-setup-basic-auth.sh`) |
-| `cron` | `alpine:3.20` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
+| `php` | `php:8.4-fpm-alpine3.24` | + WP-CLI (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
+| `nginx` | `nginx:1.29-alpine3.23` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — 3.23 is the newest Alpine variant published for nginx 1.29 |
+| `cron` | `alpine:3.24` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
 | `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.10 binary, git/svn/hg/unzip tooling |
-| `node` | `node:18-alpine3.20` | theme asset builds |
-| `certbot` | `alpine:3.20` | + `certbot`, `openssl` |
+| `node` | `node:18-alpine3.21` | theme asset builds — 3.21 is the newest Alpine variant upstream ever published for Node 18 (Node 18 itself reached EOL 2025-04-30; a major-version bump is a separate, larger task) |
+| `certbot` | `alpine:3.24` | + `certbot`, `openssl` |
 | `iac` | `debian:12-slim` | Terraform, Terragrunt, Ansible, AWS CLI, gcloud, pinned versions via build ARGs |
 
 All images share the same **entrypoint pattern**: a `docker-entrypoint.sh` that runs numbered
