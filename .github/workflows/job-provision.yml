@@ -260,8 +260,14 @@ jobs:
             echo "**Plan source:** same-run plan-then-apply (no pinned plan used)"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # 'state' and 'shared' are bulkheads shared across every environment (dev/stage/prod) —
+      # they must never be destroyed as a side effect of tearing down one environment's EC2
+      # instance. Only 'plan'/'apply' run these layers; 'destroy' skips them entirely and is
+      # scoped to the 'Terraform — environment' step below. To actually destroy the backend or
+      # shared network, run this workflow with ENVIRONMENT_TYPE pointed at that layer explicitly
+      # — there is currently no dedicated destroy path for 'state'/'shared'; report if one is needed.
       - name: Terraform — state backend
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE != 'destroy'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
@@ -269,7 +275,7 @@ jobs:
           bash kit-modules/basis/sh/terraform.sh -e state -c init
           if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
             bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan
-          elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
+          else
             if [ -f tfplans/state.tfplan ]; then
               echo "- **state:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
               if ! bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan; then
@@ -280,16 +286,10 @@ jobs:
               echo "- **state:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
               bash kit-modules/basis/sh/terraform.sh -e state -c apply
             fi
-          else
-            # Only 'destroy' reaches this branch (plan/apply handled above). -y makes
-            # terraform.sh's destroy path non-interactive — without it, `read -p` on a
-            # TTY-less runner silently cancels the destroy or aborts under set -e, so
-            # infrastructure was never actually destroyed despite a green run.
-            bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }} -y
           fi
 
       - name: Terraform — shared network
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE != 'destroy'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
@@ -297,7 +297,7 @@ jobs:
           bash kit-modules/basis/sh/terraform.sh -e shared -c init
           if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
             bash kit-modules/basis/sh/terraform.sh -e shared -c plan -f tfplans/shared.tfplan
-          elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
+          else
             if [ -f tfplans/shared.tfplan ]; then
               echo "- **shared:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
               if ! bash kit-modules/basis/sh/terraform.sh -e shared -c apply -f tfplans/shared.tfplan; then
@@ -308,10 +308,12 @@ jobs:
               echo "- **shared:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
               bash kit-modules/basis/sh/terraform.sh -e shared -c apply
             fi
-          else
-            # Only 'destroy' reaches this branch — see the 'state' step's comment above.
-            bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }} -y
           fi
+
+      - name: Terraform — state/shared skipped (destroy is scoped to the environment layer)
+        if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE == 'destroy'
+        run: |
+          echo "- **state/shared:** skipped — destroy only tears down the '${EFFECTIVE_ENV_TYPE}' environment layer, never the shared backend/network" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
