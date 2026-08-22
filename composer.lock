@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ff8a1d01ff903a5950aee55b59aa03b0",
+    "content-hash": "e6d424090b6359cd7984152e5d7164a4",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -922,7 +922,7 @@
         },
         {
             "name": "solidbunch/basis",
-            "version": "1.2.1",
+            "version": "2.1.0",
             "type": "metapackage",
             "description": "Unavailable without a valid license. Module is skipped."
         },
