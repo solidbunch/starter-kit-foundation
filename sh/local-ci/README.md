@@ -30,7 +30,66 @@ make localci up
 # 2a. Real Terraform, via the harness's own convenience wrapper (thin pass-through to
 #     kit-modules/basis/sh/terraform.sh — no parallel abstraction):
 make localci tf                       # prints the real commands to copy-paste, e.g.:
+
+# `terraform/state/backend.tf` is a self-referential S3 backend (it points at the very bucket
+# the `state` layer creates), so a fresh LocalStack instance hits the exact same chicken-and-egg
+# problem a fresh AWS account does: `terraform init` in state/ demands a bucket that doesn't
+# exist yet. LocalStack Community also never persists state across container restarts (see
+# "LocalStack Community limitations" below), so — unlike real AWS, where this is a true one-time
+# bootstrap per account — this two-phase dance must be repeated every time the harness is brought
+# up against a freshly-started LocalStack container.
+#
+# Phase 1 — bootstrap the bucket + lock table using LOCAL state, with resources still routed at
+# LocalStack. Move the tracked backend.tf out of the way, AND the harness's own generated state
+# override (sh/local-ci/tf-localstack-override.sh always restates a full S3 backend block for
+# terraform/state, so leaving it in place recreates the same chicken-and-egg problem). Replace it
+# with a provider-only override for the duration of Phase 1 — same LocalStack endpoints/dummy
+# `test`/`test` credentials the rest of this harness uses (see "This never affects
+# dev/stage/prod" below):
+mv kit-modules/basis/terraform/state/backend.tf /tmp/state-backend.tf
+mv kit-modules/basis/terraform/state/localstack_override.tf /tmp/state-localstack_override.tf
+cat > kit-modules/basis/terraform/state/localstack_override.tf <<'EOF'
+# TEMPORARY — Phase 1 of the LocalStack state-backend bootstrap (see sh/local-ci/README.md).
+# Provider-only: no backend override, so this init/apply uses local state.
+provider "aws" {
+  s3_use_path_style           = true
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
+  skip_metadata_api_check     = true
+  access_key                  = "test"
+  secret_key                  = "test"
+
+  endpoints {
+    s3       = "http://localstack:4566"
+    dynamodb = "http://localstack:4566"
+    ec2      = "http://localstack:4566"
+    sts      = "http://localstack:4566"
+  }
+}
+EOF
 bash kit-modules/basis/sh/terraform.sh -e state -c init
+bash kit-modules/basis/sh/terraform.sh -e state -c apply
+rm kit-modules/basis/terraform/state/localstack_override.tf
+mv /tmp/state-backend.tf kit-modules/basis/terraform/state/backend.tf
+mv /tmp/state-localstack_override.tf kit-modules/basis/terraform/state/localstack_override.tf
+
+# Phase 2 — migrate that local state into the LocalStack bucket Phase 1 just created. Same
+# `-migrate-state` dance as the real-AWS bootstrap (kit-modules/basis/README.MD, "Method 2: Local
+# Deployment"), adapted to point at LocalStack: the restored localstack_override.tf already
+# supplies the endpoints/dummy credentials, `-backend-config` only needs to inject
+# bucket/region/dynamodb_table, matching what harness-up.sh exports
+# (TF_VAR_tf_backend_bucket=localci-terraform-state, TF_VAR_aws_region=eu-west-1,
+# TF_VAR_tf_lock_table=localci-terraform-locks):
+make basis   # interactive shell in the iac container, repo mounted at /srv
+#   inside the container:
+cd /srv/kit-modules/basis/terraform/state
+terraform init -migrate-state \
+  -backend-config="bucket=$TF_VAR_tf_backend_bucket" \
+  -backend-config="region=$TF_VAR_aws_region" \
+  -backend-config="dynamodb_table=$TF_VAR_tf_lock_table"
+#   answer "yes" when asked to copy the existing state to the new backend
+
+# From here on, the normal per-layer sequence works exactly as before:
 bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan
 bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan
 # ...repeat for -e shared and -e dev

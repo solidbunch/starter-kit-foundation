@@ -255,8 +255,11 @@ localci:
 		bash ./sh/local-ci/harness-down.sh $(if $(filter --force-restore,$(PARAM2)),--force-restore); \
 	elif [ "$(PARAM1)" = "tf" ]; then \
 		echo "Bring the harness up first: make localci up"; \
-		echo "Then run Terraform for real, per layer (state -> shared -> dev), e.g.:"; \
-		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c init"; \
+		echo "Then run Terraform for real, per layer (state -> shared -> dev)."; \
+		echo "terraform/state/backend.tf is a self-referential S3 backend, so a FRESH LocalStack"; \
+		echo "needs the same two-phase bootstrap a fresh AWS account does (repeated every time,"; \
+		echo "since LocalStack Community never persists state across restarts) BEFORE the normal"; \
+		echo "sequence below works — full copy-pasteable commands in sh/local-ci/README.md, e.g.:"; \
 		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan"; \
 		echo "  bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan"; \
 		echo "See sh/local-ci/README.md for the full walkthrough."; \
