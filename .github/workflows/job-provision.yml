@@ -358,9 +358,11 @@ jobs:
       # 'state' layer (backend bootstrap) is no longer run by CI at all: it is bootstrapped once,
       # locally, via `make tf state ...` — see .claude/rules/ci.md for the full procedure. Only
       # 'plan'/'apply' run 'shared'; 'destroy' skips it entirely and is scoped to the
-      # 'Terraform — environment' step below. To actually destroy the shared network, run this
-      # workflow with ENVIRONMENT_TYPE pointed at that layer explicitly — there is currently no
-      # dedicated destroy path for 'shared'; report if one is needed.
+      # 'Terraform — environment' step below. ENVIRONMENT_TYPE is a restricted choice input
+      # (dev/stage/prod only — see workflow_dispatch.inputs above), so this workflow has no way to
+      # target 'shared' directly. There is no dedicated destroy path for 'shared'; destroying or
+      # recovering it requires a deliberate out-of-band action (e.g. `make tf shared destroy`
+      # locally), not a dispatch of this workflow.
       - name: Terraform — shared network
         if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE != 'destroy'
         run: |
