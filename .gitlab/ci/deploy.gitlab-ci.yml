@@ -6,14 +6,11 @@
 # templates live in deploy-dev.gitlab-ci.yml / deploy-prod.gitlab-ci.yml, each included only for
 # its own branch — see .claude/rules/gitlab-ci.md for the full design.
 #
-# Full parity with job-deploy.yml's GitHub Actions steps:
-#   - "Switch Theme Version for Dev Environment" (composer run switch-theme-dev) — runs only when
-#     ENVIRONMENT_TYPE == dev, same as the GH Actions side. If a project detaches its theme from
-#     the Composer VCS package (see bootstrap-project's monorepo option), this step becomes a
-#     harmless no-op — composer run switch-theme-dev simply won't find that script anymore, so
-#     drop it here explicitly rather than leaving a silently-failing step.
-#   - "Update Monitoring & Addon (only in demo)" (IS_DEMO) — guarded exactly like the GH Actions
-#     side; skipped unless the GitLab CI/CD variable IS_DEMO is "true".
+# The shared build/deploy logic (conditional Composer steps, SSH setup, deploy-target resolution,
+# rsync + remote make chain) lives in sh/ci/*.sh — shared verbatim with the GitHub Actions side
+# (job-deploy.yml, see .claude/rules/ci.md). See sh/ci/composer-extras.sh, sh/ci/setup-ssh.sh, and
+# sh/ci/deploy.sh (which sources sh/ci/resolve-deploy-target.sh) for the exact behavior and CLI/env
+# contracts of each step below.
 
 .build-composer:
   stage: build
@@ -29,18 +26,7 @@
     - composer install-${APP_BUILD_MODE}
     - cd "web/wp-content/themes/${WP_DEFAULT_THEME}" && composer install-${APP_BUILD_MODE}
     - cd "$CI_PROJECT_DIR"
-    - |
-      if [ "$ENVIRONMENT_TYPE" = "dev" ]; then
-        echo "Switching theme to dev-develop version for dev environment"
-        composer run switch-theme-dev
-      fi
-    - |
-      if [ "$IS_DEMO" = "true" ]; then
-        echo "Detected demo mode — forcing Composer update from dist"
-        composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
-      else
-        echo "Skipping composer update — not in demo mode"
-      fi
+    - sh ./sh/ci/composer-extras.sh "$ENVIRONMENT_TYPE" "$IS_DEMO"
   artifacts:
     expire_in: 1 hour
     paths:
@@ -79,65 +65,8 @@
     - build-node
   before_script:
     - apk add --no-cache openssh-client rsync
-    - mkdir -p ~/.ssh
-    - cp "$SSH_KEY" ~/.ssh/id_rsa
-    - chmod 400 ~/.ssh/id_rsa
-    - cp "$SSH_CONFIG" ~/.ssh/config
-    - chmod 600 ~/.ssh/config
+    - SSH_INPUT_MODE=file sh ./sh/ci/setup-ssh.sh
   script:
-    - |
-      ENV_FILE="./config/environment/.env.type.${ENVIRONMENT_TYPE}"
-      if [ ! -f "$ENV_FILE" ]; then
-        echo "Error: $ENV_FILE not found"
-        exit 1
-      fi
-      APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ENV_FILE" | cut -d '=' -f2)
-      if [ -z "$APP_DOMAIN" ]; then
-        echo "Error: APP_DOMAIN is not set in $ENV_FILE"
-        exit 1
-      fi
-      export APP_DOMAIN
-      export DEPLOY_PATH="/srv/$APP_DOMAIN"
-      echo "Deploy target: $APP_DOMAIN:$DEPLOY_PATH"
-    - echo "Deploying to ${DEPLOY_PATH}"
-    - ssh "$APP_DOMAIN" mkdir -p "$DEPLOY_PATH"
-    - |
-      rsync -og \
-        --chmod=Dug=rwx,Fug=rw \
-        --checksum \
-        --recursive \
-        --verbose \
-        --compress \
-        --links \
-        --delete-after \
-        --exclude ".git*" \
-        --exclude "*/node_modules/" \
-        --exclude "backups/" \
-        --exclude "tmp/" \
-        --exclude "**/db-*/" \
-        --exclude="**/tail-db/" \
-        --exclude "logs/" \
-        --exclude ".env" \
-        --exclude ".env.*override" \
-        --exclude ".env.*runtime" \
-        --exclude ".env.*secret" \
-        --exclude "config/ssl/" \
-        --exclude "web/wp-content/languages" \
-        --exclude "web/wp-content/uploads" \
-        --include "web/wp-content/cache" \
-        ./ "$APP_DOMAIN:$DEPLOY_PATH"
-    - |
-      ssh "$APP_DOMAIN" "
-        set -e -o pipefail;
-        cd $DEPLOY_PATH;
-        make secret;
-        make APP_MULTI_INSTANCE='$APP_MULTI_INSTANCE' proxy deploy '$ENVIRONMENT_TYPE';
-        bash ./sh/env/init.sh '$ENVIRONMENT_TYPE';
-        make ssl;
-        make recreate '$ENVIRONMENT_TYPE';
-        make monitoring off;
-        make monitoring on;
-        bash ./sh/database/check.sh;
-        make core-install"
+    - sh ./sh/ci/deploy.sh "$ENVIRONMENT_TYPE"
   after_script:
     - rm -f ~/.ssh/id_rsa ~/.ssh/config
