@@ -111,6 +111,69 @@ After this runs once, `make tf state [init|plan|apply|destroy]` works normally t
 `terraform.sh` wrapper forever after — nothing in `terraform.sh` changes, and `state` is never
 removed or renamed as a `make tf` target; it's simply never invoked by the CI workflow.
 
+### Lock-table rename — ONE-TIME MANUAL OPERATOR PROCEDURE, real AWS (not CI, not an agent)
+
+`aws_dynamodb_table.terraform_locks` takes its name straight from the variable
+(`terraform/state/bucket.tf:52-53`, `name = var.tf_lock_table`), has no `lifecycle` block and no
+deletion protection, and DynamoDB table names are not updatable in place — so changing the
+variable makes Terraform destroy and recreate the table. The table also *holds the lock for the
+very apply that destroys it*, which is why `-lock=false` is not optional below. And
+`kit-modules/basis/sh/terraform.sh:121-124` passes
+`-backend-config="dynamodb_table=$TF_VAR_tf_lock_table"` on every `init`, so every layer must be
+re-initialised afterwards or it points at a table that no longer exists.
+
+**This is the exact sequence for the user to run (task 4.11). The agent writes it, does not run it.**
+Run it in one sitting: between steps 3 and 5 the pipeline is broken by construction, so no CI
+provision/deploy may be dispatched during the window.
+
+```bash
+# 0. Prerequisites: real AWS credentials in the shell, no CI run in flight.
+#    Announce/park the pipeline for the duration.
+
+# 1. Apply the plan's .env.main change (task 4.7 does this in git), then regenerate .env:
+make env local
+grep TF_VAR_tf_lock_table .env          # expect: <APP_NAME>-terraform-locks
+
+# 2. Back up the state layer's state before touching anything:
+make basis                              # interactive shell in the iac container
+cd ./kit-modules/basis/terraform/state
+terraform init -reconfigure   -backend-config="bucket=$TF_VAR_tf_backend_bucket"   -backend-config="region=$TF_VAR_aws_region"   -backend-config="dynamodb_table=terraform-locks"        # OLD name, still current
+terraform state pull > /srv/tmp/state-layer-backup-$(date +%F-%H%M).json
+terraform state list                    # expect aws_dynamodb_table.terraform_locks present
+
+# 3. Rename the table for real. -lock=false is REQUIRED: this apply destroys the very table
+#    that would hold the lock. Review the plan before approving — expect exactly one
+#    create + one destroy of aws_dynamodb_table.terraform_locks, and NOTHING touching the bucket.
+terraform plan  -lock=false
+terraform apply -lock=false
+
+# 4. Confirm in AWS:
+aws dynamodb list-tables                # expect <APP_NAME>-terraform-locks, and NOT terraform-locks
+exit                                    # leave the iac container
+
+# 5. Re-init every layer against the new lock table (only the backend config changed;
+#    the bucket and every state key are untouched, so this is -reconfigure, not -migrate-state):
+for L in state shared dev prod; do
+  bash kit-modules/basis/sh/terraform.sh -e "$L" -c init
+done
+
+# 6. Prove no drift — each must report no changes:
+for L in state shared dev prod; do
+  bash kit-modules/basis/sh/terraform.sh -e "$L" -c plan
+done
+```
+
+If `terraform.sh -c init` refuses because the backend config changed, re-run that layer's init
+with `-reconfigure` inside `make basis` (same three `-backend-config` flags, new table name).
+**Rollback:** revert `.env.main` to `terraform-locks`, `make env local`, re-run step 3 (which
+recreates the old table) and step 5. The state files themselves are never moved by this
+procedure — only the lock table — so a failed rename cannot lose state, and step 2's backup
+covers the pathological case.
+
+Note for the record: Terraform's S3 backend has since gained native S3-based locking, which would
+remove the lock table entirely. That is a separate decision on a separate schedule and is **not**
+part of this plan; it is recorded as a follow-up in task 6.6.
+
 ## GitHub configuration — environments, secrets, variables
 
 Both jobs pin themselves to a **GitHub Environment** named after the run's environment type:
