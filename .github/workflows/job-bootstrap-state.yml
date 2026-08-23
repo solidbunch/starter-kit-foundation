@@ -1,0 +1,124 @@
+name: Bootstrap Terraform State Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      CONFIRM:
+        description: 'Type the AWS region (e.g. eu-west-1) to confirm'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  bootstrap-state:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Extract AWS region from .env.main
+        id: region
+        run: |
+          REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
+          if [ -z "$REGION" ]; then
+            echo "Error: TF_VAR_aws_region is not set in ./config/environment/.env.main"
+            exit 1
+          fi
+          echo "region=$REGION" >> $GITHUB_OUTPUT
+
+      - name: Confirm bootstrap
+        # Must run before any AWS/credential step so a missing/mismatched confirmation never
+        # gets far enough to touch cloud state. The operator must type the exact region value
+        # extracted above to confirm intent.
+        run: |
+          if [ "${{ inputs.CONFIRM }}" != "${{ steps.region.outputs.region }}" ]; then
+            echo "::error::CONFIRM must exactly equal the extracted AWS region ('${{ steps.region.outputs.region }}') to proceed with bootstrapping the Terraform state backend. Got: '${{ inputs.CONFIRM }}'."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_BOOTSTRAP_ROLE_TO_ASSUME }}
+          aws-region: ${{ steps.region.outputs.region }}
+
+      - name: Prepare .env
+        # No ENVIRONMENT_TYPE input on this workflow — the 'state' layer is not
+        # environment-scoped (kit-modules/basis/sh/terraform.sh special-cases it to
+        # terraform/state), so init.sh runs with no argument and falls back to its own
+        # APP_DEFAULT_ENV_TYPE default. Otherwise identical to job-provision.yml/job-deploy.yml's
+        # 'Prepare .env' step.
+        run: |
+          bash ./sh/env/secret-gen.sh
+          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
+            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          fi
+          bash ./sh/env/init.sh
+
+      - name: Install Composer and Node Dependencies
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash ./sh/system/install.sh yes
+
+      - name: Verify Basis module is installed
+        id: verify_basis
+        run: |
+          # Three-state classifier: composer.lock's recorded package `type` (licensed
+          # `kit-module` vs unlicensed `metapackage` stub) is cross-checked against whether
+          # kit-modules/basis actually landed on disk. Directory presence alone is not
+          # trustworthy — see .claude/plans/architect-plan-pipeline-audit-fixes.md item 4.
+          LOCK_TYPE=$(jq -r '.packages[] | select(.name=="solidbunch/basis") | .type' composer.lock)
+          if [ -z "$LOCK_TYPE" ]; then
+            LOCK_TYPE="metapackage"
+          fi
+
+          if [ -d "kit-modules/basis" ]; then
+            DIR_PRESENT=true
+          else
+            DIR_PRESENT=false
+          fi
+
+          if [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "false" ]; then
+            echo "composer.lock records solidbunch/basis as unlicensed (metapackage) and kit-modules/basis is absent — genuinely unlicensed. Skipping bootstrap."
+            echo "has_basis=false" >> $GITHUB_OUTPUT
+          elif [ "$LOCK_TYPE" = "kit-module" ] && [ "$DIR_PRESENT" = "false" ]; then
+            echo "::error::composer.lock records solidbunch/basis as licensed (kit-module) but kit-modules/basis is missing on disk — install failed or the license expired. Failing the job."
+            exit 1
+          elif [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "true" ]; then
+            echo "::warning::composer.lock records solidbunch/basis as unlicensed (metapackage) but kit-modules/basis is present on disk — ambiguous, likely a stale or local install. Proceeding anyway."
+            echo "has_basis=true" >> $GITHUB_OUTPUT
+          else
+            echo "Basis module found and composer.lock confirms it is licensed (kit-module)."
+            echo "has_basis=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Short-circuit when Basis is missing
+        if: steps.verify_basis.outputs.has_basis == 'false'
+        run: |
+          echo "No license/module — skipping Terraform state backend bootstrap."
+
+      - name: Bootstrap Terraform state backend
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash kit-modules/basis/sh/bootstrap-state.sh -y
+
+      - name: Generate bootstrap summary
+        if: always()
+        run: |
+          echo "## Terraform State Backend Bootstrap Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ steps.region.outputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.verify_basis.outputs.has_basis }}" = "true" ]; then
+            echo "Basis module was present — \`bootstrap-state.sh -y\` ran (see the step above for its own idempotency/outcome message)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Basis module was not licensed/present — bootstrap was skipped." >> $GITHUB_STEP_SUMMARY
+          fi
