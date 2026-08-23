@@ -123,7 +123,7 @@ Secrets (**Settings → Secrets and variables → Actions → Secrets**):
 | Secret | Required | Used by |
 |---|---|---|
 | `SSH_KEY` | yes | deploy + provision |
-| `SSH_CONFIG` | yes | deploy + provision — host-key trust comes entirely from here |
+| `SSH_CONFIG` | yes | deploy + provision — sets `StrictHostKeyChecking accept-new` (trust-on-first-use): accepts an unseen host key automatically on first connect, then refuses to connect if that host's key later changes, closing the MITM/key-swap gap a bare `no` would leave open |
 | `COMPOSER_AUTH` | yes | deploy + provision, unlocks licensed modules (`infrastructure.md`) |
 | `TFPLAN_PASSPHRASE` | no | provision only, plan encryption (see above) |
 | `GITHUB_TOKEN` | — | auto-provided, nothing to configure |
@@ -153,6 +153,17 @@ file — a repo with a broken/missing env file gets a clear error instead of an 
 is now a requirement, not a coincidence — every existing install already satisfies it (its
 `Host` alias already equals the environment's domain), but a project using an unrelated alias
 name (e.g. `prod-server-1`) would now break with `Could not resolve hostname`.
+
+**Optional hardening: pinned host keys.** `accept-new` is the shipped default (zero-setup, trust-
+on-first-use). Operators who want stronger verification can instead populate `SSH_CONFIG`'s
+`known_hosts` with keys collected via `ssh-keyscan` for each target host, and drop
+`StrictHostKeyChecking` back to its secure default (`ask`/unset, since the keys are now pre-
+trusted) — this rejects a connection to a host whose key isn't already pinned, not just one that
+changed. This is **not** the default because Terraform recreates EC2 instances on every
+provisioning run (`kit-modules/basis`), and a re-created instance gets a brand-new host key each
+time — a pinned `known_hosts` would need to be re-collected after every rebuild, or every
+subsequent deploy hard-fails until it is. Treat this as an opt-in upgrade for operators who control
+their own rebuild cadence, not something to enable by default.
 
 `stage` needs no deploy-target configuration either — `.env.type.stage` already carries its own
 `APP_DOMAIN`, so `job-deploy.yml` resolves a stage target for free the moment a stage trigger

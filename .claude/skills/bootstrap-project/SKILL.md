@@ -279,7 +279,11 @@ exactly — both pipelines pin themselves to the environment named after the run
   ####################################
   Host *
       IdentitiesOnly yes
-      StrictHostKeyChecking no
+      StrictHostKeyChecking accept-new
+  # accept-new: accepts an unknown host key automatically on first connection (same
+  # zero-friction behavior as before) but REFUSES to connect if a previously-known host's
+  # key later changes — the MITM/key-swap scenario the disabled setting used to silently allow.
+  # Do not "fix" this back to a disabled/permissive setting.
 
   Host <dev APP_DOMAIN>
     HostName <dev server IP or hostname>
