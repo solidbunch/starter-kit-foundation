@@ -13,9 +13,24 @@
 # `validate-provision-inputs`, `build-basis` and `provision` are real (tasks 4.3/4.4 of the GitLab
 # provisioning parity plan). `provision` runs entirely native (IAC_NATIVE: "1", image: $APP_IAC_IMAGE)
 # — this job's container IS the toolchain, there is no Docker daemon to shell out to on a plain
-# GitLab.com shared runner. Pinned-plan retrieval (task 4.5) and the pre-destroy state backup
-# (task 4.6) are not implemented yet — `plan`/`apply`/`destroy` here always plan-then-apply /
-# destroy directly, same as `terraform.sh` alone would do with no `-f` plan file.
+# GitLab.com shared runner. Pinned-plan retrieval (task 4.5) is now implemented — see
+# `before_script:` step 5.5 below (it runs before the AWS OIDC exchange, since it needs no AWS
+# credentials). The pre-destroy state backup (task 4.6) is not implemented yet —
+# `destroy` here still runs directly, same as `terraform.sh` alone would do with no `-f` plan file.
+#
+# Pinned-plan flow (task 4.5), mirrors job-provision.yml's TFPLAN_PASSPHRASE-gated GPG
+# encrypt/decrypt with one platform-forced difference: GitHub pins a *run* (`PLAN_RUN_ID` +
+# `actions/download-artifact`), GitLab has no Free-tier equivalent (`needs:artifacts` is
+# same-pipeline only, `needs:project` is Premium+ and only ever latest-successful) — the only
+# mechanism that pins an exact earlier job is the Job Artifacts API by **job ID**
+# (`GET $CI_API_V4_URL/projects/$CI_PROJECT_ID/jobs/<id>/artifacts`), so the input here is
+# `PLAN_JOB_ID`, a GitLab job ID, not a run/pipeline ID. Auth tries `JOB-TOKEN: $CI_JOB_TOKEN`
+# first (`CI_JOB_TOKEN`'s access to this specific endpoint is tier-ambiguous in GitLab's own
+# docs), falling back to `PRIVATE-TOKEN: $PLAN_ARTIFACT_TOKEN` (optional CI/CD variable, a
+# project access token) when that variable is set and the first attempt didn't return HTTP 200.
+# An explicit PLAN_JOB_ID that cannot be retrieved/unpacked/decrypted FAILS THE JOB — it never
+# silently falls back to a fresh plan-then-apply; that fallback only happens when PLAN_JOB_ID is
+# empty to begin with.
 #
 # `needs:` carries artifacts only, never CI/CD variables or shell state — every guard this job
 # depends on (stage/env guard, region, CONFIRM_DESTROY) is re-run here from scratch, not trusted
@@ -160,6 +175,73 @@ provision:
       echo "$BASIS_MSG"
       export HAS_BASIS="${BASIS_OUTPUT#has_basis=}"
       echo "has_basis=${HAS_BASIS}"
+    # 5.5) TFPLAN_PASSPHRASE availability + pinned-plan retrieval (task 4.5). Both are
+    #      GitLab-API/GPG operations independent of AWS credentials, so they run BEFORE the
+    #      OIDC/STS exchange (step 6) below — an operator who mistyped PLAN_JOB_ID or forgot
+    #      TFPLAN_PASSPHRASE finds out immediately, without spending an AWS role assumption on a
+    #      run that was always going to need re-dispatching. See the header comment above for the
+    #      full design (job-ID vs run-ID, JOB-TOKEN/PRIVATE-TOKEN fallback, fail-loud contract).
+    - |
+      if [ "$HAS_BASIS" = "true" ]; then
+        if [ -n "$TFPLAN_PASSPHRASE" ]; then
+          export HAS_TFPLAN_PASSPHRASE=true
+        else
+          export HAS_TFPLAN_PASSPHRASE=false
+          echo "WARNING: TFPLAN_PASSPHRASE CI/CD variable is not set — a 'plan' run below will not encrypt/upload a pinned-plan artifact, and an 'apply' run cannot decrypt a pinned plan even if PLAN_JOB_ID is given (plaintext plans are never uploaded)."
+        fi
+        echo "TFPLAN_PASSPHRASE is set: ${HAS_TFPLAN_PASSPHRASE}"
+      fi
+    - |
+      if [ "$HAS_BASIS" = "true" ] && [ "$ACTION_TYPE" = "apply" ] && [ -n "$PLAN_JOB_ID" ]; then
+        echo "PLAN_JOB_ID='${PLAN_JOB_ID}' — fetching pinned plan artifact via the GitLab Job Artifacts API..."
+        set +e
+        HTTP_CODE="$(curl --silent --show-error --location --output tfplan-download.zip --write-out '%{http_code}' \
+          --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${PLAN_JOB_ID}/artifacts")"
+        CURL_RC=$?
+        set -e
+        if { [ $CURL_RC -ne 0 ] || [ "$HTTP_CODE" != "200" ]; } && [ -n "$PLAN_ARTIFACT_TOKEN" ]; then
+          echo "JOB-TOKEN fetch failed (curl exit ${CURL_RC}, HTTP ${HTTP_CODE}) — retrying with PRIVATE-TOKEN (PLAN_ARTIFACT_TOKEN)..."
+          set +e
+          HTTP_CODE="$(curl --silent --show-error --location --output tfplan-download.zip --write-out '%{http_code}' \
+            --header "PRIVATE-TOKEN: ${PLAN_ARTIFACT_TOKEN}" \
+            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/jobs/${PLAN_JOB_ID}/artifacts")"
+          CURL_RC=$?
+          set -e
+        fi
+        if [ $CURL_RC -ne 0 ] || [ "$HTTP_CODE" != "200" ]; then
+          echo "Error: Pinned Terraform plan for job '${PLAN_JOB_ID}' could not be retrieved (Job Artifacts API returned HTTP ${HTTP_CODE}, curl exit ${CURL_RC}). An explicit PLAN_JOB_ID was provided, so this run is stopping instead of silently falling back to an unreviewed same-run plan-then-apply. Verify the job ID, that its 'tfplans.tar.gz.gpg' artifact still exists (7-day retention on GitHub's equivalent; here it shares this job's 30-day expiry), and that JOB-TOKEN or PLAN_ARTIFACT_TOKEN has read access to it, then re-dispatch." >&2
+          rm -f tfplan-download.zip
+          exit 1
+        fi
+        set +e
+        unzip -o -q tfplan-download.zip
+        UNZIP_RC=$?
+        set -e
+        rm -f tfplan-download.zip
+        if [ $UNZIP_RC -ne 0 ] || [ ! -f tfplans.tar.gz.gpg ]; then
+          echo "Error: Pinned Terraform plan for job '${PLAN_JOB_ID}' could not be unpacked — the downloaded artifact did not contain 'tfplans.tar.gz.gpg' (unzip exit ${UNZIP_RC}). Stopping instead of falling back to plan-then-apply." >&2
+          exit 1
+        fi
+        set +e
+        gpg --batch --yes --decrypt --passphrase "$TFPLAN_PASSPHRASE" \
+          --output tfplans.tar.gz tfplans.tar.gz.gpg 2>gpg-decrypt.stderr
+        GPG_RC=$?
+        set -e
+        rm -f tfplans.tar.gz.gpg
+        if [ $GPG_RC -ne 0 ]; then
+          echo "Error: Pinned Terraform plan for job '${PLAN_JOB_ID}' could not be decrypted (gpg exit ${GPG_RC}). Verify TFPLAN_PASSPHRASE matches the one used to encrypt this plan. Stopping instead of falling back to an unreviewed plan-then-apply." >&2
+          cat gpg-decrypt.stderr >&2
+          rm -f gpg-decrypt.stderr tfplans.tar.gz
+          exit 1
+        fi
+        rm -f gpg-decrypt.stderr
+        tar xzf tfplans.tar.gz
+        rm -f tfplans.tar.gz
+        echo "- **Plan source:** pinned plan from job \`${PLAN_JOB_ID}\`" >> provision-summary.md
+      elif [ "$HAS_BASIS" = "true" ] && [ "$ACTION_TYPE" = "apply" ]; then
+        echo "- **Plan source:** same-run plan-then-apply (no pinned plan used, PLAN_JOB_ID empty)" >> provision-summary.md
+      fi
     # 6) Exchange the GitLab OIDC ID token for short-lived AWS credentials. Not gated on
     #    HAS_BASIS: mirrors job-provision.yml, which configures AWS credentials unconditionally
     #    and only gates the Terraform/Ansible steps further down on has_basis. This is also the
@@ -225,18 +307,31 @@ provision:
         cat provision-summary.md
         exit 0
       fi
+    # TFPLAN_PASSPHRASE availability and pinned-plan retrieval (PLAN_JOB_ID) both already ran in
+    # before_script, step 5.5 — before the AWS OIDC exchange, since neither needs AWS
+    # credentials. HAS_TFPLAN_PASSPHRASE is already exported; tfplans/*.tfplan is already
+    # unpacked on disk if a pinned plan was requested and retrieved successfully.
     # 'shared' is the only cross-environment bulkhead this pipeline runs automatically — it must
     # never be destroyed as a side effect of tearing down one environment's EC2 instance. Only
     # plan/apply run 'shared'; destroy is scoped to the environment layer only (no dedicated
     # destroy path for 'shared' from this pipeline — see job-provision.yml/ci.md for the same rule
-    # on the GitHub side).
+    # on the GitHub side). On plan, -f pins the plan file for a later encrypt+upload; on apply, a
+    # pinned plan file already unpacked above (by PLAN_JOB_ID) is applied via -f, otherwise a
+    # fresh plan-then-apply runs, same as before task 4.5.
     - |
       if [ "$ACTION_TYPE" != "destroy" ]; then
         echo "- shared: running (${ACTION_TYPE})" >> provision-summary.md
         bash kit-modules/basis/sh/terraform.sh -e shared -c init
         if [ "$ACTION_TYPE" = "plan" ]; then
-          bash kit-modules/basis/sh/terraform.sh -e shared -c plan
+          bash kit-modules/basis/sh/terraform.sh -e shared -c plan -f tfplans/shared.tfplan
+        elif [ -f tfplans/shared.tfplan ]; then
+          echo "- shared: applying pinned plan" >> provision-summary.md
+          if ! bash kit-modules/basis/sh/terraform.sh -e shared -c apply -f tfplans/shared.tfplan; then
+            echo "Error: Pinned Terraform plan for layer 'shared' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_JOB_ID. No auto-retry was performed." >&2
+            exit 1
+          fi
         else
+          echo "- shared: plan-then-apply (no pinned plan)" >> provision-summary.md
           bash kit-modules/basis/sh/terraform.sh -e shared -c apply
         fi
       else
@@ -246,11 +341,37 @@ provision:
       echo "- ${ENVIRONMENT_TYPE}: running (${ACTION_TYPE})" >> provision-summary.md
       bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c init
       if [ "$ACTION_TYPE" = "plan" ]; then
-        bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c plan
+        bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c plan -f "tfplans/${ENVIRONMENT_TYPE}.tfplan"
       elif [ "$ACTION_TYPE" = "apply" ]; then
-        bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c apply
+        if [ -f "tfplans/${ENVIRONMENT_TYPE}.tfplan" ]; then
+          echo "- ${ENVIRONMENT_TYPE}: applying pinned plan" >> provision-summary.md
+          if ! bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c apply -f "tfplans/${ENVIRONMENT_TYPE}.tfplan"; then
+            echo "Error: Pinned Terraform plan for layer '${ENVIRONMENT_TYPE}' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_JOB_ID. No auto-retry was performed." >&2
+            exit 1
+          fi
+        else
+          echo "- ${ENVIRONMENT_TYPE}: plan-then-apply (no pinned plan)" >> provision-summary.md
+          bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c apply
+        fi
       else
         bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c destroy -y
+      fi
+    # Package + GPG-encrypt (AES256, same shape as job-provision.yml) the reviewed plan for later
+    # pinned retrieval via PLAN_JOB_ID — gated on TFPLAN_PASSPHRASE; unset ⇒ loud warning, never a
+    # failure. CI_JOB_ID is this job's own ID, printed so the operator knows what to pass as
+    # PLAN_JOB_ID on a later apply run.
+    - |
+      if [ "$ACTION_TYPE" = "plan" ]; then
+        if [ "$HAS_TFPLAN_PASSPHRASE" = "true" ]; then
+          tar czf tfplans.tar.gz tfplans/shared.tfplan "tfplans/${ENVIRONMENT_TYPE}.tfplan"
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfplans.tar.gz.gpg tfplans.tar.gz
+          rm -f tfplans.tar.gz
+          echo "- **Plan artifact:** \`tfplans.tar.gz.gpg\` uploaded — re-apply later with PLAN_JOB_ID=${CI_JOB_ID}" >> provision-summary.md
+        else
+          echo "WARNING: TFPLAN_PASSPHRASE CI/CD variable is not set — the reviewed Terraform plan was NOT encrypted or uploaded as an artifact (plaintext plans are never uploaded)."
+          echo "- **Warning:** \`TFPLAN_PASSPHRASE\` is not configured — no pinned-plan artifact was produced; a later apply will fall back to same-run plan-then-apply." >> provision-summary.md
+        fi
       fi
     - |
       if [ "$ACTION_TYPE" = "apply" ] && [ "$SKIP_ANSIBLE" != "true" ]; then
@@ -274,8 +395,18 @@ provision:
   after_script:
     - rm -f kit-modules/basis/ansible/generated.inventory.yml || true
     - rm -f ~/.ssh/id_rsa ~/.ssh/config || true
+  # A GitLab job carries exactly one `artifacts:` block, so `tfplans.tar.gz.gpg` (7-day
+  # `expire_in` on GitHub's separate artifact) and `provision-summary.md` (30-day there) share
+  # this one 30-day expiry — chosen over 7 because the plan tarball is already GPG-encrypted at
+  # rest (TFPLAN_PASSPHRASE-gated), so the longer retention doesn't add plaintext exposure, only
+  # gives operators a longer PLAN_JOB_ID pinning window. `access: developer` is defence in depth
+  # per the plan's design doc — GitLab's own docs note `artifacts:access` only affects UI/API
+  # access, job-token access to the runner API is unaffected regardless, and there is no
+  # artifact-level encryption-at-rest — GPG remains the actual control.
   artifacts:
     expire_in: 30 days
     when: always
+    access: developer
     paths:
       - provision-summary.md
+      - tfplans.tar.gz.gpg
