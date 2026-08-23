@@ -51,7 +51,7 @@
   "require": {
     "php": ">=8.4",
     "composer/installers": "^2.3.0",
-    "solidbunch/basis": "^2.1.0",
+    "solidbunch/basis": "^2.2.0",
     "solidbunch/composer-installers": "^1.1",
     "solidbunch/monitoring-client": "^2.1.0",
     "solidbunch/monitoring-server": "^2.2.0",
