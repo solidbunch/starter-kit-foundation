@@ -150,8 +150,9 @@ a valid license, real code with one. Nothing manual to install; the opt-in is en
   `config/dynamic/middlewares.yml` (security headers, optional rate-limit middleware, hot-reloaded).
 - `APP_MULTI_INSTANCE` defaults to `0` in `config/environment/.env.main`. The Makefile exposes a
   single `make proxy` target — `make proxy start|stop|logs`, and `make proxy deploy <env>` (used
-  by CI) — that delegates to `kit-modules/proxy/bin/proxy.sh`; if the module isn't installed it
-  prints a skip message (or fails loudly for `deploy`, since that path is CI-driven).
+  by CI) — that delegates to `kit-modules/proxy/bin/proxy.sh`; if the module isn't installed, the
+  behavior depends on `APP_MULTI_INSTANCE`, not on which subcommand was invoked: with
+  `APP_MULTI_INSTANCE=1` it fails loudly (any subcommand), otherwise it prints a skip message.
 - All actual proxy behaviour — which compose files to merge, starting/stopping Traefik,
   deploy-time wiring, and apex-vs-subdomain routing — lives entirely in `kit-modules/proxy`; the
   foundation implements none of it.
