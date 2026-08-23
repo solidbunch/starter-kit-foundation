@@ -57,6 +57,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Validate ENVIRONMENT_TYPE has a Terraform environment
+        # Fail fast on 'stage' (no Terraform environment configured yet) before wasting any
+        # AWS/SSH/composer setup time — the per-directory `[ ! -d "$TF_ENV_DIR" ]` guard later
+        # in this job still runs as defense-in-depth for dev/prod.
+        run: |
+          case "${{ inputs.ENVIRONMENT_TYPE }}" in
+            dev|prod) ;;
+            *)
+              echo "::error::ENVIRONMENT_TYPE '${{ inputs.ENVIRONMENT_TYPE }}' has no Terraform environment configured under kit-modules/basis/terraform/envs/. Only 'dev' and 'prod' are currently supported."
+              exit 1
+              ;;
+          esac
+
       - name: Confirm destroy
         # Only applies when ACTION_TYPE == destroy — no-op for plan/apply. Must run before any
         # AWS/credential step so a missing/mismatched confirmation never gets far enough to touch
