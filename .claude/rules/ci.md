@@ -67,6 +67,10 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
 - The plan/apply artifact tarball no longer contains a `state.tfplan` — only `shared.tfplan` and
   the target env's plan file (`tfplans/${EFFECTIVE_ENV_TYPE}.tfplan`), matching the two layers CI
   actually runs.
+- **SSH key rotation.** Rotating the `SSH_KEY` secret only replaces `aws_key_pair.deploy` on the
+  *next* Terraform apply — instances that are already running keep the OLD key in
+  `authorized_keys` until they're re-provisioned. A rotated key does not take effect on existing
+  servers by itself; it needs an explicit re-provision/Ansible run against them afterward.
 
 ### State backend — bootstrapped once, locally, never by CI
 

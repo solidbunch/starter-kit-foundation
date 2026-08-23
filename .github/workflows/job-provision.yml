@@ -192,7 +192,10 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
-          # Guarantee cleanup of SSH key even if script fails
+          # Guarantee cleanup of SSH key even if script fails.
+          # This also deletes ~/.ssh/config written by the earlier "Set up SSH config" step,
+          # not just the private key — any later step that still needs SSH config must run
+          # BEFORE this step, or it will find the config gone.
           trap "rm -f ~/.ssh/id_rsa ~/.ssh/config" EXIT
 
           # Load environment variables
