@@ -1,9 +1,14 @@
-# Placeholder — filled in by task 4.3 (validate-provision-inputs, build-basis) and task 4.4
-# (provision) of the GitLab provisioning parity plan. This stub exists only so task 4.1's
-# unconditional `include:` of this file in the root .gitlab-ci.yml has a valid target and the
-# expected job set (validate-provision-inputs, build-basis, provision) is visible to
-# `gitlab-ci-local --list-all` ahead of the real implementation. No top-level `variables:` block
-# here by design — see .claude/rules/gitlab-ci.md's "bug this design avoids" note.
+# GitLab analog of .github/workflows/job-provision.yml's guard surface + build phase.
+# No top-level `variables:` block here by design — see .claude/rules/gitlab-ci.md's "bug this
+# design avoids" note (top-level variables: from multiple included files deep-merge, last include
+# wins). Every variable used below (PIPELINE_KIND, ENVIRONMENT_TYPE, ACTION_TYPE, CONFIRM_DESTROY,
+# IS_DEMO, APP_COMPOSER_IMAGE, APP_BUILD_MODE, APP_IAC_IMAGE) is either a pipeline input
+# interpolated once in the root .gitlab-ci.yml, a project-level CI/CD variable, or sourced from
+# ./.env inside a job's own script — never declared here.
+#
+# `validate-provision-inputs` and `build-basis` are real (task 4.3 of the GitLab provisioning
+# parity plan). `provision` below is still the task 4.3 placeholder — its real terraform/ansible/
+# AWS-OIDC logic lands in task 4.4, not this change.
 
 validate-provision-inputs:
   stage: validate
@@ -11,19 +16,57 @@ validate-provision-inputs:
   rules:
     - if: '$PIPELINE_KIND == "provision"'
   script:
-    - echo "Placeholder — real guards land in task 4.3"
+    # Fail fast on 'stage' (no Terraform environment configured under
+    # kit-modules/basis/terraform/envs/ — a documented gap, see kit-modules/basis/CLAUDE.md)
+    # before wasting any AWS/SSH/composer setup time. Mirrors job-provision.yml's
+    # "Validate ENVIRONMENT_TYPE has a Terraform environment" step.
+    - |
+      case "$ENVIRONMENT_TYPE" in
+        dev|prod) ;;
+        *)
+          echo "Error: ENVIRONMENT_TYPE '$ENVIRONMENT_TYPE' has no Terraform environment configured under kit-modules/basis/terraform/envs/. Only 'dev' and 'prod' are currently supported." >&2
+          exit 1
+          ;;
+      esac
+    - REGION="$(sh ./sh/ci/extract-aws-region.sh)"
+    - 'echo "AWS region: $REGION"'
+    # Only applies when ACTION_TYPE == destroy — no-op for plan/apply. Must run before any
+    # AWS/credential step so a missing/mismatched confirmation never gets far enough to touch
+    # cloud state. The operator must type the exact ENVIRONMENT_TYPE value to confirm intent.
+    - |
+      if [ "$ACTION_TYPE" = "destroy" ]; then
+        sh ./sh/ci/confirm-match.sh "$ENVIRONMENT_TYPE" "$CONFIRM_DESTROY" "CONFIRM_DESTROY"
+      fi
 
 build-basis:
   stage: build
   image:
     name: $APP_COMPOSER_IMAGE
     entrypoint: ['']
-  needs:
-    - validate-provision-inputs
   rules:
     - if: '$PIPELINE_KIND == "provision"'
+  needs:
+    - validate-provision-inputs
+  variables:
+    COMPOSER_ALLOW_SUPERUSER: "1"
   script:
-    - echo "Placeholder — real composer install lands in task 4.3"
+    - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
+    - bash ./sh/env/init.sh "$ENVIRONMENT_TYPE"
+    - source ./.env
+    - composer install-${APP_BUILD_MODE}
+    - |
+      if [ "$IS_DEMO" = "true" ]; then
+        echo "Detected demo mode — forcing Composer update from dist"
+        composer update solidbunch/basis --no-interaction --with-all-dependencies
+      else
+        echo "Skipping composer update — not in demo mode"
+      fi
+  artifacts:
+    expire_in: 1 hour
+    paths:
+      - vendor/
+      - kit-modules/
+      - composer.lock
 
 provision:
   stage: provision
