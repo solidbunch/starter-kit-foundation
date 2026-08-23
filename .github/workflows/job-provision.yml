@@ -30,6 +30,11 @@ on:
         required: false
         type: string
         default: ''
+      CONFIRM_DESTROY:
+        description: 'Required only when ACTION_TYPE is destroy — type the exact ENVIRONMENT_TYPE value to confirm'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -51,6 +56,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      - name: Confirm destroy
+        # Only applies when ACTION_TYPE == destroy — no-op for plan/apply. Must run before any
+        # AWS/credential step so a missing/mismatched confirmation never gets far enough to touch
+        # cloud state. The operator must type the exact ENVIRONMENT_TYPE value to confirm intent.
+        if: inputs.ACTION_TYPE == 'destroy'
+        run: |
+          if [ "${{ inputs.CONFIRM_DESTROY }}" != "${{ inputs.ENVIRONMENT_TYPE }}" ]; then
+            echo "::error::CONFIRM_DESTROY must exactly equal ENVIRONMENT_TYPE ('${{ inputs.ENVIRONMENT_TYPE }}') to proceed with a destroy. Got: '${{ inputs.CONFIRM_DESTROY }}'."
+            exit 1
+          fi
 
       - name: Extract AWS region from .env.main
         id: region
