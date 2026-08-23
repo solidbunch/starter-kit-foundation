@@ -108,8 +108,11 @@ jobs:
 
       - name: Store OIDC credentials for IaC
         run: |
-          # AWS credentials are NOT written to files — they will be passed
-          # to containers via docker compose -e flags during runtime only
+          # These are short-lived OIDC session credentials written only to the runner-local
+          # job environment file ($GITHUB_ENV) — never persisted to the repo, the deploy
+          # artifact, or the build cache. GitHub's own log masking (configured by
+          # configure-aws-credentials via ::add-mask::) prevents them from leaking into logs
+          # regardless of where they are read from during this job.
           echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
           echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> $GITHUB_ENV
