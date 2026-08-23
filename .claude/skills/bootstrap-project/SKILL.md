@@ -331,7 +331,8 @@ Repository level (**New repository variable**):
 
 | Name | Required | Value |
 |---|---|---|
-| `AWS_ROLE_TO_ASSUME` | for provisioning | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible, see step 4 |
+| `AWS_ROLE_TO_ASSUME` | for provisioning | ARN of the everyday IAM role GitHub OIDC assumes for Terraform/Ansible, see step 4 |
+| `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | for state-backend bootstrap (step 5) only | ARN of the narrower, one-time bootstrap role — the only one with `s3:CreateBucket`/`dynamodb:CreateTable` — see step 4 |
 | `IS_DEMO` | no | `true` only for SolidBunch demo/showcase stands — forces licensed modules to update from `dist` |
 
 Environment level (**Settings** → **Environments** → pick one → **Add variable**):
@@ -356,38 +357,34 @@ Do **not** add an `AWS_REGION` variable — the region comes from `TF_VAR_aws_re
 `config/environment/.env.main`, which the pipeline reads directly. The same reasoning applies to
 the deploy target itself: it comes from `APP_DOMAIN` in tracked config, not a platform variable.
 
-**4. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
-not in a container, needs the AWS CLI installed locally with credentials that can read IAM:
+**4. Create the AWS IAM roles** (one-time, needed before any provisioning or state-backend
+bootstrap run). Runs on your host, not in a container, needs the AWS CLI installed locally with
+credentials that can read IAM:
 
 \`\`\`bash
 bash ./kit-modules/basis/sh/aws/oidc.sh -m gen -e dev
 \`\`\`
 
-This prints the exact AWS Console clicks (IAM → Identity providers → Add provider → OpenID
-Connect; IAM → Roles → Create role → Web identity) plus a ready-to-paste IAM policy JSON. Follow
-it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from step 3.
+A single run prints the exact AWS Console clicks (IAM → Identity providers → Add provider →
+OpenID Connect; IAM → Roles → Create role → Web identity) plus ready-to-paste IAM policy JSON for
+**both** roles: the everyday provisioning role (`AWS_ROLE_TO_ASSUME`) and the narrower, one-time
+bootstrap role (`AWS_BOOTSTRAP_ROLE_TO_ASSUME`) — only the bootstrap role gets
+`s3:CreateBucket`/`dynamodb:CreateTable`, the everyday role never does. Follow it verbatim, then
+copy both created roles' ARNs into the matching repo variables from step 3.
 
-**5. Bootstrap the Terraform state backend** (one-time, local, before the first provisioning run).
-CI does not create this backend automatically — skipping this step means the first *Provision
-Infrastructure* dispatch fails with "bucket does not exist":
+**5. Bootstrap the Terraform state backend** (one-time, before the first provisioning run). CI
+does not create this backend automatically — skipping this step means the first *Provision
+Infrastructure* dispatch fails with "bucket does not exist". This is done by dispatching a
+workflow, never by running Terraform locally:
 
-\`\`\`bash
-# Phase 1 — local state, creates the bucket + lock table
-mv kit-modules/basis/terraform/state/backend.tf /tmp/state-backend.tf
-make tf state init
-make tf state apply
-mv /tmp/state-backend.tf kit-modules/basis/terraform/state/backend.tf
-
-# Phase 2 — migrate that local state into the bucket it just created
-make basis   # interactive shell in the iac container, repo mounted at /srv
-#   inside the container:
-cd /srv/kit-modules/basis/terraform/state
-terraform init -migrate-state \
-  -backend-config="bucket=$TF_VAR_tf_backend_bucket" \
-  -backend-config="region=$TF_VAR_aws_region" \
-  -backend-config="dynamodb_table=$TF_VAR_tf_lock_table"
-#   answer "yes" when asked to copy the existing state to the new backend
-\`\`\`
+- Repo → **Actions** tab → *Bootstrap Terraform State Backend* in the left sidebar → **Run
+  workflow** button.
+- Its only input, `CONFIRM`, must exactly match the AWS region read from `TF_VAR_aws_region` in
+  `config/environment/.env.main` — the workflow fails closed before touching AWS credentials if
+  it doesn't match.
+- Requires `AWS_BOOTSTRAP_ROLE_TO_ASSUME` (step 3/step 4 above) to already be set as a repo-level
+  variable — the workflow assumes that role via OIDC to create the S3 bucket and DynamoDB lock
+  table.
 
 **6. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
 **Actions** tab → *Provision Infrastructure* in the left sidebar → **Run workflow** button (top
