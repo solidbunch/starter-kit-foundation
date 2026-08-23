@@ -261,7 +261,7 @@ jobs:
             iac bash -c "
             echo 'AWS_ACCESS_KEY_ID is set: \$([ -n \"\$AWS_ACCESS_KEY_ID\" ] && echo \"yes\" || echo \"no\")'
             echo 'AWS_SESSION_TOKEN is set: \$([ -n \"\$AWS_SESSION_TOKEN\" ] && echo \"yes\" || echo \"no\")'
-            aws sts get-caller-identity || echo 'AWS credentials test failed'
+            aws sts get-caller-identity
           "
 
       - name: Download reviewed plan artifact
