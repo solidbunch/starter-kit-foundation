@@ -179,11 +179,32 @@ jobs:
       - name: Verify Basis module is installed
         id: verify_basis
         run: |
-          if [ ! -d "kit-modules/basis" ]; then
-            echo "Basis module is not installed. Skipping provisioning."
-            echo "has_basis=false" >> $GITHUB_OUTPUT
+          # Three-state classifier: composer.lock's recorded package `type` (licensed
+          # `kit-module` vs unlicensed `metapackage` stub) is cross-checked against whether
+          # kit-modules/basis actually landed on disk. Directory presence alone is not
+          # trustworthy — see .claude/plans/architect-plan-pipeline-audit-fixes.md item 4.
+          LOCK_TYPE=$(jq -r '.packages[] | select(.name=="solidbunch/basis") | .type' composer.lock)
+          if [ -z "$LOCK_TYPE" ]; then
+            LOCK_TYPE="metapackage"
+          fi
+
+          if [ -d "kit-modules/basis" ]; then
+            DIR_PRESENT=true
           else
-            echo "Basis module found."
+            DIR_PRESENT=false
+          fi
+
+          if [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "false" ]; then
+            echo "composer.lock records solidbunch/basis as unlicensed (metapackage) and kit-modules/basis is absent — genuinely unlicensed. Skipping provisioning."
+            echo "has_basis=false" >> $GITHUB_OUTPUT
+          elif [ "$LOCK_TYPE" = "kit-module" ] && [ "$DIR_PRESENT" = "false" ]; then
+            echo "::error::composer.lock records solidbunch/basis as licensed (kit-module) but kit-modules/basis is missing on disk — install failed or the license expired. Failing the job."
+            exit 1
+          elif [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "true" ]; then
+            echo "::warning::composer.lock records solidbunch/basis as unlicensed (metapackage) but kit-modules/basis is present on disk — ambiguous, likely a stale or local install. Proceeding anyway."
+            echo "has_basis=true" >> $GITHUB_OUTPUT
+          else
+            echo "Basis module found and composer.lock confirms it is licensed (kit-module)."
             echo "has_basis=true" >> $GITHUB_OUTPUT
           fi
 
