@@ -72,6 +72,10 @@ jobs:
         id: region
         run: |
           REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
+          if [ -z "$REGION" ]; then
+            echo "Error: TF_VAR_aws_region is not set in ./config/environment/.env.main"
+            exit 1
+          fi
           echo "region=$REGION" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials
