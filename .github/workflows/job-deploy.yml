@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Prepare .env
         run: |
@@ -80,7 +80,7 @@ jobs:
           rm -f config/environment/.env.secret
 
       - name: Save Built job
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .
           key: build-job-${{ github.run_number }}
@@ -108,7 +108,7 @@ jobs:
 
     steps:
       - name: Use Built job
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .
           key: build-job-${{ github.run_number }}
