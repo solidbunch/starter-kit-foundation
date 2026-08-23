@@ -363,7 +363,29 @@ This prints the exact AWS Console clicks (IAM → Identity providers → Add pro
 Connect; IAM → Roles → Create role → Web identity) plus a ready-to-paste IAM policy JSON. Follow
 it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from step 3.
 
-**5. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
+**5. Bootstrap the Terraform state backend** (one-time, local, before the first provisioning run).
+CI does not create this backend automatically — skipping this step means the first *Provision
+Infrastructure* dispatch fails with "bucket does not exist":
+
+\`\`\`bash
+# Phase 1 — local state, creates the bucket + lock table
+mv kit-modules/basis/terraform/state/backend.tf /tmp/state-backend.tf
+make tf state init
+make tf state apply
+mv /tmp/state-backend.tf kit-modules/basis/terraform/state/backend.tf
+
+# Phase 2 — migrate that local state into the bucket it just created
+make basis   # interactive shell in the iac container, repo mounted at /srv
+#   inside the container:
+cd /srv/kit-modules/basis/terraform/state
+terraform init -migrate-state \
+  -backend-config="bucket=$TF_VAR_tf_backend_bucket" \
+  -backend-config="region=$TF_VAR_aws_region" \
+  -backend-config="dynamodb_table=$TF_VAR_tf_lock_table"
+#   answer "yes" when asked to copy the existing state to the new backend
+\`\`\`
+
+**6. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
 **Actions** tab → *Provision Infrastructure* in the left sidebar → **Run workflow** button (top
 right of the run list) → set:
 - `ENVIRONMENT_TYPE`: `dev`, `stage`, or `prod`
@@ -373,10 +395,10 @@ right of the run list) → set:
 
 then click **Run workflow** again to confirm.
 
-**6. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
+**7. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
 new commit: Actions → *Deploy to Develop* → **Run workflow**.
 
-**7. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
+**8. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
 is the only way anything reaches prod.
 
 Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`
