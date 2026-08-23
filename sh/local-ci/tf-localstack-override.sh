@@ -183,8 +183,12 @@ do_write() {
     local shared_dir="$BASIS_TERRAFORM_DIR/envs/shared"
     local dev_dir="$BASIS_TERRAFORM_DIR/envs/dev"
 
-    # terraform/state has no backend.tf (local state) — provider override only.
-    write_provider_block > "$state_dir/$OVERRIDE_FILENAME"
+    # terraform/state uses an s3 backend — provider + backend override.
+    # key copied verbatim from state/backend.tf.
+    {
+        write_provider_block
+        write_backend_block "state/terraform.tfstate"
+    } > "$state_dir/$OVERRIDE_FILENAME"
     echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $state_dir/$OVERRIDE_FILENAME"
 
     # terraform/envs/shared uses an s3 backend — provider + backend override.
