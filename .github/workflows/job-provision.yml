@@ -280,12 +280,14 @@ jobs:
           path: ./tfplan-download
 
       - name: Decrypt and unpack reviewed plan
+        id: decrypt_plan
         if: |
           steps.verify_basis.outputs.has_basis == 'true' &&
           inputs.ACTION_TYPE == 'apply' &&
           inputs.PLAN_RUN_ID != '' &&
           steps.tfplan_secret.outputs.set == 'true' &&
           steps.download_plan.outcome == 'success'
+        continue-on-error: true
         env:
           TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
         run: |
@@ -296,6 +298,22 @@ jobs:
           {
             echo "**Plan source:** pinned plan from run \`${{ inputs.PLAN_RUN_ID }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # An explicit PLAN_RUN_ID means the operator wants a specific, already-reviewed plan
+      # applied — never a silent substitute. If the artifact download or the decrypt/unpack
+      # failed for a pinned run, this must stop the run loudly rather than falling through to
+      # "Record plan-then-apply fallback" below, which would silently apply a fresh, unreviewed
+      # plan under the same generic summary note used for "no plan was ever requested".
+      - name: Fail on pinned plan retrieval failure
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.PLAN_RUN_ID != '' &&
+          steps.tfplan_secret.outputs.set == 'true' &&
+          (steps.download_plan.outcome == 'failure' || steps.decrypt_plan.outcome == 'failure')
+        run: |
+          echo "::error::Pinned Terraform plan for run '${{ inputs.PLAN_RUN_ID }}' could not be retrieved (artifact download or decrypt/unpack failed). An explicit PLAN_RUN_ID was provided, so this run is stopping instead of silently falling back to an unreviewed same-run plan-then-apply. Verify the run ID, that its 'tfplan-${{ inputs.ENVIRONMENT_TYPE }}' artifact still exists, and that TFPLAN_PASSPHRASE matches the one used to encrypt it, then re-dispatch."
+          exit 1
 
       - name: Record plan-then-apply fallback
         if: |
