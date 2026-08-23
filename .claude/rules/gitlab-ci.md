@@ -87,13 +87,15 @@ Docker), not on the runner. `resource_group: $ENVIRONMENT_TYPE` (one line in the
 template) serializes concurrent deploys to the same server — relevant mainly for dev, which
 auto-deploys on every push.
 
-`.build-composer` also runs the same two conditional steps as GitHub Actions' `job-deploy.yml`,
-for full parity: `composer run switch-theme-dev` when `ENVIRONMENT_TYPE == dev` (switches the
+`.build-composer` calls the same shared script as GitHub Actions' `job-deploy.yml` for full
+parity — `sh ./sh/ci/composer-extras.sh "$ENVIRONMENT_TYPE" "$IS_DEMO"`, after the two composer
+installs — which runs `composer run switch-theme-dev` when `ENVIRONMENT_TYPE == dev` (switches the
 theme to its `dev-develop` Composer VCS branch — see `ci.md` and root `CLAUDE.md`'s "Intentional
 Quirks"; becomes a harmless no-op if a project has detached its theme from that Composer package,
 e.g. via `bootstrap-project`'s monorepo option), and the `IS_DEMO`-guarded
 `solidbunch/monitoring-client`/`solidbunch/starter-kit-addon` dist update (skipped unless the
-GitLab CI/CD variable `IS_DEMO` is `"true"`).
+GitLab CI/CD variable `IS_DEMO` is `"true"`). See `ci.md`'s "Shared deploy scripts (`sh/ci/`)" for
+the full script inventory — this file does not repeat it.
 
 **`artifacts: paths:` on `.build-composer` is an explicit whitelist, not a whole-directory
 carry-over — keep it in sync with what `composer install-*` actually produces.** GitHub Actions'
@@ -212,20 +214,23 @@ job image.
 
 ## Deriving the deploy target — `script:`, not `before_script:`
 
-`.deploy`'s `script:` opens with a `|` block that resolves `ENV_FILE` to
+`.deploy`'s `script:` is a single entry, `sh ./sh/ci/deploy.sh "$ENVIRONMENT_TYPE"` — the same
+shared script GitHub Actions calls (see `ci.md`'s "Shared deploy scripts (`sh/ci/`)"). `deploy.sh`
+sources `sh/ci/resolve-deploy-target.sh`, which resolves `ENV_FILE` to
 `./config/environment/.env.type.${ENVIRONMENT_TYPE}`, fails the job immediately (`echo "Error:
 …"; exit 1`) if that file doesn't exist or `APP_DOMAIN` greps out empty, and otherwise `export`s
-`APP_DOMAIN` and `DEPLOY_PATH="/srv/$APP_DOMAIN"` for the rest of the job's shell. Every later
-`ssh`/`rsync` call in `.deploy` uses `"$APP_DOMAIN"` as the SSH destination alias and
+`APP_DOMAIN` and `DEPLOY_PATH="/srv/$APP_DOMAIN"` for the rest of `deploy.sh`'s shell. Every later
+`ssh`/`rsync` call in `deploy.sh` uses `"$APP_DOMAIN"` as the SSH destination alias and
 `"$DEPLOY_PATH"` as the remote path — no CI/CD variable involved at any point.
 
-This block is deliberately the **first entry of `script:`**, not `before_script:`. GitLab
-concatenates `before_script` and `script` into one shell context, so an `export` in either would
-in practice survive to the other — but relying on that undocumented-for-this-purpose behavior is
-one fewer platform assumption to make in a file nobody here can authoritatively lint. Putting it
-first in `script:` costs ~10s (the `apk add` in `before_script` still runs first) and keeps the
-derivation unconditionally in the scope that consumes it. `after_script` needs neither value (it
-only deletes `~/.ssh/*`), so it's unaffected either way.
+The derivation runs as part of the **`script:` invocation**, not `before_script:`. GitLab
+concatenates `before_script` and `script` into one shell context, so an `export` from a
+`before_script:`-invoked script would in practice survive into `script:` — but relying on that
+undocumented-for-this-purpose behavior is one fewer platform assumption to make in a file nobody
+here can authoritatively lint. Keeping the call in `script:` costs ~10s (the `apk add` and
+`setup-ssh.sh` call in `before_script:` still run first) and keeps the derivation unconditionally
+in the scope that consumes it. `after_script` needs neither value (it only deletes `~/.ssh/*`), so
+it's unaffected either way.
 
 **Zero CI/CD variables are required for the deploy target on either platform.** The only
 GitLab-side configuration this pipeline needs is what already existed before this design:

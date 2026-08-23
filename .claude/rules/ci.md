@@ -20,26 +20,87 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
   with `ENVIRONMENT_TYPE=prod`. Same deploy-target derivation as above, reading `prod`'s
   `.env.type.prod`. There is no auto-deploy-on-push to prod.
 - `job-deploy.yml` (`workflow_call`) — build phase runs on `ubuntu-24.04`, prepares `.env` via
-  `sh/env/secret-gen.sh` + `sh/env/init.sh`, switches the theme to `dev-develop` only when
-  `ENVIRONMENT_TYPE == dev`, force-updates `monitoring-client` (+ a demo-only addon plugin, not
-  relevant outside showcase deploys — see `infrastructure.md`) from `dist` only when the `IS_DEMO`
-  repo variable is `true`, then `sh/system/install.sh yes` (composer +
-  npm). Deploy phase runs on `ubuntu-22.04`, pinned to the run's GitHub Environment
-  (`environment: ${{ inputs.ENVIRONMENT_TYPE }}`). Immediately after restoring the cached build
-  (`Use Built job`), a `Resolve deploy target from APP_DOMAIN` step greps `APP_DOMAIN` out of
-  `config/environment/.env.type.$ENVIRONMENT_TYPE`, fails fast (naming the reason) if the file is
-  missing or `APP_DOMAIN` is empty, and exports `APP_DOMAIN` + `DEPLOY_PATH=/srv/$APP_DOMAIN` via
-  `$GITHUB_ENV` (see "GitHub configuration" below) — before `rsync`ing the whole repo over SSH to
+  `sh/env/secret-gen.sh` + `sh/env/init.sh` (this part stays inline, see "Shared deploy scripts"
+  below), then runs `sh/ci/composer-extras.sh` inside the toolkit `composer` container — it
+  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and force-updates
+  `monitoring-client` (+ a demo-only addon plugin, not relevant outside showcase deploys — see
+  `infrastructure.md`) from `dist` only when the `IS_DEMO` repo variable is `true` — then
+  `sh/system/install.sh yes` (composer + npm), then `sh/ci/scrub-secrets.sh` removes the generated
+  `.env`/`.env.runtime`/`.env.secret` before the whole workspace is cached (`Save Built job`).
+  Deploy phase runs on `ubuntu-22.04`, pinned to the run's GitHub Environment
+  (`environment: ${{ inputs.ENVIRONMENT_TYPE }}`). After restoring the cached build (`Use Built
+  job`), `sh/ci/setup-ssh.sh` (`SSH_INPUT_MODE: literal`) writes `~/.ssh/id_rsa` +
+  `~/.ssh/config` from the `SSH_KEY`/`SSH_CONFIG` secrets, then `sh/ci/deploy.sh
+  '${{ inputs.ENVIRONMENT_TYPE }}'` does the rest: it sources `sh/ci/resolve-deploy-target.sh`,
+  which greps `APP_DOMAIN` out of `config/environment/.env.type.$ENVIRONMENT_TYPE`, fails fast
+  (naming the reason) if the file is missing or `APP_DOMAIN` is empty, and exports `APP_DOMAIN` +
+  `DEPLOY_PATH=/srv/$APP_DOMAIN` — then `deploy.sh` `rsync`s the whole repo over SSH to
   `$DEPLOY_PATH` (excludes `.git*`, `node_modules`, `backups/`, `db-*/`, `logs/`, all `.env*`
   variants, `config/ssl/`, uploads/languages/cache — see the `--exclude` list before changing what
   ships), then over SSH on the target: `make secret`, `make APP_MULTI_INSTANCE=<var> proxy deploy
   '<env>'` (Stage C hook — writes the instance's Traefik/nginx wiring before `sh/env/init.sh`
   regenerates `.env`), `sh/env/init.sh`, `make ssl`, `make recreate`, `make monitoring off` →
-  `make monitoring on`, DB health check, `make core-install`.
+  `make monitoring on`, DB health check, `make core-install`. See "Shared deploy scripts
+  (`sh/ci/`)" below for the full script inventory and the constraints that shaped it.
 - Required secrets: `SSH_KEY`, `SSH_CONFIG`, `COMPOSER_AUTH` (see `infrastructure.md` for what
   `COMPOSER_AUTH` unlocks) — that's it. **No CI/CD variable is required for the deploy target on
   either platform** — it's derived from `APP_DOMAIN`. Full GitHub-side configuration: the section
   below.
+
+## Shared deploy scripts (`sh/ci/`)
+
+The deploy-time logic that used to be duplicated inline in `job-deploy.yml` and
+`.gitlab/ci/deploy.gitlab-ci.yml` now lives once, in `sh/ci/`, called identically from both
+pipelines. See `gitlab-ci.md` for the GitLab-side call sites — this is the canonical description,
+not repeated there.
+
+- **`sh/ci/resolve-deploy-target.sh`** — sourced (`. ./sh/ci/resolve-deploy-target.sh`), never
+  executed, by `sh/ci/deploy.sh` only. Reads `ENVIRONMENT_TYPE` from the environment, greps
+  `APP_DOMAIN` out of `config/environment/.env.type.$ENVIRONMENT_TYPE`, and exports `APP_DOMAIN` +
+  `DEPLOY_PATH=/srv/$APP_DOMAIN`.
+- **`sh/ci/deploy.sh`** — executed as `sh ./sh/ci/deploy.sh '<env>'`. Sources the script above,
+  then runs the `ssh mkdir` + `rsync` + remote `make` chain against the target server. Called by
+  GitHub's `Deploy via SSH` step and GitLab's `.deploy` `script:`.
+- **`sh/ci/composer-extras.sh`** — executed as `sh ./sh/ci/composer-extras.sh '<env>' '<is_demo>'`.
+  The theme-switch-to-`dev-develop` + demo-mode `monitoring-client`/addon dist update, both gated
+  by its two positional args. Called from inside the toolkit `composer` container on GitHub (via
+  `su -c`, hence positional args rather than an env var — `su`'s environment preservation isn't
+  reliable) and natively from GitLab's `.build-composer`.
+- **`sh/ci/setup-ssh.sh`** — executed as `sh ./sh/ci/setup-ssh.sh`, requires `SSH_INPUT_MODE`
+  (`file` or `literal`) plus `SSH_KEY`/`SSH_CONFIG`. Writes `~/.ssh/id_rsa` (mode `400`) and
+  `~/.ssh/config` (mode `600`). GitHub passes `SSH_INPUT_MODE: literal` (secrets are the key
+  material itself); GitLab passes `SSH_INPUT_MODE=file` (its `SSH_KEY`/`SSH_CONFIG` are File-type
+  CI/CD variables, i.e. paths). The mode is an explicit flag, never content-sniffed.
+- **`sh/ci/scrub-secrets.sh`** — executed as `sh ./sh/ci/scrub-secrets.sh`, no args. Removes
+  `.env`, `.env.runtime`, `config/environment/.env.secret` before GitHub caches the whole
+  workspace (`actions/cache/save`, `path: .`). GitHub-only caller — GitLab's `.build-composer`
+  `artifacts:` is an explicit allowlist that never includes these files, so there is nothing to
+  scrub on that side.
+
+All five are `#!/bin/sh`, POSIX-only (no `bash`isms, no `echo -e`) — the GitLab deploy job runs in
+bare `alpine:3.20`, which has no bash and never installs one, so every script that could run there
+has to work under busybox `ash`. GitHub's runner `/bin/sh` (dash) is POSIX too, so the same scripts
+work unmodified on both platforms.
+
+Two things deliberately stayed inline rather than being extracted here, because the two platforms'
+implementations share no common command: **`.env` preparation** (`secret-gen.sh`/`init.sh` on
+GitHub vs. native `pass_gen.sh`/`init.sh` on GitLab — they differ in Docker-availability, path, and
+whether `COMPOSER_AUTH` gets appended to a file) and **dependency installation** (GitHub's single
+`sh/system/install.sh yes` call vs. GitLab's two parallel native composer/node build jobs, because
+GitLab.com shared runners have no Docker daemon).
+
+Two intentional behaviour deltas came out of the extraction, both harmless-tightening rather than
+functional changes: the "env file not found" error text is now the same unified string on both
+platforms (`Error: $ENV_FILE not found (build cache/artifact restore may have failed)` — GitHub
+previously said "build cache", GitLab said nothing about the cause at all), and `~/.ssh/config` is
+now `chmod 600` on **both** platforms (GitLab already did this; GitHub previously left it at the
+runner's default `644`).
+
+`sh/ci/` is not the same thing as the pre-existing `sh/local-ci/` (see "Local emulation" below):
+`sh/ci/` is shared logic actually invoked by the two real CI pipelines (GitHub Actions and
+GitLab CI), while `sh/local-ci/` is a local `act`+LocalStack test harness for running
+`job-provision.yml` on a laptop with no cloud account — different purpose, different callers,
+never call one from the other.
 
 ## Provisioning pipeline
 
@@ -203,7 +264,8 @@ Variables (**Variables** tab, or per environment):
 
 There is **no deploy-target variable** in this table — no `SSH_HOST_ALIAS`, no
 `DEPLOY_PATH_DESTINATION`, on either the repo or environment level. The deploy target is derived
-at runtime by the `deploy` job's `Resolve deploy target from APP_DOMAIN` step, which greps
+at runtime by `sh/ci/resolve-deploy-target.sh` (sourced from `sh/ci/deploy.sh`, see "Shared deploy
+scripts" below), which greps
 `APP_DOMAIN` out of `config/environment/.env.type.$ENVIRONMENT_TYPE` (already tracked in git,
 already customized per-project when `bootstrap-project` renames a project) and computes
 `DEPLOY_PATH=/srv/$APP_DOMAIN` — the same pattern already used for `TF_VAR_aws_region` (see
