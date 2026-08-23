@@ -47,7 +47,13 @@ wp core install \
 
 echo -e "${LIGHTGREEN}[Success]${RESET} wp core installed, admin user added"
 echo -e "${LIGHTGREEN}[Success]${RESET} Admin username: ${LIGHTYELLOW}$WP_ADMIN_USER${RESET}"
-echo -e "${LIGHTGREEN}[Success]${RESET} Admin password: ${LIGHTYELLOW}$WP_ADMIN_PASSWORD${RESET}"
+
+# Admin password is only echoed on local — CI environments (dev/stage/prod) run this
+# non-interactively and their output lands in Actions logs, which don't mask this value
+# (it's generated into .env.secret, not passed through GitHub's secrets: context).
+if [ "$WP_ENVIRONMENT_TYPE" = "local" ]; then
+  echo -e "${LIGHTGREEN}[Success]${RESET} Admin password: ${LIGHTYELLOW}$WP_ADMIN_PASSWORD${RESET}"
+fi
 echo -e "${CYAN}[Info]${RESET} You can find this credentials in 'config/environment/.env.secret' file"
 echo -e "${LIGHTYELLOW}[Warning]${RESET} Store your password in safe place"
 
