@@ -68,9 +68,12 @@ bug this design avoids" below for exactly what that looked like.
 ```
 stages: [build, deploy]
 
-build-composer  (image: $APP_COMPOSER_IMAGE, entrypoint:[""])  ─┐
-build-node      (image: $APP_NODE_IMAGE,     entrypoint:[""])  ─┤ artifacts
-                                                                 ▼
+build-composer  (image: $APP_COMPOSER_IMAGE, entrypoint:[""])
+      │ artifacts (needs: [build-composer])
+      ▼
+build-node      (image: $APP_NODE_IMAGE,     entrypoint:[""])
+      │
+      ▼  artifacts
 deploy-dev / deploy-prod  (image: alpine:3.20 + rsync/openssh)  needs:[build-composer, build-node]
 ```
 
@@ -78,11 +81,25 @@ Each build job runs **natively inside the toolkit image itself** (set as the job
 instead of shelling out to the toolkit compose file — that pattern only works with a self-hosted
 shell-executor runner sharing a filesystem with the Docker daemon, which GitLab.com shared runners
 do not provide. `entrypoint: [""]` bypasses the toolkit images' custom `ENTRYPOINT` (host-UID
-remap, `COMPOSER_AUTH` logging) so the job's own `script` runs directly. The two build jobs run
-**in parallel** in the `build` stage — composer's install needs only `composer.*`, node's build
-needs only the git-tracked theme source. The deploy job in the `deploy` stage `needs:` both and
-receives their artifacts merged over a fresh clone, then rsyncs `./` to the target server and runs
-the remote `make` sequence over SSH — that phase runs on the target server itself (which has
+remap, `COMPOSER_AUTH` logging) so the job's own `script` runs directly.
+
+**`build-node` runs after `build-composer`, not in parallel with it** (`needs: [build-composer]`
+on `.build-node`) — a correction from an earlier version of this doc, which claimed the two build
+jobs were independent because "node's build needs only the git-tracked theme source." That premise
+is false: `web/wp-content/themes/${WP_DEFAULT_THEME}/` is entirely git-ignored in this repo (`git
+ls-files` returns nothing under that path). The theme is a Composer VCS package
+(`solidbunch/starter-kit-theme`, `preferred-install: source`), so the whole theme directory —
+including `package.json`, which `npm run install-${APP_BUILD_MODE} --prefix
+"web/wp-content/themes/${WP_DEFAULT_THEME}"` requires — only exists on disk after
+`.build-composer`'s top-level `composer install-${APP_BUILD_MODE}` checks it out. On GitLab.com's
+shared runners each job starts from its own fresh clone with no shared filesystem, so without
+`needs:`, `build-node` could start (and fail with `npm error enoent Could not read package.json`)
+before or in parallel with `build-composer`. `.build-composer`'s `artifacts: paths:` therefore also
+carries the whole theme directory (`web/wp-content/themes/${WP_DEFAULT_THEME}/`, not just its
+`vendor/` subdirectory) so `build-node` receives the checked-out theme source, not only its PHP
+deps. The deploy job in the `deploy` stage still `needs:` both `build-composer` and `build-node`
+and receives their artifacts merged over a fresh clone, then rsyncs `./` to the target server and
+runs the remote `make` sequence over SSH — that phase runs on the target server itself (which has
 Docker), not on the runner. `resource_group: $ENVIRONMENT_TYPE` (one line in the shared `.deploy`
 template) serializes concurrent deploys to the same server — relevant mainly for dev, which
 auto-deploys on every push.
@@ -105,7 +122,9 @@ carry-over — keep it in sync with what `composer install-*` actually produces.
 automatically. GitLab's `artifacts:` has no equivalent here (deliberately not using
 `paths: ['.']`, which would also carry `.git`, caches, and other build noise into the deploy
 job) — the list must be maintained by hand: `vendor/`, `web/wp-core/`, `web/wp-content/plugins/`,
-`web/wp-content/mu-plugins/`, the theme's `vendor/`, and `kit-modules/`. If a future Composer
+`web/wp-content/mu-plugins/`, the whole `web/wp-content/themes/${WP_DEFAULT_THEME}/` directory
+(not just its `vendor/` subdirectory — `build-node` also consumes this artifact for the theme's
+git-ignored source, see "Pipeline shape" above), and `kit-modules/`. If a future Composer
 installer path is added and this list isn't updated, that path silently never reaches the deploy
 job or the server — rsync can't sync what was never copied into the deploy job's working directory
 in the first place.

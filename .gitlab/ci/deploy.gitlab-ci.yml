@@ -34,14 +34,18 @@
       - web/wp-core/
       - web/wp-content/plugins/
       - web/wp-content/mu-plugins/
-      - web/wp-content/themes/${WP_DEFAULT_THEME}/vendor/
+      - web/wp-content/themes/${WP_DEFAULT_THEME}/
       - kit-modules/
+    exclude:
+      - web/wp-content/themes/${WP_DEFAULT_THEME}/.git/**
 
 .build-node:
   stage: build
   image:
     name: "$APP_NODE_IMAGE"
     entrypoint: [""]
+  needs:
+    - build-composer
   script:
     - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
     - bash ./sh/env/init.sh "$ENVIRONMENT_TYPE"
