@@ -36,31 +36,13 @@ jobs:
           fi
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
-      - name: Switch Theme Version for Dev Environment
-        if: inputs.ENVIRONMENT_TYPE == 'dev'
+      - name: Theme switch + demo-mode Composer extras
         run: |
-          echo "Switching theme to dev-develop version for dev environment"
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           # Load environment variables from .env file
           source .env
-          docker compose -f docker-compose.toolkit.yml run --rm composer su -c "composer run switch-theme-dev" "${DEFAULT_USER}"
-
-      - name: Update Monitoring & Addon (only in demo)
-        env:
-          IS_DEMO: ${{ vars.IS_DEMO }}
-        run: |
-          if [ "$IS_DEMO" = "true" ]; then
-            echo "Detected demo mode — forcing Composer update from dist"
-            export CURRENT_UID=$(id -u)
-            export CURRENT_GID=$(id -g)
-            source .env
-            docker compose -f docker-compose.toolkit.yml run --rm composer su -c "
-              composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
-            " "${DEFAULT_USER}"
-          else
-            echo "Skipping composer update — not in demo mode"
-          fi
+          docker compose -f docker-compose.toolkit.yml run --rm composer su -c "sh ./sh/ci/composer-extras.sh '${{ inputs.ENVIRONMENT_TYPE }}' '${{ vars.IS_DEMO }}'" "${DEFAULT_USER}"
 
       - name: Install Composer and Node Dependencies
         run: |
@@ -69,15 +51,9 @@ jobs:
           source .env
           bash ./sh/system/install.sh yes
 
-      # Safe to remove before caching: deploy never reads these paths (it greps
-      # config/environment/.env.type.$ENVIRONMENT_TYPE, which is tracked in git, not a secret),
-      # rsync already excludes every .env* variant, and the target server regenerates them itself
-      # via `make secret` + `sh/env/init.sh`.
+      # Rationale for why this is safe: see sh/ci/scrub-secrets.sh header.
       - name: Scrub secrets before caching
-        run: |
-          rm -f .env
-          rm -f .env.runtime
-          rm -f config/environment/.env.secret
+        run: sh ./sh/ci/scrub-secrets.sh
 
       - name: Save Built job
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
@@ -113,69 +89,15 @@ jobs:
           path: .
           key: build-job-${{ github.run_number }}
 
-      - name: Resolve deploy target from APP_DOMAIN
-        env:
-          ENVIRONMENT_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
-        run: |
-          ENV_FILE="./config/environment/.env.type.${ENVIRONMENT_TYPE}"
-          if [ ! -f "$ENV_FILE" ]; then
-            echo "Error: $ENV_FILE not found (build cache restore may have failed)"
-            exit 1
-          fi
-          APP_DOMAIN=$(grep '^APP_DOMAIN=' "$ENV_FILE" | cut -d '=' -f2)
-          if [ -z "$APP_DOMAIN" ]; then
-            echo "Error: APP_DOMAIN is not set in $ENV_FILE"
-            exit 1
-          fi
-          echo "APP_DOMAIN=$APP_DOMAIN" >> "$GITHUB_ENV"
-          echo "DEPLOY_PATH=/srv/$APP_DOMAIN" >> "$GITHUB_ENV"
-          echo "Deploy target: $APP_DOMAIN:/srv/$APP_DOMAIN"
-
       - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
-          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+        run: sh ./sh/ci/setup-ssh.sh
+        env:
+          SSH_INPUT_MODE: literal
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
 
       - name: Deploy via SSH
-        run: |
-          echo "Deploying to $DEPLOY_PATH"
-          ssh "$APP_DOMAIN" mkdir -p "$DEPLOY_PATH"
-          rsync -og \
-            --chmod=Dug=rwx,Fug=rw \
-            --checksum \
-            --recursive \
-            --verbose \
-            --compress \
-            --links \
-            --delete-after \
-            --exclude ".git*" \
-            --exclude "*/node_modules/" \
-            --exclude "backups/" \
-            --exclude "tmp/" \
-            --exclude "**/db-*/" \
-            --exclude="**/tail-db/" \
-            --exclude "logs/" \
-            --exclude ".env" \
-            --exclude ".env.*override" \
-            --exclude ".env.*runtime" \
-            --exclude ".env.*secret" \
-            --exclude "config/ssl/" \
-            --exclude "web/wp-content/languages" \
-            --exclude "web/wp-content/uploads" \
-            --include "web/wp-content/cache" \
-            ./ "$APP_DOMAIN:$DEPLOY_PATH"
-          ssh "$APP_DOMAIN" "
-            set -e -o pipefail;
-            cd $DEPLOY_PATH;
-            make secret;
-            make APP_MULTI_INSTANCE='${{ vars.APP_MULTI_INSTANCE }}' proxy deploy '${{ inputs.ENVIRONMENT_TYPE }}';
-            bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
-            make ssl;
-            make recreate '${{ inputs.ENVIRONMENT_TYPE }}';
-            make monitoring off;
-            make monitoring on;
-            bash ./sh/database/check.sh;
-            make core-install"
+        run: sh ./sh/ci/deploy.sh '${{ inputs.ENVIRONMENT_TYPE }}'
+        env:
+          APP_MULTI_INSTANCE: ${{ vars.APP_MULTI_INSTANCE }}
 
