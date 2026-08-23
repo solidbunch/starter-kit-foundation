@@ -14,6 +14,8 @@
 
 .build-composer:
   stage: build
+  rules:
+    - if: '$PIPELINE_KIND == "deploy"'
   image:
     name: "$APP_COMPOSER_IMAGE"
     entrypoint: [""]
@@ -41,6 +43,8 @@
 
 .build-node:
   stage: build
+  rules:
+    - if: '$PIPELINE_KIND == "deploy"'
   image:
     name: "$APP_NODE_IMAGE"
     entrypoint: [""]
@@ -62,6 +66,8 @@
 
 .deploy:
   stage: deploy
+  rules:
+    - if: '$PIPELINE_KIND == "deploy"'
   image: alpine:3.20
   resource_group: $ENVIRONMENT_TYPE
   needs:
