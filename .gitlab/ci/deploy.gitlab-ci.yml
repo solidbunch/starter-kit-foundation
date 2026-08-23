@@ -113,6 +113,7 @@
         --exclude ".git*" \
         --exclude "*/node_modules/" \
         --exclude "backups/" \
+        --exclude "tmp/" \
         --exclude "**/db-*/" \
         --exclude="**/tail-db/" \
         --exclude "logs/" \
