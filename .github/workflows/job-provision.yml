@@ -260,34 +260,14 @@ jobs:
             echo "**Plan source:** same-run plan-then-apply (no pinned plan used)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # 'state' and 'shared' are bulkheads shared across every environment (dev/stage/prod) —
-      # they must never be destroyed as a side effect of tearing down one environment's EC2
-      # instance. Only 'plan'/'apply' run these layers; 'destroy' skips them entirely and is
-      # scoped to the 'Terraform — environment' step below. To actually destroy the backend or
-      # shared network, run this workflow with ENVIRONMENT_TYPE pointed at that layer explicitly
-      # — there is currently no dedicated destroy path for 'state'/'shared'; report if one is needed.
-      - name: Terraform — state backend
-        if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE != 'destroy'
-        run: |
-          export CURRENT_UID=$(id -u)
-          export CURRENT_GID=$(id -g)
-          source .env
-          bash kit-modules/basis/sh/terraform.sh -e state -c init
-          if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
-            bash kit-modules/basis/sh/terraform.sh -e state -c plan -f tfplans/state.tfplan
-          else
-            if [ -f tfplans/state.tfplan ]; then
-              echo "- **state:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
-              if ! bash kit-modules/basis/sh/terraform.sh -e state -c apply -f tfplans/state.tfplan; then
-                echo "::error::Pinned Terraform plan for layer 'state' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
-                exit 1
-              fi
-            else
-              echo "- **state:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
-              bash kit-modules/basis/sh/terraform.sh -e state -c apply
-            fi
-          fi
-
+      # 'shared' is the only cross-environment bulkhead CI still runs automatically — it must
+      # never be destroyed as a side effect of tearing down one environment's EC2 instance. The
+      # 'state' layer (backend bootstrap) is no longer run by CI at all: it is bootstrapped once,
+      # locally, via `make tf state ...` — see .claude/rules/ci.md for the full procedure. Only
+      # 'plan'/'apply' run 'shared'; 'destroy' skips it entirely and is scoped to the
+      # 'Terraform — environment' step below. To actually destroy the shared network, run this
+      # workflow with ENVIRONMENT_TYPE pointed at that layer explicitly — there is currently no
+      # dedicated destroy path for 'shared'; report if one is needed.
       - name: Terraform — shared network
         if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE != 'destroy'
         run: |
@@ -310,10 +290,10 @@ jobs:
             fi
           fi
 
-      - name: Terraform — state/shared skipped (destroy is scoped to the environment layer)
+      - name: Terraform — shared skipped (destroy is scoped to the environment layer)
         if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE == 'destroy'
         run: |
-          echo "- **state/shared:** skipped — destroy only tears down the '${EFFECTIVE_ENV_TYPE}' environment layer, never the shared backend/network" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **shared:** skipped — destroy only tears down the '${EFFECTIVE_ENV_TYPE}' environment layer, never the shared network" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
@@ -336,7 +316,7 @@ jobs:
               bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply
             fi
           else
-            # Only 'destroy' reaches this branch — see the 'state' step's comment above.
+            # Only 'destroy' reaches this branch — see the comment above the 'shared' step.
             bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }} -y
           fi
 
@@ -348,7 +328,7 @@ jobs:
         env:
           TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
         run: |
-          tar czf tfplans.tar.gz tfplans/state.tfplan tfplans/shared.tfplan "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
+          tar czf tfplans.tar.gz tfplans/shared.tfplan "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
           gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$TFPLAN_PASSPHRASE" \
             --output tfplans.tar.gz.gpg tfplans.tar.gz
           rm -f tfplans.tar.gz
