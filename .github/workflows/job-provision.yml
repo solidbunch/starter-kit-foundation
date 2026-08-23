@@ -521,12 +521,26 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Get instance details
-          IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/srv/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" || echo "N/A")
-          IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/srv/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" || echo "N/A")
+          # Distinguish "output not set yet" (N/A) from "terraform command actually errored" (ERROR)
+          get_tf_output() {
+            local name="$1" out rc errfile
+            errfile=$(mktemp)
+            out=$(docker compose -f docker-compose.toolkit.yml run --rm \
+              -w "/srv/$TF_ENV_DIR" \
+              iac bash -lc "terraform output -raw $name" 2>"$errfile")
+            rc=$?
+            if [ $rc -eq 0 ]; then
+              echo "$out"
+            elif grep -q "not found" "$errfile"; then
+              echo "N/A"
+            else
+              echo "ERROR"
+            fi
+            rm -f "$errfile"
+          }
+
+          IPV4=$(get_tf_output instance_public_ip)
+          IPV6=$(get_tf_output instance_ipv6)
 
           if [ "$IPV4" != "N/A" ] || [ "$IPV6" != "N/A" ]; then
             echo "### Instance Details" >> $GITHUB_STEP_SUMMARY
