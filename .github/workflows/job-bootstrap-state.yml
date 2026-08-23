@@ -22,11 +22,7 @@ jobs:
       - name: Extract AWS region from .env.main
         id: region
         run: |
-          REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
-          if [ -z "$REGION" ]; then
-            echo "Error: TF_VAR_aws_region is not set in ./config/environment/.env.main"
-            exit 1
-          fi
+          REGION="$(sh ./sh/ci/extract-aws-region.sh)" || exit 1
           echo "region=$REGION" >> $GITHUB_OUTPUT
 
       - name: Confirm bootstrap
@@ -34,10 +30,10 @@ jobs:
         # gets far enough to touch cloud state. The operator must type the exact region value
         # extracted above to confirm intent.
         run: |
-          if [ "${{ inputs.CONFIRM }}" != "${{ steps.region.outputs.region }}" ]; then
+          sh ./sh/ci/confirm-match.sh "${{ steps.region.outputs.region }}" "${{ inputs.CONFIRM }}" "CONFIRM" || {
             echo "::error::CONFIRM must exactly equal the extracted AWS region ('${{ steps.region.outputs.region }}') to proceed with bootstrapping the Terraform state backend. Got: '${{ inputs.CONFIRM }}'."
             exit 1
-          fi
+          }
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
@@ -72,30 +68,31 @@ jobs:
           # `kit-module` vs unlicensed `metapackage` stub) is cross-checked against whether
           # kit-modules/basis actually landed on disk. Directory presence alone is not
           # trustworthy — see .claude/plans/architect-plan-pipeline-audit-fixes.md item 4.
-          LOCK_TYPE=$(jq -r '.packages[] | select(.name=="solidbunch/basis") | .type' composer.lock)
-          if [ -z "$LOCK_TYPE" ]; then
-            LOCK_TYPE="metapackage"
-          fi
+          # Classification itself lives in sh/ci/verify-basis.sh (shared with GitLab CI); this
+          # step is a thin wrapper that translates its stdout into $GITHUB_OUTPUT and re-attaches
+          # the GitHub ::error::/::warning:: annotation prefixes the shared script cannot emit.
+          # Note: the shared script's unlicensed/absent message wording says "Skipping
+          # provisioning" (preserved verbatim from job-provision.yml per task 3.3) rather than
+          # this workflow's former "Skipping bootstrap" — cosmetic only, same has_basis=false
+          # outcome.
+          set +e
+          BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
+          BASIS_RC=$?
+          set -e
+          BASIS_MSG="$(cat verify-basis.stderr)"
+          rm -f verify-basis.stderr
 
-          if [ -d "kit-modules/basis" ]; then
-            DIR_PRESENT=true
-          else
-            DIR_PRESENT=false
-          fi
-
-          if [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "false" ]; then
-            echo "composer.lock records solidbunch/basis as unlicensed (metapackage) and kit-modules/basis is absent — genuinely unlicensed. Skipping bootstrap."
-            echo "has_basis=false" >> $GITHUB_OUTPUT
-          elif [ "$LOCK_TYPE" = "kit-module" ] && [ "$DIR_PRESENT" = "false" ]; then
-            echo "::error::composer.lock records solidbunch/basis as licensed (kit-module) but kit-modules/basis is missing on disk — install failed or the license expired. Failing the job."
+          if [ $BASIS_RC -ne 0 ]; then
+            echo "::error::${BASIS_MSG}"
             exit 1
-          elif [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "true" ]; then
-            echo "::warning::composer.lock records solidbunch/basis as unlicensed (metapackage) but kit-modules/basis is present on disk — ambiguous, likely a stale or local install. Proceeding anyway."
-            echo "has_basis=true" >> $GITHUB_OUTPUT
-          else
-            echo "Basis module found and composer.lock confirms it is licensed (kit-module)."
-            echo "has_basis=true" >> $GITHUB_OUTPUT
           fi
+
+          case "$BASIS_MSG" in
+            *ambiguous*) echo "::warning::${BASIS_MSG}" ;;
+            *) echo "$BASIS_MSG" ;;
+          esac
+
+          echo "$BASIS_OUTPUT" >> $GITHUB_OUTPUT
 
       - name: Short-circuit when Basis is missing
         if: steps.verify_basis.outputs.has_basis == 'false'

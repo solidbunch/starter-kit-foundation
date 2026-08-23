@@ -76,19 +76,15 @@ jobs:
         # cloud state. The operator must type the exact ENVIRONMENT_TYPE value to confirm intent.
         if: inputs.ACTION_TYPE == 'destroy'
         run: |
-          if [ "${{ inputs.CONFIRM_DESTROY }}" != "${{ inputs.ENVIRONMENT_TYPE }}" ]; then
+          sh ./sh/ci/confirm-match.sh "${{ inputs.ENVIRONMENT_TYPE }}" "${{ inputs.CONFIRM_DESTROY }}" "CONFIRM_DESTROY" || {
             echo "::error::CONFIRM_DESTROY must exactly equal ENVIRONMENT_TYPE ('${{ inputs.ENVIRONMENT_TYPE }}') to proceed with a destroy. Got: '${{ inputs.CONFIRM_DESTROY }}'."
             exit 1
-          fi
+          }
 
       - name: Extract AWS region from .env.main
         id: region
         run: |
-          REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
-          if [ -z "$REGION" ]; then
-            echo "Error: TF_VAR_aws_region is not set in ./config/environment/.env.main"
-            exit 1
-          fi
+          REGION="$(sh ./sh/ci/extract-aws-region.sh)" || exit 1
           echo "region=$REGION" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials
@@ -200,30 +196,27 @@ jobs:
           # `kit-module` vs unlicensed `metapackage` stub) is cross-checked against whether
           # kit-modules/basis actually landed on disk. Directory presence alone is not
           # trustworthy — see .claude/plans/architect-plan-pipeline-audit-fixes.md item 4.
-          LOCK_TYPE=$(jq -r '.packages[] | select(.name=="solidbunch/basis") | .type' composer.lock)
-          if [ -z "$LOCK_TYPE" ]; then
-            LOCK_TYPE="metapackage"
-          fi
+          # Classification itself lives in sh/ci/verify-basis.sh (shared with GitLab CI); this
+          # step is a thin wrapper that translates its stdout into $GITHUB_OUTPUT and re-attaches
+          # the GitHub ::error::/::warning:: annotation prefixes the shared script cannot emit.
+          set +e
+          BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
+          BASIS_RC=$?
+          set -e
+          BASIS_MSG="$(cat verify-basis.stderr)"
+          rm -f verify-basis.stderr
 
-          if [ -d "kit-modules/basis" ]; then
-            DIR_PRESENT=true
-          else
-            DIR_PRESENT=false
-          fi
-
-          if [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "false" ]; then
-            echo "composer.lock records solidbunch/basis as unlicensed (metapackage) and kit-modules/basis is absent — genuinely unlicensed. Skipping provisioning."
-            echo "has_basis=false" >> $GITHUB_OUTPUT
-          elif [ "$LOCK_TYPE" = "kit-module" ] && [ "$DIR_PRESENT" = "false" ]; then
-            echo "::error::composer.lock records solidbunch/basis as licensed (kit-module) but kit-modules/basis is missing on disk — install failed or the license expired. Failing the job."
+          if [ $BASIS_RC -ne 0 ]; then
+            echo "::error::${BASIS_MSG}"
             exit 1
-          elif [ "$LOCK_TYPE" = "metapackage" ] && [ "$DIR_PRESENT" = "true" ]; then
-            echo "::warning::composer.lock records solidbunch/basis as unlicensed (metapackage) but kit-modules/basis is present on disk — ambiguous, likely a stale or local install. Proceeding anyway."
-            echo "has_basis=true" >> $GITHUB_OUTPUT
-          else
-            echo "Basis module found and composer.lock confirms it is licensed (kit-module)."
-            echo "has_basis=true" >> $GITHUB_OUTPUT
           fi
+
+          case "$BASIS_MSG" in
+            *ambiguous*) echo "::warning::${BASIS_MSG}" ;;
+            *) echo "$BASIS_MSG" ;;
+          esac
+
+          echo "$BASIS_OUTPUT" >> $GITHUB_OUTPUT
 
       - name: Extract SSH public key for Terraform
         if: steps.verify_basis.outputs.has_basis == 'true'
