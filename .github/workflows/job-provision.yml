@@ -314,6 +314,78 @@ jobs:
         run: |
           echo "- **shared:** skipped — destroy only tears down the '${EFFECTIVE_ENV_TYPE}' environment layer, never the shared network" >> "$GITHUB_STEP_SUMMARY"
 
+      # Snapshot the target layer's remote state before it is torn down. Runs only on the
+      # destroy path, before the 'Terraform — environment' step below actually calls
+      # `terraform destroy` — this is the only point-in-time recovery artifact a destroy run
+      # leaves behind, so it must exist before the state it describes is gone.
+      - name: Backup Terraform state before destroy
+        if: steps.verify_basis.outputs.has_basis == 'true' && inputs.ACTION_TYPE == 'destroy'
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+            iac su -c "
+              cd \"./$TF_ENV_DIR\" && \
+              terraform init \
+                -backend-config=\"bucket=\$TF_VAR_tf_backend_bucket\" \
+                -backend-config=\"region=\$TF_VAR_aws_region\" \
+                -backend-config=\"dynamodb_table=\$TF_VAR_tf_lock_table\" >/dev/null && \
+              terraform state pull
+            " "${DEFAULT_USER}" > tfstate-backup.json
+
+          if [ ! -s tfstate-backup.json ]; then
+            echo "::error::terraform state pull returned no output for layer '${EFFECTIVE_ENV_TYPE}' — aborting destroy without a state backup."
+            exit 1
+          fi
+
+      # Same TFPLAN_PASSPHRASE gating already used for the pinned-plan artifact above
+      # (steps.tfplan_secret, lines ~137-148): encrypt-and-upload when the secret is set,
+      # loud summary warning (never a silent skip) when it is not.
+      - name: Encrypt and upload Terraform state backup
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'destroy' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfstate-backup.json.gpg tfstate-backup.json
+          rm -f tfstate-backup.json
+
+      - name: Upload encrypted Terraform state backup artifact
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'destroy' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-backup-${{ inputs.ENVIRONMENT_TYPE }}
+          path: tfstate-backup.json.gpg
+          retention-days: 90
+
+      - name: Warn when Terraform state backup is skipped
+        if: |
+          steps.verify_basis.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'destroy' &&
+          steps.tfplan_secret.outputs.set != 'true'
+        run: |
+          rm -f tfstate-backup.json
+          {
+            echo "**Warning:** \`TFPLAN_PASSPHRASE\` secret is not configured — a pre-destroy Terraform"
+            echo "state snapshot for layer \`${EFFECTIVE_ENV_TYPE}\` was captured but NOT uploaded as an"
+            echo "artifact (plaintext state is never uploaded). No \`tfstate-backup-${EFFECTIVE_ENV_TYPE}\`"
+            echo "artifact exists for this run — if this destroy needs to be reverted, there is no CI-side"
+            echo "recovery snapshot; re-provisioning from scratch is the only path."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Terraform — environment
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
