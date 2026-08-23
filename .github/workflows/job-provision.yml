@@ -338,6 +338,21 @@ jobs:
             echo "**Plan source:** same-run plan-then-apply (no pinned plan used)"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify Terraform state backend exists
+        # The S3 bucket backing Terraform state is bootstrapped once, locally, and is never
+        # created by CI (see .claude/rules/ci.md, "State backend — bootstrapped once, locally,
+        # never by CI"). If a project skips that one-time bootstrap, the 'shared' Terraform run
+        # below fails deep inside the S3 backend init with a raw NoSuchBucket/AccessDenied error
+        # that reads like a permissions problem. Check for the bucket explicitly here so the
+        # failure names the actual cause and points at the fix.
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          source .env
+          if ! aws s3api head-bucket --bucket "$TF_VAR_tf_backend_bucket" --region "$AWS_DEFAULT_REGION" 2>/dev/null; then
+            echo "::error::Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' does not exist or is not accessible. This is not an AWS permissions problem — the CI role deliberately has no s3:CreateBucket permission. The state backend must be bootstrapped once, locally, before provisioning can run. Dispatch the 'Bootstrap Terraform State Backend' workflow (job-bootstrap-state.yml) against this AWS account, then re-run this workflow."
+            exit 1
+          fi
+
       # 'shared' is the only cross-environment bulkhead CI still runs automatically — it must
       # never be destroyed as a side effect of tearing down one environment's EC2 instance. The
       # 'state' layer (backend bootstrap) is no longer run by CI at all: it is bootstrapped once,
