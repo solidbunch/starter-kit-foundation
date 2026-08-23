@@ -199,7 +199,8 @@ Variables (**Variables** tab, or per environment):
 
 | Variable | Level | Required | Meaning |
 |---|---|---|---|
-| `AWS_ROLE_TO_ASSUME` | repo | for provisioning | IAM role ARN assumed via OIDC |
+| `AWS_ROLE_TO_ASSUME` | environment | for provisioning | Everyday provisioning role's ARN, assumed via OIDC. Same shared role's ARN is stored per environment (`dev`/`stage`/`prod`) rather than at repo level — see `infrastructure.md` / `kit-modules/basis/CLAUDE.md` for why the role itself is deliberately not split per environment |
+| `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | repo | for the *Bootstrap Terraform State Backend* workflow only | State-backend bootstrap role's ARN, assumed via OIDC. Deliberately a different, narrower role from `AWS_ROLE_TO_ASSUME` — it can create the S3 bucket/DynamoDB lock table the everyday role cannot |
 | `IS_DEMO` | repo | no | demo/showcase mode, see below |
 | `APP_MULTI_INSTANCE` | **environment** | no | `1` enables the multi-instance (Traefik) deploy on that environment's server; see `infrastructure.md`. Repo-level would apply it to prod too |
 
