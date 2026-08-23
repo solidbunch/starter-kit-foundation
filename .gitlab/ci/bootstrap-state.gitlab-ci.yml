@@ -1,0 +1,15 @@
+# Placeholder — filled in by task 4.7 of the GitLab provisioning parity plan. This stub exists
+# only so task 4.1's unconditional `include:` of this file in the root .gitlab-ci.yml has a valid
+# target and the expected job (bootstrap-state) is visible to `gitlab-ci-local --list-all` ahead
+# of the real implementation. No top-level `variables:` block here by design — see
+# .claude/rules/gitlab-ci.md's "bug this design avoids" note.
+
+bootstrap-state:
+  stage: provision
+  image:
+    name: $APP_IAC_IMAGE
+    entrypoint: ['']
+  rules:
+    - if: '$PIPELINE_KIND == "bootstrap-state"'
+  script:
+    - echo "Placeholder — real CONFIRM guard + STS bootstrap flow lands in task 4.7"

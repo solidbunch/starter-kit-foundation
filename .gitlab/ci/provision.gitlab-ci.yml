@@ -1,0 +1,38 @@
+# Placeholder — filled in by task 4.3 (validate-provision-inputs, build-basis) and task 4.4
+# (provision) of the GitLab provisioning parity plan. This stub exists only so task 4.1's
+# unconditional `include:` of this file in the root .gitlab-ci.yml has a valid target and the
+# expected job set (validate-provision-inputs, build-basis, provision) is visible to
+# `gitlab-ci-local --list-all` ahead of the real implementation. No top-level `variables:` block
+# here by design — see .claude/rules/gitlab-ci.md's "bug this design avoids" note.
+
+validate-provision-inputs:
+  stage: validate
+  image: alpine:3.20
+  rules:
+    - if: '$PIPELINE_KIND == "provision"'
+  script:
+    - echo "Placeholder — real guards land in task 4.3"
+
+build-basis:
+  stage: build
+  image:
+    name: $APP_COMPOSER_IMAGE
+    entrypoint: ['']
+  needs:
+    - validate-provision-inputs
+  rules:
+    - if: '$PIPELINE_KIND == "provision"'
+  script:
+    - echo "Placeholder — real composer install lands in task 4.3"
+
+provision:
+  stage: provision
+  image:
+    name: $APP_IAC_IMAGE
+    entrypoint: ['']
+  needs:
+    - build-basis
+  rules:
+    - if: '$PIPELINE_KIND == "provision"'
+  script:
+    - echo "Placeholder — real terraform/ansible flow lands in task 4.4"

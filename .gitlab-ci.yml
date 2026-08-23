@@ -1,10 +1,46 @@
+spec:
+  inputs:
+    # Cross-task contract — see Architecture notes §F in the GitLab provisioning parity plan and
+    # .claude/rules/gitlab-ci.md. Every input MUST carry a default: the root file also serves the
+    # push-triggered dev/prod deploy pipelines, which supply no pipeline inputs at all — an input
+    # without a default would break automatic dev deploy-on-push.
+    PIPELINE_KIND:
+      type: string
+      default: deploy
+      options: [deploy, provision, bootstrap-state]
+    ENVIRONMENT_TYPE:
+      type: string
+      default: dev
+      options: [dev, stage, prod]
+    ACTION_TYPE:
+      type: string
+      default: plan
+      options: [plan, apply, destroy]
+    SKIP_ANSIBLE:
+      type: boolean
+      default: false
+    PLAN_JOB_ID:
+      type: string
+      default: ''
+    CONFIRM_DESTROY:
+      type: string
+      default: ''
+    CONFIRM:
+      type: string
+      default: ''
+---
 # GitLab CI/CD — entry point
 # GitLab analog of .github/workflows/workflow-deploy-develop.yml + workflow-deploy-production.yml
-# + job-deploy.yml. .gitlab/ci/deploy.gitlab-ci.yml holds the reusable job templates (hidden,
-# leading-dot, included unconditionally — they define no real jobs on their own). Each
-# environment's concrete jobs + variables live in its own file, included only when the pipeline's
-# ref matches that environment's branch — so dev's and prod's job definitions never merge into the
-# same pipeline, which is what lets both use plain job names with no suffix.
+# + job-deploy.yml, plus (provisioning) job-provision.yml + job-bootstrap-state.yml.
+# .gitlab/ci/deploy.gitlab-ci.yml holds the reusable deploy job templates (hidden, leading-dot,
+# included unconditionally — they define no real jobs on their own). Each deploy environment's
+# concrete jobs + variables live in its own file, included only when the pipeline's ref matches
+# that environment's branch — so dev's and prod's job definitions never merge into the same
+# pipeline, which is what lets both use plain job names with no suffix. The provisioning files
+# (.gitlab/ci/provision.gitlab-ci.yml, .gitlab/ci/bootstrap-state.gitlab-ci.yml) are included
+# unconditionally instead — their jobs are gated on the $PIPELINE_KIND input, not on the ref, and
+# they carry no top-level variables: block (see the "bug this design avoids" note in
+# .claude/rules/gitlab-ci.md — deep-merge of top-level variables: from multiple included files).
 #
 # $CI_COMMIT_REF_NAME (not $CI_COMMIT_BRANCH) is used in the include rules below — GitLab's docs
 # list CI_COMMIT_REF_NAME as the supported variable for `include: rules:`, unlike CI_COMMIT_BRANCH.
@@ -12,31 +48,46 @@
 # See .claude/rules/gitlab-ci.md for the full picture and the GitHub Actions side (ci.md).
 
 stages:
+  - validate
   - build
   - deploy
+  - provision
 
 variables:
-  # Keep in sync with config/environment/.env.main (APP_COMPOSER_IMAGE / APP_NODE_IMAGE) —
-  # image: is resolved at pipeline-config time, before any script can source .env.main.
+  # Config-time interpolation of the PIPELINE_KIND input into a plain CI variable, done once here
+  # so every job's rules: compares against $PIPELINE_KIND rather than repeating $[[ inputs.… ]]
+  # in each job — keeps the interpolation to a single, auditable place.
+  PIPELINE_KIND: $[[ inputs.PIPELINE_KIND ]]
+  # Keep in sync with config/environment/.env.main (APP_COMPOSER_IMAGE / APP_NODE_IMAGE /
+  # APP_IAC_IMAGE) — image: is resolved at pipeline-config time, before any script can source
+  # .env.main.
   APP_COMPOSER_IMAGE: ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.24-r1
   APP_NODE_IMAGE: ghcr.io/solidbunch/starter-kit-node:18-alpine3.21
+  APP_IAC_IMAGE: ghcr.io/solidbunch/starter-kit-iac:1.1.1
   # Keep in sync with config/environment/.env.main (WP_DEFAULT_THEME) — artifacts: paths/exclude
   # in deploy.gitlab-ci.yml are resolved at pipeline-config time, same as image: above.
   WP_DEFAULT_THEME: starter-kit-theme
 
 # Pipeline creation itself is gated here: auto on push to develop; on main, only a web-triggered
 # "Run pipeline" (GitLab's equivalent of GH's workflow_dispatch-only prod workflow) — a push to
-# main creates no pipeline at all. The branch literals also appear in the include: rules below;
-# include: cannot read this file's own variables: (includes are evaluated before jobs/variables),
-# so both places must be updated together on a branch rename.
+# main creates no pipeline at all. A web-triggered pipeline on develop is also explicitly allowed
+# (redundant with the plain develop rule above it, which already matches any pipeline source —
+# kept explicit so provisioning's web-triggered entry point on develop is documented in its own
+# right and doesn't silently depend on the general rule never being narrowed to push-only later).
+# The branch literals also appear in the include: rules below; include: cannot read this file's
+# own variables: (includes are evaluated before jobs/variables), so both places must be updated
+# together on a branch rename.
 workflow:
   rules:
     - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "develop" && $CI_PIPELINE_SOURCE == "web"'
     - if: '$CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE == "web"'
     - when: never
 
 include:
   - local: .gitlab/ci/deploy.gitlab-ci.yml
+  - local: .gitlab/ci/provision.gitlab-ci.yml
+  - local: .gitlab/ci/bootstrap-state.gitlab-ci.yml
   - local: .gitlab/ci/deploy-dev.gitlab-ci.yml
     rules:
       - if: '$CI_COMMIT_REF_NAME == "develop"'
