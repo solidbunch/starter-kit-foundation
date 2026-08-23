@@ -18,8 +18,8 @@ stages:
 variables:
   # Keep in sync with config/environment/.env.main (APP_COMPOSER_IMAGE / APP_NODE_IMAGE) —
   # image: is resolved at pipeline-config time, before any script can source .env.main.
-  APP_COMPOSER_IMAGE: ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.22
-  APP_NODE_IMAGE: ghcr.io/solidbunch/starter-kit-node:18-alpine3.20
+  APP_COMPOSER_IMAGE: ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.24-r1
+  APP_NODE_IMAGE: ghcr.io/solidbunch/starter-kit-node:18-alpine3.21
   # Keep in sync with config/environment/.env.main (WP_DEFAULT_THEME) — artifacts: paths/exclude
   # in deploy.gitlab-ci.yml are resolved at pipeline-config time, same as image: above.
   WP_DEFAULT_THEME: starter-kit-theme
