@@ -1,20 +1,38 @@
 # GitLab analog of .github/workflows/job-provision.yml's guard surface + build phase.
 # No top-level `variables:` block here by design — see .claude/rules/gitlab-ci.md's "bug this
 # design avoids" note (top-level variables: from multiple included files deep-merge, last include
-# wins). Every variable used below (PIPELINE_KIND, ENVIRONMENT_TYPE, ACTION_TYPE, CONFIRM_DESTROY,
-# IS_DEMO, APP_COMPOSER_IMAGE, APP_BUILD_MODE, APP_IAC_IMAGE) is either a pipeline input
-# interpolated once in the root .gitlab-ci.yml, a project-level CI/CD variable, or sourced from
-# ./.env inside a job's own script — never declared here.
+# wins). PIPELINE_KIND and APP_* images/IS_DEMO reach every job via the root .gitlab-ci.yml's own
+# top-level variables:/project CI/CD variables. ENVIRONMENT_TYPE/ACTION_TYPE/SKIP_ANSIBLE/
+# PLAN_JOB_ID/CONFIRM_DESTROY/CONFIRM are DELIBERATELY mapped per-job below ($[[ inputs.x ]] in
+# each job's own variables: block), not at this file's top level — an earlier attempt to map
+# ENVIRONMENT_TYPE at the ROOT file's top level collided with deploy-dev/deploy-prod's own
+# top-level ENVIRONMENT_TYPE and silently broke prod deploys (root always wins that collision,
+# confirmed by live gitlab-ci-local testing). Job-level variables: never collides with a
+# different file's top-level variables:, since it's a different job entirely.
 #
-# `validate-provision-inputs` and `build-basis` are real (task 4.3 of the GitLab provisioning
-# parity plan). `provision` below is still the task 4.3 placeholder — its real terraform/ansible/
-# AWS-OIDC logic lands in task 4.4, not this change.
+# `validate-provision-inputs`, `build-basis` and `provision` are real (tasks 4.3/4.4 of the GitLab
+# provisioning parity plan). `provision` runs entirely native (IAC_NATIVE: "1", image: $APP_IAC_IMAGE)
+# — this job's container IS the toolchain, there is no Docker daemon to shell out to on a plain
+# GitLab.com shared runner. Pinned-plan retrieval (task 4.5) and the pre-destroy state backup
+# (task 4.6) are not implemented yet — `plan`/`apply`/`destroy` here always plan-then-apply /
+# destroy directly, same as `terraform.sh` alone would do with no `-f` plan file.
+#
+# `needs:` carries artifacts only, never CI/CD variables or shell state — every guard this job
+# depends on (stage/env guard, region, CONFIRM_DESTROY) is re-run here from scratch, not trusted
+# from `validate-provision-inputs` (which runs in its own fresh container). See
+# .claude/rules/gitlab-ci.md for why pipeline inputs (ENVIRONMENT_TYPE, ACTION_TYPE,
+# CONFIRM_DESTROY, SKIP_ANSIBLE, PLAN_JOB_ID, CONFIRM) are referenced here as bare `$VAR`s, the
+# same pattern `validate-provision-inputs`/`build-basis` above already use.
 
 validate-provision-inputs:
   stage: validate
   image: alpine:3.20
   rules:
     - if: '$PIPELINE_KIND == "provision"'
+  variables:
+    ENVIRONMENT_TYPE: $[[ inputs.ENVIRONMENT_TYPE ]]
+    ACTION_TYPE: $[[ inputs.ACTION_TYPE ]]
+    CONFIRM_DESTROY: $[[ inputs.CONFIRM_DESTROY ]]
   script:
     # Fail fast on 'stage' (no Terraform environment configured under
     # kit-modules/basis/terraform/envs/ — a documented gap, see kit-modules/basis/CLAUDE.md)
@@ -49,6 +67,7 @@ build-basis:
     - validate-provision-inputs
   variables:
     COMPOSER_ALLOW_SUPERUSER: "1"
+    ENVIRONMENT_TYPE: $[[ inputs.ENVIRONMENT_TYPE ]]
   script:
     - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
     - bash ./sh/env/init.sh "$ENVIRONMENT_TYPE"
@@ -73,9 +92,190 @@ provision:
   image:
     name: $APP_IAC_IMAGE
     entrypoint: ['']
+  variables:
+    # No Docker daemon on this runner — terraform.sh/ansible.sh run natively inside this job's own
+    # image (see kit-modules/basis/sh/lib/iac-exec.sh). This is the ONLY place in this file
+    # IAC_NATIVE is set — never let it leak in unset (would silently try `docker compose`, which
+    # doesn't exist here).
+    IAC_NATIVE: "1"
+    COMPOSER_ALLOW_SUPERUSER: "1"
+    ENVIRONMENT_TYPE: $[[ inputs.ENVIRONMENT_TYPE ]]
+    ACTION_TYPE: $[[ inputs.ACTION_TYPE ]]
+    SKIP_ANSIBLE: $[[ inputs.SKIP_ANSIBLE ]]
+    PLAN_JOB_ID: $[[ inputs.PLAN_JOB_ID ]]
+    CONFIRM_DESTROY: $[[ inputs.CONFIRM_DESTROY ]]
+  resource_group: provision-$ENVIRONMENT_TYPE
+  environment:
+    name: $ENVIRONMENT_TYPE
   needs:
     - build-basis
   rules:
     - if: '$PIPELINE_KIND == "provision"'
+  # AWS credentials come from GitLab's own OIDC ID token, not a static secret — audience must be
+  # sts.amazonaws.com to match the "aud" condition oidc.sh -p gitlab writes into both roles' trust
+  # policies (kit-modules/basis/sh/aws/oidc.sh).
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: sts.amazonaws.com
+  before_script:
+    # 1) Re-run the stage/env guard — see the header comment above for why this can't be trusted
+    #    from validate-provision-inputs' own run.
+    - |
+      case "$ENVIRONMENT_TYPE" in
+        dev|prod) ;;
+        *)
+          echo "Error: ENVIRONMENT_TYPE '$ENVIRONMENT_TYPE' has no Terraform environment configured under kit-modules/basis/terraform/envs/. Only 'dev' and 'prod' are currently supported." >&2
+          exit 1
+          ;;
+      esac
+    # 2) Region, extracted fresh in this container.
+    - REGION="$(sh ./sh/ci/extract-aws-region.sh)"
+    - 'echo "AWS region: $REGION"'
+    - export AWS_DEFAULT_REGION="$REGION"
+    # 3) Re-run the destroy confirmation guard — must still happen before any credential step.
+    - |
+      if [ "$ACTION_TYPE" = "destroy" ]; then
+        sh ./sh/ci/confirm-match.sh "$ENVIRONMENT_TYPE" "$CONFIRM_DESTROY" "CONFIRM_DESTROY"
+      fi
+    # 4) .env prep, native (no Docker) — same pattern as build-basis above. build-basis's own
+    #    generated .env is NOT part of its artifacts (only vendor/, kit-modules/, composer.lock
+    #    are), so this job regenerates its own — terraform.sh/ansible.sh both `source ./.env`
+    #    themselves, they just need the file to exist with today's TF_VAR_*/DEFAULT_USER values.
+    - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
+    - bash ./sh/env/init.sh "$ENVIRONMENT_TYPE"
+    - source ./.env
+    # 5) has_basis, computed and logged BEFORE the AWS/OIDC step below — kit-modules/basis is
+    #    already on disk from build-basis's artifacts at this point.
+    - |
+      set +e
+      BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
+      BASIS_RC=$?
+      set -e
+      BASIS_MSG="$(cat verify-basis.stderr)"
+      rm -f verify-basis.stderr
+      if [ $BASIS_RC -ne 0 ]; then
+        echo "Error: ${BASIS_MSG}"
+        exit 1
+      fi
+      echo "$BASIS_MSG"
+      export HAS_BASIS="${BASIS_OUTPUT#has_basis=}"
+      echo "has_basis=${HAS_BASIS}"
+    # 6) Exchange the GitLab OIDC ID token for short-lived AWS credentials. Not gated on
+    #    HAS_BASIS: mirrors job-provision.yml, which configures AWS credentials unconditionally
+    #    and only gates the Terraform/Ansible steps further down on has_basis. This is also the
+    #    wall gitlab-ci-local execution is expected to hit — no real id_tokens JWT is minted
+    #    locally, so this call is the first (and only) step that requires real AWS/GitLab OIDC
+    #    trust to succeed.
+    - |
+      echo "Assuming AWS role via GitLab OIDC (AWS_ROLE_TO_ASSUME)..."
+      set +e
+      STS_JSON="$(aws sts assume-role-with-web-identity \
+        --role-arn "$AWS_ROLE_TO_ASSUME" \
+        --role-session-name "gitlab-provision-${CI_PIPELINE_ID}-${CI_JOB_ID}" \
+        --web-identity-token "$GITLAB_OIDC_TOKEN" \
+        --duration-seconds 3600 2>sts.stderr)"
+      STS_RC=$?
+      set -e
+      if [ $STS_RC -ne 0 ]; then
+        echo "Error: OIDC token unavailable or STS denied the web-identity exchange (aws sts assume-role-with-web-identity failed). Verify AWS_ROLE_TO_ASSUME is a valid role ARN, the GitLab OIDC identity provider exists in this AWS account, and the role's trust policy matches this project (see kit-modules/basis/sh/aws/oidc.sh -p gitlab -m test)." >&2
+        cat sts.stderr >&2
+        rm -f sts.stderr
+        exit 1
+      fi
+      rm -f sts.stderr
+      export AWS_ACCESS_KEY_ID="$(echo "$STS_JSON" | jq -r '.Credentials.AccessKeyId')"
+      export AWS_SECRET_ACCESS_KEY="$(echo "$STS_JSON" | jq -r '.Credentials.SecretAccessKey')"
+      export AWS_SESSION_TOKEN="$(echo "$STS_JSON" | jq -r '.Credentials.SessionToken')"
+      echo "AWS credentials configured via OIDC"
+      echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo yes || echo no)"
+      echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo yes || echo no)"
+    # 7) SSH — private key from the SSH_KEY/SSH_CONFIG File-type CI/CD variables.
+    - SSH_INPUT_MODE=file sh ./sh/ci/setup-ssh.sh
+    # 8) SSH public key for Terraform's aws_key_pair.deploy — same derivation as
+    #    job-provision.yml's "Extract SSH public key for Terraform" step, gated on has_basis so a
+    #    genuinely unlicensed run never touches kit-modules/basis/terraform/public_keys/.
+    - |
+      if [ "$HAS_BASIS" = "true" ]; then
+        ssh-keygen -y -f ~/.ssh/id_rsa > "kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub"
+        echo "SSH public key extracted for Terraform:"
+        cat "kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub"
+      else
+        echo "has_basis=false — skipping SSH public key extraction for Terraform."
+      fi
+    # 9) State-backend bucket guard — same "not a permissions problem" message as
+    #    job-provision.yml's "Verify Terraform state backend exists" step.
+    - |
+      if [ "$HAS_BASIS" = "true" ]; then
+        if ! aws s3api head-bucket --bucket "$TF_VAR_tf_backend_bucket" --region "$AWS_DEFAULT_REGION" 2>/dev/null; then
+          echo "Error: Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' does not exist or is not accessible. This is not an AWS permissions problem — the CI role deliberately has no s3:CreateBucket permission. The state backend must be bootstrapped once, before provisioning can run. Dispatch the 'bootstrap-state' pipeline (PIPELINE_KIND=bootstrap-state) against this AWS account, then re-run this pipeline." >&2
+          exit 1
+        fi
+        echo "Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' is accessible."
+      fi
   script:
-    - echo "Placeholder — real terraform/ansible flow lands in task 4.4"
+    - |
+      if [ "$HAS_BASIS" != "true" ]; then
+        echo "No license/module — skipping Terraform and Ansible."
+        {
+          echo "## Infrastructure Provisioning Summary"
+          echo "**Action:** ${ACTION_TYPE}"
+          echo "**Environment:** ${ENVIRONMENT_TYPE}"
+          echo "**Result:** skipped — kit-modules/basis is not licensed/installed (has_basis=false)"
+        } > provision-summary.md
+        cat provision-summary.md
+        exit 0
+      fi
+    # 'shared' is the only cross-environment bulkhead this pipeline runs automatically — it must
+    # never be destroyed as a side effect of tearing down one environment's EC2 instance. Only
+    # plan/apply run 'shared'; destroy is scoped to the environment layer only (no dedicated
+    # destroy path for 'shared' from this pipeline — see job-provision.yml/ci.md for the same rule
+    # on the GitHub side).
+    - |
+      if [ "$ACTION_TYPE" != "destroy" ]; then
+        echo "- shared: running (${ACTION_TYPE})" >> provision-summary.md
+        bash kit-modules/basis/sh/terraform.sh -e shared -c init
+        if [ "$ACTION_TYPE" = "plan" ]; then
+          bash kit-modules/basis/sh/terraform.sh -e shared -c plan
+        else
+          bash kit-modules/basis/sh/terraform.sh -e shared -c apply
+        fi
+      else
+        echo "- shared: skipped — destroy only tears down the '${ENVIRONMENT_TYPE}' environment layer, never the shared network" >> provision-summary.md
+      fi
+    - |
+      echo "- ${ENVIRONMENT_TYPE}: running (${ACTION_TYPE})" >> provision-summary.md
+      bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c init
+      if [ "$ACTION_TYPE" = "plan" ]; then
+        bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c plan
+      elif [ "$ACTION_TYPE" = "apply" ]; then
+        bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c apply
+      else
+        bash kit-modules/basis/sh/terraform.sh -e "$ENVIRONMENT_TYPE" -c destroy -y
+      fi
+    - |
+      if [ "$ACTION_TYPE" = "apply" ] && [ "$SKIP_ANSIBLE" != "true" ]; then
+        echo "- ansible: running (inventory + playbook)" >> provision-summary.md
+        bash kit-modules/basis/sh/ansible.sh -e "$ENVIRONMENT_TYPE" -a inventory
+        bash kit-modules/basis/sh/ansible.sh -e "$ENVIRONMENT_TYPE" -a playbook
+      else
+        echo "- ansible: skipped (ACTION_TYPE=${ACTION_TYPE}, SKIP_ANSIBLE=${SKIP_ANSIBLE})" >> provision-summary.md
+      fi
+    - |
+      {
+        echo "## Infrastructure Provisioning Summary"
+        echo "**Action:** ${ACTION_TYPE}"
+        echo "**Environment:** ${ENVIRONMENT_TYPE}"
+        echo "**Timestamp:** $(date -u)"
+        echo ""
+        cat provision-summary.md 2>/dev/null || true
+      } > provision-summary.md.tmp
+      mv provision-summary.md.tmp provision-summary.md
+      cat provision-summary.md
+  after_script:
+    - rm -f kit-modules/basis/ansible/generated.inventory.yml || true
+    - rm -f ~/.ssh/id_rsa ~/.ssh/config || true
+  artifacts:
+    expire_in: 30 days
+    when: always
+    paths:
+      - provision-summary.md
