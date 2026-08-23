@@ -356,7 +356,7 @@ the deploy target itself: it comes from `APP_DOMAIN` in tracked config, not a pl
 not in a container, needs the AWS CLI installed locally with credentials that can read IAM:
 
 \`\`\`bash
-bash ./kit-modules/basis/sh/oidc.sh -m gen -e dev
+bash ./kit-modules/basis/sh/aws/oidc.sh -m gen -e dev
 \`\`\`
 
 This prints the exact AWS Console clicks (IAM → Identity providers → Add provider → OpenID
