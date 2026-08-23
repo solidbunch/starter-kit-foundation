@@ -54,9 +54,20 @@ stages:
   - provision
 
 variables:
-  # Config-time interpolation of the PIPELINE_KIND input into a plain CI variable, done once here
-  # so every job's rules: compares against $PIPELINE_KIND rather than repeating $[[ inputs.… ]]
-  # in each job — keeps the interpolation to a single, auditable place.
+  # Config-time interpolation of PIPELINE_KIND only — the one input every included file's rules:
+  # needs to compare against, and the one input no included file ever sets on its own, so mapping
+  # it here is collision-free. The other 6 spec:inputs (ENVIRONMENT_TYPE, ACTION_TYPE,
+  # SKIP_ANSIBLE, PLAN_JOB_ID, CONFIRM_DESTROY, CONFIRM) are DELIBERATELY NOT mapped here anymore:
+  # an earlier version of this block mapped ENVIRONMENT_TYPE too, and real gitlab-ci-local testing
+  # proved root's top-level variables: always wins over an included file's same-named key
+  # regardless of include order — this silently broke prod deploys, which get ENVIRONMENT_TYPE
+  # from deploy-prod.gitlab-ci.yml's own top-level variables:, not from a pipeline input at all.
+  # Provisioning jobs (provision.gitlab-ci.yml, bootstrap-state.gitlab-ci.yml) instead map these
+  # 6 inputs in their OWN job-level variables: blocks (job-level $[[ inputs.x ]] interpolation is
+  # available anywhere in this file, not just the top-level variables: block) — that scope never
+  # collides with deploy-dev/deploy-prod's file-level variables:, since those are different jobs
+  # in different included files. See .claude/rules/gitlab-ci.md's "Why the two environment files
+  # never collide" section for the sibling issue this same mechanism protects against.
   PIPELINE_KIND: $[[ inputs.PIPELINE_KIND ]]
   # Keep in sync with config/environment/.env.main (APP_COMPOSER_IMAGE / APP_NODE_IMAGE /
   # APP_IAC_IMAGE) — image: is resolved at pipeline-config time, before any script can source
