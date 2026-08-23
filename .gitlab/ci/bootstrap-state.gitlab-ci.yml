@@ -1,8 +1,20 @@
-# Placeholder — filled in by task 4.7 of the GitLab provisioning parity plan. This stub exists
-# only so task 4.1's unconditional `include:` of this file in the root .gitlab-ci.yml has a valid
-# target and the expected job (bootstrap-state) is visible to `gitlab-ci-local --list-all` ahead
-# of the real implementation. No top-level `variables:` block here by design — see
-# .claude/rules/gitlab-ci.md's "bug this design avoids" note.
+# GitLab analog of .github/workflows/job-bootstrap-state.yml. No top-level `variables:` block
+# here by design — see .claude/rules/gitlab-ci.md's "bug this design avoids" note (top-level
+# variables: from multiple included files deep-merge, last include wins). PIPELINE_KIND reaches
+# this job via the root .gitlab-ci.yml's own top-level variables:; CONFIRM is DELIBERATELY mapped
+# in THIS job's own variables: block below ($[[ inputs.CONFIRM ]]), not at any file's top level —
+# same reasoning as provision.gitlab-ci.yml's ENVIRONMENT_TYPE/ACTION_TYPE/etc mapping (an earlier
+# attempt to map a pipeline input at the ROOT file's top level collided with deploy-dev/deploy-
+# prod's own top-level variables: and silently broke prod deploys, confirmed by live
+# gitlab-ci-local testing).
+#
+# CONFIRM here is the AWS region (e.g. eu-west-1), NOT an environment name — different semantics
+# from provision.gitlab-ci.yml's CONFIRM_DESTROY, which confirms ENVIRONMENT_TYPE. See
+# job-bootstrap-state.yml's own CONFIRM input description for the GitHub-side equivalent.
+#
+# This job runs entirely native (IAC_NATIVE: "1", image: $APP_IAC_IMAGE) — this job's container
+# IS the toolchain, there is no Docker daemon to shell out to on a plain GitLab.com shared runner.
+# Same reasoning as provision.gitlab-ci.yml's `provision` job.
 
 bootstrap-state:
   stage: provision
@@ -11,5 +23,105 @@ bootstrap-state:
     entrypoint: ['']
   rules:
     - if: '$PIPELINE_KIND == "bootstrap-state"'
+  variables:
+    IAC_NATIVE: "1"
+    COMPOSER_ALLOW_SUPERUSER: "1"
+    CONFIRM: $[[ inputs.CONFIRM ]]
+  # One-time-per-AWS-account operation — serialize concurrent dispatches against the same account
+  # so two runs never race to create the same S3 bucket/DynamoDB lock table.
+  resource_group: bootstrap-state
+  # AWS credentials come from GitLab's own OIDC ID token, not a static secret — audience must be
+  # sts.amazonaws.com to match the "aud" condition oidc.sh -p gitlab writes into both roles' trust
+  # policies (kit-modules/basis/sh/aws/oidc.sh). This job uses the narrower BOOTSTRAP role
+  # (AWS_BOOTSTRAP_ROLE_TO_ASSUME), never the everyday AWS_ROLE_TO_ASSUME — the bootstrap role is
+  # the only one with s3:CreateBucket/dynamodb:CreateTable, see ci.md's "State backend" section.
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: sts.amazonaws.com
+  before_script:
+    # 1) CONFIRM-equals-region guard FIRST — must run before any AWS/credential step so a
+    #    missing/mismatched confirmation never gets far enough to touch cloud state. The operator
+    #    must type the exact AWS region value extracted below to confirm intent.
+    - REGION="$(sh ./sh/ci/extract-aws-region.sh)"
+    - 'echo "AWS region: $REGION"'
+    - sh ./sh/ci/confirm-match.sh "$REGION" "$CONFIRM" "CONFIRM"
+    - export AWS_DEFAULT_REGION="$REGION"
+    # 2) .env prep, native (no Docker) — same pattern as provision.gitlab-ci.yml's `provision`
+    #    job. No ENVIRONMENT_TYPE argument: the 'state' layer is not environment-scoped
+    #    (kit-modules/basis/sh/terraform.sh special-cases it to terraform/state, same as
+    #    bootstrap-state.sh itself), so init.sh runs with no argument and falls back to its own
+    #    APP_DEFAULT_ENV_TYPE default — same as job-bootstrap-state.yml's "Prepare .env" step.
+    - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
+    - bash ./sh/env/init.sh
+    - source ./.env
+    # 3) has_basis, computed BEFORE the AWS/OIDC step below.
+    - |
+      set +e
+      BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
+      BASIS_RC=$?
+      set -e
+      BASIS_MSG="$(cat verify-basis.stderr)"
+      rm -f verify-basis.stderr
+      if [ $BASIS_RC -ne 0 ]; then
+        echo "Error: ${BASIS_MSG}"
+        exit 1
+      fi
+      echo "$BASIS_MSG"
+      export HAS_BASIS="${BASIS_OUTPUT#has_basis=}"
+      echo "has_basis=${HAS_BASIS}"
+    # 4) Exchange the GitLab OIDC ID token for short-lived AWS credentials via the BOOTSTRAP role.
+    #    Not gated on HAS_BASIS: mirrors job-bootstrap-state.yml, which configures AWS credentials
+    #    unconditionally and only gates the bootstrap step further down on has_basis. This is also
+    #    the wall gitlab-ci-local execution is expected to hit — no real id_tokens JWT is minted
+    #    locally, so this call is the first (and only) step that requires real AWS/GitLab OIDC
+    #    trust to succeed.
+    - |
+      echo "Assuming AWS role via GitLab OIDC (AWS_BOOTSTRAP_ROLE_TO_ASSUME)..."
+      set +e
+      STS_JSON="$(aws sts assume-role-with-web-identity \
+        --role-arn "$AWS_BOOTSTRAP_ROLE_TO_ASSUME" \
+        --role-session-name "gitlab-bootstrap-state-${CI_PIPELINE_ID}-${CI_JOB_ID}" \
+        --web-identity-token "$GITLAB_OIDC_TOKEN" \
+        --duration-seconds 3600 2>sts.stderr)"
+      STS_RC=$?
+      set -e
+      if [ $STS_RC -ne 0 ]; then
+        echo "Error: OIDC token unavailable or STS denied the web-identity exchange (aws sts assume-role-with-web-identity failed). Verify AWS_BOOTSTRAP_ROLE_TO_ASSUME is a valid role ARN, the GitLab OIDC identity provider exists in this AWS account, and the role's trust policy matches this project (see kit-modules/basis/sh/aws/oidc.sh -p gitlab -m test)." >&2
+        cat sts.stderr >&2
+        rm -f sts.stderr
+        exit 1
+      fi
+      rm -f sts.stderr
+      export AWS_ACCESS_KEY_ID="$(echo "$STS_JSON" | jq -r '.Credentials.AccessKeyId')"
+      export AWS_SECRET_ACCESS_KEY="$(echo "$STS_JSON" | jq -r '.Credentials.SecretAccessKey')"
+      export AWS_SESSION_TOKEN="$(echo "$STS_JSON" | jq -r '.Credentials.SessionToken')"
+      echo "AWS credentials configured via OIDC"
+      echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo yes || echo no)"
+      echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo yes || echo no)"
   script:
-    - echo "Placeholder — real CONFIRM guard + STS bootstrap flow lands in task 4.7"
+    - |
+      if [ "$HAS_BASIS" != "true" ]; then
+        echo "No license/module — skipping Terraform state backend bootstrap."
+        {
+          echo "## Terraform State Backend Bootstrap Summary"
+          echo "**Region:** ${REGION}"
+          echo "**Result:** skipped — kit-modules/basis is not licensed/installed (has_basis=false)"
+        } > bootstrap-state-summary.md
+        cat bootstrap-state-summary.md
+        exit 0
+      fi
+    - bash kit-modules/basis/sh/bootstrap-state.sh -y
+    - |
+      {
+        echo "## Terraform State Backend Bootstrap Summary"
+        echo "**Region:** ${REGION}"
+        echo "**Timestamp:** $(date -u)"
+        echo ""
+        echo "Basis module was present — \`bootstrap-state.sh -y\` ran (see the job log above for its own idempotency/outcome message)."
+      } > bootstrap-state-summary.md
+      cat bootstrap-state-summary.md
+  artifacts:
+    expire_in: 30 days
+    when: always
+    paths:
+      - bootstrap-state-summary.md
