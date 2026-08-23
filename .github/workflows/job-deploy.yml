@@ -89,6 +89,18 @@ jobs:
     # (dev/stage/prod) — lets APP_MULTI_INSTANCE differ per environment.
     environment: ${{ inputs.ENVIRONMENT_TYPE }}
 
+    # Mirrors job-provision.yml's concurrency pattern (job-level, keyed by the reusable job's
+    # own inputs.ENVIRONMENT_TYPE — this is a workflow_call job, so there is no top-level
+    # `on.workflow_dispatch`/`on.push` input to key off instead). Grouped per environment so a
+    # dev deploy and a prod deploy never block each other, but two overlapping deploys to the
+    # SAME environment queue instead of racing `rsync --delete-after` / `make recreate` /
+    # `make core-install` against the same host and Docker project.
+    # cancel-in-progress: false, same as job-provision.yml — canceling mid-rsync/mid-recreate
+    # would leave the target host in a half-deployed state, which is worse than waiting.
+    concurrency:
+      group: deploy-${{ inputs.ENVIRONMENT_TYPE }}
+      cancel-in-progress: false
+
     needs: [ build ]
 
     steps:
@@ -138,6 +150,7 @@ jobs:
             --exclude ".git*" \
             --exclude "*/node_modules/" \
             --exclude "backups/" \
+            --exclude "tmp/" \
             --exclude "**/db-*/" \
             --exclude="**/tail-db/" \
             --exclude "logs/" \
