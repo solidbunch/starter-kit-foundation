@@ -8,7 +8,7 @@
 ##   Integrity is checked against the publishers' SHA256SUMS instead of a `--version` smoke test.
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG IMAGE_VERSION=1.1.1
+ARG IMAGE_VERSION=1.1.2
 ARG TF_VERSION=1.13.3
 ARG TG_VERSION=0.87.1
 ARG AWSCLI_VERSION=2.23.3
@@ -92,6 +92,7 @@ RUN apt-get update \
        bash \
        tar \
        adduser \
+       psl \
     && rm -rf /var/lib/apt/lists/*
 
 # Terraform and Terragrunt — built in the native fetch stage above, not executed here

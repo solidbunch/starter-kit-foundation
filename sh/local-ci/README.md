@@ -163,7 +163,7 @@ reproduces the original failures documented below):
 |---|---|
 | `php` | `ghcr.io/solidbunch/starter-kit-php:8.4-fpm-alpine3.24-r1` |
 | `composer` | `ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.24-r1` (rebuilds `FROM` the fixed `php` tag, so it inherits the same entrypoint fix) |
-| `iac` | `ghcr.io/solidbunch/starter-kit-iac:1.1.1` |
+| `iac` | `ghcr.io/solidbunch/starter-kit-iac:1.1.2` |
 
 **The workarounds documented elsewhere in this file — "leave `CURRENT_UID`/`CURRENT_GID` unset on
 macOS" (below) and "act's root-user GID-0 collision blocks the Composer/install step" (in the DinD
