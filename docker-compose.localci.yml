@@ -1,6 +1,6 @@
 services:
 
-  # LocalStack Community — emulates AWS S3/DynamoDB/EC2/STS for the local CI/CD provisioning
+  # LocalStack Community — emulates AWS S3/EC2/STS for the local CI/CD provisioning
   # emulation harness (sh/local-ci/*). Never part of the always-running app stack
   # (docker-compose.yml) or the on-demand toolkit stack (docker-compose.toolkit.yml) — this file
   # is only brought up by sh/local-ci/harness-up.sh and torn down by sh/local-ci/harness-down.sh.
@@ -16,9 +16,10 @@ services:
     ports:
       - "4566:4566"
     environment:
-      # Only the services basis's Terraform actually uses (verified: zero aws_iam_* resources in
-      # kit-modules/basis/terraform/, see sh/local-ci/EVIDENCE.md) — no `iam`.
-      SERVICES: s3,dynamodb,ec2,sts
+      # Only the services basis's Terraform actually uses (verified: zero aws_iam_*/aws_dynamodb_*
+      # resources in kit-modules/basis/terraform/, see sh/local-ci/EVIDENCE.md) — no `iam`, no
+      # `dynamodb` (S3-native locking, no DynamoDB table anywhere in this module).
+      SERVICES: s3,ec2,sts
     # No volume / persistence: LocalStack Community does not persist state across container
     # restarts regardless, and this harness is one-shot verification, not a long-lived sandbox
     # (documented limitation, see sh/local-ci/README.md).

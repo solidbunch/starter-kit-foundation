@@ -49,9 +49,9 @@ regenerated, see root `CLAUDE.md`):
   it resolves to a `github.com` remote, parse `<org>`/`<repo>` out of it and set both. If no origin
   is set (or it isn't a GitHub URL), leave these two untouched and flag it in Step 9's report — they
   still hold StarterKit's own values (`solidbunch`/`starter-kit-foundation`) and must be set by hand
-  before this project's CI/CD role/Terraform state work. `ROLE_NAME` and `TF_VAR_tf_lock_table`
-  stay out of scope regardless — a real DynamoDB table the user controls can't be invented
-  automatically; flag those in Step 9 too. `TF_VAR_tf_backend_bucket` is already handled — it
+  before this project's CI/CD role/Terraform state work. `ROLE_NAME` stays out of scope regardless
+  — a real IAM role the user controls can't be invented automatically; flag it in Step 9 too.
+  `TF_VAR_tf_backend_bucket` is already handled — it
   derives from `${APP_NAME}` via `.env.main`'s existing default, same as `TF_VAR_sk_vpc_name`/
   `TF_VAR_sk_ssh_key_name`.
 - The deploy target (SSH destination / destination path) needs **no configuration at all**, on
@@ -332,7 +332,7 @@ Repository level (**New repository variable**):
 | Name | Required | Value |
 |---|---|---|
 | `AWS_ROLE_TO_ASSUME` | for provisioning | ARN of the everyday IAM role GitHub OIDC assumes for Terraform/Ansible, see step 4 |
-| `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | for state-backend bootstrap (step 5) only | ARN of the narrower, one-time bootstrap role — the only one with `s3:CreateBucket`/`dynamodb:CreateTable` — see step 4 |
+| `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | for state-backend bootstrap (step 5) only | ARN of the narrower, one-time bootstrap role — the only one with `s3:CreateBucket` — see step 4 |
 | `IS_DEMO` | no | `true` only for SolidBunch demo/showcase stands — forces licensed modules to update from `dist` |
 
 Environment level (**Settings** → **Environments** → pick one → **Add variable**):
@@ -369,7 +369,7 @@ A single run prints the exact AWS Console clicks (IAM → Identity providers →
 OpenID Connect; IAM → Roles → Create role → Web identity) plus ready-to-paste IAM policy JSON for
 **both** roles: the everyday provisioning role (`AWS_ROLE_TO_ASSUME`) and the narrower, one-time
 bootstrap role (`AWS_BOOTSTRAP_ROLE_TO_ASSUME`) — only the bootstrap role gets
-`s3:CreateBucket`/`dynamodb:CreateTable`, the everyday role never does. Follow it verbatim, then
+`s3:CreateBucket`, the everyday role never does. Follow it verbatim, then
 copy both created roles' ARNs into the matching repo variables from step 3.
 
 **5. Bootstrap the Terraform state backend** (one-time, before the first provisioning run). CI
@@ -383,8 +383,7 @@ workflow, never by running Terraform locally:
   `config/environment/.env.main` — the workflow fails closed before touching AWS credentials if
   it doesn't match.
 - Requires `AWS_BOOTSTRAP_ROLE_TO_ASSUME` (step 3/step 4 above) to already be set as a repo-level
-  variable — the workflow assumes that role via OIDC to create the S3 bucket and DynamoDB lock
-  table.
+  variable — the workflow assumes that role via OIDC to create the S3 bucket.
 
 **6. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
 **Actions** tab → *Provision Infrastructure* in the left sidebar → **Run workflow** button (top
@@ -457,8 +456,8 @@ List every changed file with its full path. Separate clearly:
 - **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in
   `config/environment/.env.main`
   **only if** no GitHub origin was set for Step 1 to read (still StarterKit's own template values in
-  that case); `ROLE_NAME`/`TF_VAR_tf_lock_table` in the same file (always
-  left for the user — a real DynamoDB table can't be invented automatically), followed by
+  that case); `ROLE_NAME` in the same file (always left for the user — a real IAM role can't be
+  invented automatically), followed by
   `make env local` after any of the above are edited; GitHub repo/CI secrets setup; `kit-modules`
   licensing (see `infrastructure.md`); the orphaned old theme folder + `composer.json` entry (if
   Step 5 ran); the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its

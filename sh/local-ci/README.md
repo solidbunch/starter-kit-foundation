@@ -226,7 +226,7 @@ That evidence stands as the real-execution proof for this fallback; it is not a 
 
 - **The `latest` image tag is not usable.** It currently resolves to a build that hard-refuses to
   start without a `LOCALSTACK_AUTH_TOKEN` (Pro license), even when only Community services
-  (`s3,dynamodb,ec2,sts`) are requested — verified live (`Localstack returning with exit code 55.
+  (`s3,ec2,sts`) are requested — verified live (`Localstack returning with exit code 55.
   Reason: License activation failed!`). `docker-compose.localci.yml` pins `localstack/localstack:4.9`
   (resolves to `4.9.2`, `edition: community`) instead. Never change this to `:latest`.
 - **No IAM policy enforcement** — irrelevant here. `kit-modules/basis`'s Terraform declares zero
