@@ -51,6 +51,7 @@ stages:
   - build
   - deploy
   - provision
+  - provision-follow
 
 variables:
   # Config-time interpolation of PIPELINE_KIND only — the one input every included file's rules:
