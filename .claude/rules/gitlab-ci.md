@@ -390,10 +390,99 @@ Creates a `.gitlab-ci-local/` state directory as a side effect — gitignored, d
 
 ## Provisioning pipeline
 
-GitLab analog of `.github/workflows/job-provision.yml` (Terraform `shared`→`<env>` + Ansible).
+GitLab analog of `.github/workflows/job-provision.yml` (Terraform `shared`→`<env>` + Ansible + DNS).
 Lives in the same root `.gitlab-ci.yml` as the deploy pipeline described above — see "How the
 provisioning pipeline coexists with the existing deploy pipeline" (`PIPELINE_KIND` gating) below
 for why it's one shared file rather than a separate entry point.
+
+### Job split — `provision` / `provision-ansible` / `provision-dns`
+
+`.gitlab/ci/provision.gitlab-ci.yml` splits the sequence GitHub keeps as one job into three real
+jobs plus a hidden base: `validate-provision-inputs` and `build-basis` (unchanged, see "Pipeline
+shape" above for the equivalent build-split reasoning), then:
+
+- **`.provision-base`** (hidden) holds everything the three real jobs share — `image`,
+  `variables`, `id_tokens`, `resource_group`, `environment`, and the entire `before_script` guard
+  chain (stage/env guard, region, destroy confirmation, `.env` prep including the
+  `CLOUDFLARE_API_TOKEN` secret-clobber-trap append — the CI/CD variable must be appended to
+  `config/environment/.env.secret` **before** `sh/env/init.sh` runs, or `init.sh`'s `.env.secret`
+  merge silently overwrites it with the empty placeholder `sh/env/.env.secret.template` registers
+  — same pattern GitHub's composite action uses, see `ci.md`, and the same one `build-basis`
+  already applies for `COMPOSER_AUTH`), `has_basis` check, `TFPLAN_PASSPHRASE`/pinned-plan
+  retrieval, the OIDC/STS exchange, SSH setup, SSH pubkey extraction, and the state-backend bucket
+  guard. `extends:` merges `variables:`/`id_tokens:` key-by-key; `before_script:`/`script:`/
+  `after_script:`/`artifacts:` are **not** merged — each real job below redeclares its own
+  `script:`/`after_script:`/`artifacts:` in full rather than relying on inheritance for those keys.
+  Duplicating the whole preamble per job (rather than trying to share state across jobs) is
+  deliberate: GitLab job-to-job state never persists outside declared artifacts, the same
+  constraint that forced GitHub's composite-action extraction.
+- **`provision`** (stage `provision`, `needs: [build-basis]`) runs Terraform only
+  (`shared`→`<env>`) and is the **single Terragrunt-output read** in this file: on `apply` it
+  reads `instance_public_ip`/`instance_ipv6` once (same `N/A`/`ERROR` sentinel-normalization as
+  GitHub's `tf_outputs` step — see `ci.md` — a real terragrunt error is never silently treated as
+  "output not configured") and writes them as an `artifacts: reports: dotenv` file, `dns.env`
+  (`INSTANCE_IPV4=`/`INSTANCE_IPV6=`, both keys always present, empty when the corresponding
+  Terraform output is unset). This is the dotenv IP hand-off: any job that lists `provision` under
+  its own `needs:` gets `INSTANCE_IPV4`/`INSTANCE_IPV6` auto-injected as ordinary job-level CI/CD
+  variables — no second Terragrunt read anywhere in the file.
+- **`provision-ansible`** and **`provision-dns`** (both stage `provision-follow`, a new stage
+  added after `provision` specifically so they run *after* it rather than in parallel with it —
+  same-stage jobs in GitLab run in parallel, and a same-stage `needs:` would work but make the
+  graph unreadable — both `needs: [build-basis, provision]`) carry the Ansible block and the
+  `dns.sh` call respectively. `provision-dns` reads `INSTANCE_IPV4`/`INSTANCE_IPV6` from the dotenv
+  hand-off above and calls `bash kit-modules/basis/sh/dns.sh -e "$ENVIRONMENT_TYPE" -4
+  "${INSTANCE_IPV4:-}" -6 "${INSTANCE_IPV6:-}" -y` (see `kit-modules/basis/CLAUDE.md`/`README.MD`
+  for `dns.sh`'s own CLI/provider contract — not repeated here). `provision-ansible` alone moves
+  the `generated.inventory.yml` cleanup into its own `after_script`, since it's the only job that
+  creates that file.
+- **No aggregating `summary` job on GitLab**, unlike GitHub. GitLab has no `$GITHUB_STEP_SUMMARY`
+  equivalent; each of the three real jobs instead writes and `cat`s its **own**
+  `provision-summary.md` section covering only its own work — a fourth job would need
+  `when: always` plus cross-job artifact plumbing for no user-visible gain beyond another log blob.
+  This is a deliberate, recorded asymmetry between the two platforms, not an oversight.
+
+### Shared `resource_group` + `oldest_first` process mode — a required human action, not a suggestion
+
+All three real jobs (`provision`, `provision-ansible`, `provision-dns`) share **one**
+`resource_group: provision-$ENVIRONMENT_TYPE` (inherited from `.provision-base`, the same string
+this pipeline always used — deliberately **not** split per job kind: a per-kind split would only
+serialize each kind against itself, letting a second dispatch's `provision` start while the first
+dispatch's `provision-ansible`/`provision-dns` are still running against the same instance — a
+live-infrastructure safety regression, not a style choice). GitLab has no pipeline-level
+equivalent of GitHub's workflow-level `concurrency:` (see `ci.md`) — `resource_group:` is strictly
+per job — so the property "a second dispatch's Terraform cannot start until the first dispatch's
+entire chain has drained" depends on this group's **process mode** being `oldest_first` rather
+than the default `unordered`. `oldest_first` picks the oldest queued pipeline's job first
+(ascending pipeline ID) whenever the lock frees up, so pipeline A's `provision-ansible`/
+`provision-dns` are guaranteed to drain before pipeline B's `provision` ever gets the lock, even
+though the resource group is shared across all three job kinds.
+
+**There is no `.gitlab-ci.yml` or UI surface for process mode — it is set only via the GitLab API,
+once per environment, after the resource group first exists (created on that environment's first
+pipeline run):**
+
+```
+PUT /projects/:id/resource_groups/provision-<env>
+    { "process_mode": "oldest_first" }
+
+GET /projects/:id/resource_groups/provision-<env>    # verify it took
+```
+
+**Until that `PUT` is issued for a given environment (`provision-dev`, `provision-stage`,
+`provision-prod`), the resource group runs in GitLab's default `unordered` mode and the
+whole-chain mutual-exclusion guarantee described above does NOT hold** — a second dispatch's
+`provision` can win the freed lock ahead of a still-queued `provision-dns` from an earlier
+dispatch. This is a real operational gap, not a theoretical one: a fresh clone of this project, or
+a newly added environment, starts in `unordered` mode and stays there silently until a human
+issues the API call. It cannot be asserted from any in-repo test or CI Lint run. Treat this as a
+required manual step for every environment this pipeline provisions, not an optional hardening
+step — see the file header comment in `provision.gitlab-ci.yml` for the same warning inline.
+
+One documented GitLab caveat worth knowing when debugging under `oldest_first`: a job sitting in
+`created`/`Waiting for resource` is expected behaviour, not a stuck pipeline — but an **older
+pipeline blocked on something ahead of it in the queue holds the resource**, and the documented
+remedy is to cancel or re-dispatch that older pipeline, not to remove/reconfigure the resource
+group.
 
 ### `spec:inputs` — the 7 pipeline inputs
 
@@ -503,6 +592,13 @@ that actually touches the GitLab UI's Variables page:
 - `PLAN_ARTIFACT_TOKEN` (optional) — a project access token, used as a `PRIVATE-TOKEN` fallback
   when the `JOB-TOKEN: $CI_JOB_TOKEN` fetch of a pinned plan artifact fails
   (`provision.gitlab-ci.yml:217-225`) — see the tier-ambiguity note below.
+- `CLOUDFLARE_API_TOKEN` (optional, protected) — only needed when `DNS_PROVIDER=cloudflare` in
+  `config/environment/.env.main`; read by `provision-dns`'s `dns.sh` call via
+  `.provision-base`'s `before_script` append into `config/environment/.env.secret` (see "Job
+  split" above for why the append must happen before `sh/env/init.sh`). Unset when
+  `DNS_PROVIDER` is empty/`none`/`route53` — `dns.sh` skips or uses AWS credentials instead. See
+  `kit-modules/basis/README.MD`/`CLAUDE.md` for the full DNS provider configuration surface —
+  not repeated here.
 
 ### `PLAN_JOB_ID` vs GitHub's `PLAN_RUN_ID` — a genuine semantic difference
 

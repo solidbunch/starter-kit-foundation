@@ -141,20 +141,81 @@ section. It is not a line-for-line port; three deliberate structural deltas:
   (dev/stage/prod), `ACTION_TYPE` (plan/apply/destroy), `SKIP_ANSIBLE` (bool). Auths to AWS via
   **GitHub OIDC** (`aws-actions/configure-aws-credentials`, `permissions: id-token: write`) — no
   static AWS keys in secrets.
+- **Four jobs, not one.** `provision` (Terraform `shared`→`<env>`), `ansible` and `dns` (both
+  `needs: provision`, both gated on `needs.provision.outputs.has_basis == 'true' &&
+  inputs.ACTION_TYPE == 'apply'` — `ansible` additionally on `SKIP_ANSIBLE == 'false'`), and
+  `summary` (`needs: [provision, ansible, dns]`, `if: always()`). `ansible` and `dns` run as
+  genuinely separate, concurrent jobs in the run's graph — `dns` invokes
+  `kit-modules/basis/sh/dns.sh` (see `kit-modules/basis/CLAUDE.md`/`README.MD` for the script's
+  own CLI/provider contract, not repeated here) and appends its own `### DNS records` section to
+  its own `$GITHUB_STEP_SUMMARY`. `provision`, `ansible`, and `dns` each carry
+  `environment: ${{ inputs.ENVIRONMENT_TYPE }}` and repeat the full credentialed preamble via a
+  shared composite action, `.github/actions/provision-setup/action.yml` (checkout's job-to-job
+  credentials don't persist on GitHub, so each job re-runs region extraction, OIDC auth, SSH
+  setup, `.env` prep including the `CLOUDFLARE_API_TOKEN` secret-clobber-trap append — see the
+  DNS-provider plan's Architecture notes §10 — Composer install, and `verify-basis.sh`; it takes
+  every credential as an explicit `inputs:` value since a composite action cannot read the
+  `secrets` context, and exposes `has_basis` as an `outputs:`). `summary` carries **no**
+  `environment:` and uses no composite action — it needs no credentials, only
+  `needs.provision.outputs.ipv4/.ipv6` (real value or empty — never the `N/A`/`ERROR` sentinel,
+  see below) plus `needs.ansible.result`/`needs.dns.result`, and renders the
+  `success`/`failure`/`cancelled`/`skipped` outcome of each honestly rather than assuming success.
+- **Behaviour change: more approval prompts on a protected environment.** If the target
+  environment (`dev`/`stage`/`prod`) has required reviewers configured (see "GitHub configuration"
+  below), an `apply` run now prompts for approval **once per credentialed job** — three times
+  (`provision`, `ansible`, `dns`), not once — because all three carry their own `environment:` key
+  (verified against the current `job-provision.yml`: `environment:` appears on exactly those three
+  jobs, never on `summary`). This is a real, stated behaviour change from the single-job design,
+  not an implementation detail to silently absorb. If three prompts per run is unacceptable,
+  create an unprotected sibling environment for the two follow-up jobs (`ansible`/`dns`) — not
+  done by default.
 - Force-updates `solidbunch/basis` from `dist` only when `IS_DEMO` is `true`, same pattern as the
   deploy job.
-- Verifies `kit-modules/basis` actually exists (`has_basis` step output) before running any
-  Terraform/Ansible step — if the license didn't resolve real code, the whole provisioning
-  sequence short-circuits with a log message instead of failing hard. Don't assume a green run
-  means infrastructure was actually touched; check this step's output.
+- Verifies `kit-modules/basis` actually exists (`has_basis` step output, computed once in
+  `provision` and threaded to `ansible`/`dns` via `needs.provision.outputs.has_basis`) before
+  running any Terraform/Ansible/DNS step — if the license didn't resolve real code, the whole
+  provisioning sequence short-circuits with a log message instead of failing hard, and `summary`
+  still runs (`if: always()`) and reports `skipped` for `ansible`/`dns` rather than erroring on
+  missing outputs. Don't assume a green run means infrastructure was actually touched; check the
+  `has_basis` output.
 - Terraform runs `shared` (network) → `${EFFECTIVE_ENV_TYPE}` (the target env) — the `state`
   (backend bootstrap) layer is no longer run by CI; see below — each `init` then the chosen
   `ACTION_TYPE`. Mirrors the `envs/shared` → `envs/<env>` apply order described in
-  `infrastructure.md`.
-- Ansible (`inventory` then `playbook`) only runs when `ACTION_TYPE == apply` and
-  `SKIP_ANSIBLE == false`.
-- Cleans up the generated Ansible inventory (`generated.inventory.yml`) in an `if: always()` step
-  — don't remove that cleanup when editing the job.
+  `infrastructure.md`. This is also the job whose `tf_outputs` step is the **single** Terragrunt
+  read in the whole workflow — it reads `instance_public_ip`/`instance_ipv6` once and publishes
+  them as job `outputs:` for `ansible`/`dns`/`summary` to consume, so no downstream job re-`init`s
+  Terragrunt. That step normalizes the `N/A` (output not configured) and `ERROR` (terragrunt
+  command itself failed) sentinels to an actually-empty string before they become `ipv4`/`ipv6`
+  job outputs — a non-empty sentinel string reaching `dns.sh`'s `-4`/`-6` flags would be treated as
+  an explicit (invalid) override and abort the whole `dns` job before writing any record, even the
+  still-valid other-address-family one. The raw sentinel is preserved separately as
+  `ipv4_display`/`ipv6_display`, consumed only by `summary`'s human-readable report — never fed
+  into `dns.sh`.
+- Ansible (`inventory` then `playbook`) runs in its own `ansible` job, only when
+  `ACTION_TYPE == apply` and `SKIP_ANSIBLE == false`.
+- Cleans up the generated Ansible inventory (`generated.inventory.yml`) in the `ansible` job's own
+  `if: always()` step — don't remove that cleanup when editing the job.
+- **Concurrency is workflow-level, not job-level — this is required for safety, not a style
+  choice.** `job-provision.yml` is `workflow_dispatch`-only (never `workflow_call`, unlike
+  `job-deploy.yml`, which must keep its group at job level), so a top-level `concurrency:` block
+  (`group: provision-${{ inputs.ENVIRONMENT_TYPE }}`, `cancel-in-progress: false`) covers the
+  **entire run** — `provision`, `ansible`, `dns`, and `summary` together — from start to finish.
+  No job in the file carries its own `concurrency:` key (grep-checkable:
+  `grep -n "concurrency:" .github/workflows/job-provision.yml` returns exactly one hit, at top
+  level). An earlier design considered one distinct group per job kind
+  (`provision-<env>`/`-ansible`/`-dns`) — **that was rejected**: per-kind groups only serialize
+  each kind against itself, so a second dispatch's `provision` job would become eligible the
+  moment the first dispatch's `provision` job ends, while the first dispatch's `ansible`/`dns` are
+  still working against the instance it just created — a live-infrastructure safety regression,
+  not a cosmetic bug. A workflow-level group avoids that: there is only ever one lock holder, the
+  run itself, and jobs *within* one run are still free to run concurrently against each other.
+  **One-pending-slot behaviour, unchanged from the old job-level arrangement:** with
+  `cancel-in-progress: false` there is at most one running and one pending run per group — a third
+  dispatch queued behind an already-running-plus-pending pair silently cancels the pending one.
+  GitHub's `queue: max` (a real deeper queue) is a documented opt-in **deliberately not adopted
+  here** — it's gated behind a rollout whose availability can't be verified from inside this repo,
+  and is a bigger behaviour change than this feature needs; note it here as a future option, not a
+  todo.
 - `TFPLAN_PASSPHRASE` (secret, optional) drives the plan-then-apply flow: the Terraform plan is
   GPG-encrypted (AES256) into the `tfplan-<env>` run artifact, and an `apply` run given a
   `PLAN_RUN_ID` downloads and decrypts it instead of re-planning. Every step in that chain is

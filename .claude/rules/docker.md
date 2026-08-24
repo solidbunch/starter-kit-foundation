@@ -37,8 +37,8 @@ Eight images, each built from `dockerfiles/<service>/Dockerfile`, versioned in
 | `cron` | `alpine:3.24` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
 | `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.10 binary, git/svn/hg/unzip tooling |
 | `node` | `node:18-alpine3.21` | theme asset builds — 3.21 is the newest Alpine variant upstream ever published for Node 18 (Node 18 itself reached EOL 2025-04-30; a major-version bump is a separate, larger task) |
-| `certbot` | `alpine:3.24` | + `certbot`, `openssl` |
-| `iac` | `debian:12-slim` | Terraform, Terragrunt, Ansible, AWS CLI, gcloud, pinned versions via build ARGs |
+| `certbot` | `alpine:3.24` | + `certbot`, `openssl`, `libpsl-utils` (`psl` CLI, apex/subdomain detection for `sh/system/certbot.sh` — see that script and `kit-modules/basis/CLAUDE.md`'s DNS-provider notes for the rule) — current tag `2.11-alpine3.24-r1` |
+| `iac` | `debian:12-slim` | Terraform, Terragrunt, Ansible, AWS CLI, gcloud, pinned versions via build ARGs, + `psl` (Debian package providing the same `psl` CLI as `certbot`'s `libpsl-utils`, used by `kit-modules/basis/sh/dns.sh`) — current tag `1.1.2` (this service pins its own version scheme, not an alpine/upstream tag) |
 
 All images share the same **entrypoint pattern**: a `docker-entrypoint.sh` that runs numbered
 scripts from `docker-entrypoint.d/*.sh` (alphabetical) before `exec`-ing the real command — e.g.
