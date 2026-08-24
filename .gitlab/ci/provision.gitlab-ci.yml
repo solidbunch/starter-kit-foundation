@@ -39,6 +39,42 @@
 # .claude/rules/gitlab-ci.md for why pipeline inputs (ENVIRONMENT_TYPE, ACTION_TYPE,
 # CONFIRM_DESTROY, SKIP_ANSIBLE, PLAN_JOB_ID, CONFIRM) are referenced here as bare `$VAR`s, the
 # same pattern `validate-provision-inputs`/`build-basis` above already use.
+#
+# --------------------------------------------------------------------------------------------
+# Job split (provision / provision-ansible / provision-dns) — see the plan's Architecture notes
+# §8/§8a for the full reasoning; summarized here for anyone reading this file cold:
+#
+# - `.provision-base` (hidden, below) holds everything the three real jobs share: image,
+#   variables, id_tokens, resource_group, environment, and the ENTIRE before_script guard chain
+#   (stage/env guard, region, destroy confirmation, .env prep incl. the CLOUDFLARE_API_TOKEN
+#   secret-clobber-trap fix — see the plan's §10 — has_basis check, TFPLAN_PASSPHRASE/pinned-plan
+#   retrieval, OIDC/STS exchange, SSH setup, SSH pubkey extraction, state-backend bucket guard).
+#   Duplicating the whole preamble into every job (rather than trying to share state across jobs)
+#   is deliberate — GitLab job-to-job state never persists outside declared artifacts, exactly the
+#   same constraint that forced GitHub's composite-action extraction (job-provision.yml).
+# - `provision` (stage `provision`) does Terraform only (shared -> environment layer) and writes
+#   `dns.env` (INSTANCE_IPV4/INSTANCE_IPV6, always both keys present) as a `reports: dotenv`
+#   artifact — the single Terragrunt-output read in this file, consumed by `provision-dns` via
+#   `needs:` instead of a second read.
+# - `provision-ansible` / `provision-dns` (stage `provision-follow`, both `needs: [build-basis,
+#   provision]`) carry the Ansible block and the `dns.sh` call respectively.
+# - All three jobs share the SAME `resource_group: provision-$ENVIRONMENT_TYPE` (inherited from
+#   `.provision-base`) — deliberately NOT split per job kind. A per-kind split was considered and
+#   rejected: it would only serialize each kind against itself, letting a second dispatch's
+#   Terraform start while the first dispatch's Ansible/DNS work is still running against the same
+#   instance. The safety property this preserves — a second dispatch's `provision` cannot start
+#   until the first dispatch's entire chain (`provision` + `provision-ansible` + `provision-dns`)
+#   has drained — depends on the resource group's process mode being set to `oldest_first` via the
+#   GitLab API (`PUT /projects/:id/resource_groups/provision-<env>`, no `.gitlab-ci.yml`/UI
+#   surface for this — see the Manual gate in the plan and .claude/rules/gitlab-ci.md). Until that
+#   API call is made per environment, this group runs in GitLab's default `unordered` mode and the
+#   whole-chain exclusion guarantee does NOT hold. Do not reintroduce per-kind resource groups.
+# - Each of the three jobs writes and `cat`s its OWN `provision-summary.md` — there is no
+#   aggregating "summary" job on GitLab (unlike GitHub's `summary` job): GitLab has no
+#   `$GITHUB_STEP_SUMMARY` equivalent, and a fourth job would need `when: always` plus cross-job
+#   artifact plumbing for no user-visible gain beyond another log blob. This is a deliberate,
+#   recorded asymmetry between the two platforms, not an oversight.
+# --------------------------------------------------------------------------------------------
 
 validate-provision-inputs:
   stage: validate
@@ -114,16 +150,24 @@ build-basis:
       - kit-modules/
       - composer.lock
 
-provision:
-  stage: provision
+# --------------------------------------------------------------------------------------------
+# Hidden base job — shared image/variables/id_tokens/resource_group/environment/before_script
+# for provision / provision-ansible / provision-dns. See the file header comment above for the
+# reasoning. `extends:` merges `variables:`/`id_tokens:` key-by-key with the extending job's own
+# (a job that redeclares a key here wins for that key only); `before_script:`/`script:`/
+# `after_script:`/`artifacts:` are NOT merged — a job that declares its own replaces the base's
+# wholesale, which is why every one of `script:`/`after_script:`/`artifacts:` below is redeclared
+# in full by each real job rather than assumed inherited.
+# --------------------------------------------------------------------------------------------
+.provision-base:
   image:
     name: $APP_IAC_IMAGE
     entrypoint: ['']
   variables:
-    # No Docker daemon on this runner — terraform.sh/ansible.sh run natively inside this job's own
-    # image (see kit-modules/basis/sh/lib/iac-exec.sh). This is the ONLY place in this file
-    # IAC_NATIVE is set — never let it leak in unset (would silently try `docker compose`, which
-    # doesn't exist here).
+    # No Docker daemon on this runner — terraform.sh/ansible.sh/dns.sh run natively inside this
+    # job's own image (see kit-modules/basis/sh/lib/iac-exec.sh). This is the ONLY place in this
+    # file IAC_NATIVE is set — never let it leak in unset (would silently try `docker compose`,
+    # which doesn't exist here).
     IAC_NATIVE: "1"
     COMPOSER_ALLOW_SUPERUSER: "1"
     ENVIRONMENT_TYPE: $[[ inputs.ENVIRONMENT_TYPE ]]
@@ -131,13 +175,15 @@ provision:
     SKIP_ANSIBLE: $[[ inputs.SKIP_ANSIBLE ]]
     PLAN_JOB_ID: $[[ inputs.PLAN_JOB_ID ]]
     CONFIRM_DESTROY: $[[ inputs.CONFIRM_DESTROY ]]
+  # Shared across all three real jobs — the existing string, unchanged. See the file header
+  # "Job split" comment above and .claude/rules/gitlab-ci.md for the full reasoning; the short
+  # version: per-kind resource groups were considered and rejected as a live-infrastructure
+  # safety regression, and the whole-chain exclusion this single group provides only holds once
+  # its process mode is set to `oldest_first` via the GitLab API (a one-time, per-environment,
+  # out-of-repo manual step — see the plan's Manual gate).
   resource_group: provision-$ENVIRONMENT_TYPE
   environment:
     name: $ENVIRONMENT_TYPE
-  needs:
-    - build-basis
-  rules:
-    - if: '$PIPELINE_KIND == "provision"'
   # AWS credentials come from GitLab's own OIDC ID token, not a static secret — audience must be
   # sts.amazonaws.com to match the "aud" condition oidc.sh -p gitlab writes into both roles' trust
   # policies (kit-modules/basis/sh/aws/oidc.sh).
@@ -166,9 +212,19 @@ provision:
       fi
     # 4) .env prep, native (no Docker) — same pattern as build-basis above. build-basis's own
     #    generated .env is NOT part of its artifacts (only vendor/, kit-modules/, composer.lock
-    #    are), so this job regenerates its own — terraform.sh/ansible.sh both `source ./.env`
+    #    are), so this job regenerates its own — terraform.sh/ansible.sh/dns.sh all `source ./.env`
     #    themselves, they just need the file to exist with today's TF_VAR_*/DEFAULT_USER values.
+    #    The CLOUDFLARE_API_TOKEN append below must run BEFORE init.sh — sh/env/.env.secret.template
+    #    registers an empty `CLOUDFLARE_API_TOKEN=` line (Task 1.3), so without this append,
+    #    init.sh's `source ./.env` inside dns.sh would silently clobber a real project CI/CD
+    #    variable with that empty value (the plan's Architecture notes §10 "clobber trap" —
+    #    mirrors how COMPOSER_AUTH is already handled on the GitHub side in
+    #    .github/actions/provision-setup/action.yml's "Prepare .env" step).
     - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
+    - |
+      if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+        echo "CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}" >> ./config/environment/.env.secret
+      fi
     - bash ./sh/env/init.sh "$ENVIRONMENT_TYPE"
     - source ./.env
     # 5) has_basis, computed and logged BEFORE the AWS/OIDC step below — kit-modules/basis is
@@ -256,8 +312,8 @@ provision:
       fi
     # 6) Exchange the GitLab OIDC ID token for short-lived AWS credentials. Not gated on
     #    HAS_BASIS: mirrors job-provision.yml, which configures AWS credentials unconditionally
-    #    and only gates the Terraform/Ansible steps further down on has_basis. This is also the
-    #    wall gitlab-ci-local execution is expected to hit — no real id_tokens JWT is minted
+    #    and only gates the Terraform/Ansible/DNS steps further down on has_basis. This is also
+    #    the wall gitlab-ci-local execution is expected to hit — no real id_tokens JWT is minted
     #    locally, so this call is the first (and only) step that requires real AWS/GitLab OIDC
     #    trust to succeed.
     - |
@@ -306,10 +362,18 @@ provision:
         fi
         echo "Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' is accessible."
       fi
+
+provision:
+  stage: provision
+  extends: .provision-base
+  needs:
+    - build-basis
+  rules:
+    - if: '$PIPELINE_KIND == "provision"'
   script:
     - |
       if [ "$HAS_BASIS" != "true" ]; then
-        echo "No license/module — skipping Terraform and Ansible."
+        echo "No license/module — skipping Terraform."
         {
           echo "## Infrastructure Provisioning Summary"
           echo "**Action:** ${ACTION_TYPE}"
@@ -317,6 +381,7 @@ provision:
           echo "**Result:** skipped — kit-modules/basis is not licensed/installed (has_basis=false)"
         } > provision-summary.md
         cat provision-summary.md
+        printf 'INSTANCE_IPV4=\nINSTANCE_IPV6=\n' > dns.env
         exit 0
       fi
     # TFPLAN_PASSPHRASE availability and pinned-plan retrieval (PLAN_JOB_ID) both already ran in
@@ -417,14 +482,50 @@ provision:
           echo "- **Warning:** \`TFPLAN_PASSPHRASE\` is not configured — no pinned-plan artifact was produced; a later apply will fall back to same-run plan-then-apply." >> provision-summary.md
         fi
       fi
+    # Terraform-output contract (plan's Architecture notes §6) — the single Terragrunt-output
+    # read in this file. Only 'apply' populates real values — 'destroy' has no downstream
+    # consumer of an instance IP, and 'plan' has no infrastructure yet to read outputs from.
+    # dns.env always carries both keys (empty when unset/not applicable) so provision-dns's
+    # `artifacts: reports: dotenv` consumption never has to special-case a missing key.
+    # get_tf_output distinguishes "output not set yet" (N/A) from "terragrunt command actually
+    # errored" (ERROR) so a real error is never silently treated as "no output configured" —
+    # mirrors job-provision.yml's own `tf_outputs` step exactly, just without the Docker wrapper
+    # (this job already runs natively, inside the iac toolchain image itself).
     - |
-      if [ "$ACTION_TYPE" = "apply" ] && [ "$SKIP_ANSIBLE" != "true" ]; then
-        echo "- ansible: running (inventory + playbook)" >> provision-summary.md
-        bash kit-modules/basis/sh/ansible.sh -e "$ENVIRONMENT_TYPE" -a inventory
-        bash kit-modules/basis/sh/ansible.sh -e "$ENVIRONMENT_TYPE" -a playbook
+      if [ "$ACTION_TYPE" = "apply" ]; then
+        get_tf_output() {
+          local name="$1" out rc errfile
+          errfile=$(mktemp)
+          out=$(cd "kit-modules/basis/terraform/envs/${ENVIRONMENT_TYPE}" && terragrunt output -raw "$name" 2>"$errfile")
+          rc=$?
+          if [ $rc -eq 0 ]; then
+            echo "$out"
+          elif grep -q "not found" "$errfile"; then
+            echo "N/A"
+          else
+            echo "ERROR"
+          fi
+          rm -f "$errfile"
+        }
+        normalize() {
+          case "$1" in
+            N/A|ERROR) echo "" ;;
+            *) echo "$1" ;;
+          esac
+        }
+        IPV4_RAW=$(get_tf_output instance_public_ip)
+        IPV6_RAW=$(get_tf_output instance_ipv6)
+        INSTANCE_IPV4=$(normalize "$IPV4_RAW")
+        INSTANCE_IPV6=$(normalize "$IPV6_RAW")
+        echo "- **Terraform outputs:** ipv4=${IPV4_RAW}, ipv6=${IPV6_RAW}" >> provision-summary.md
       else
-        echo "- ansible: skipped (ACTION_TYPE=${ACTION_TYPE}, SKIP_ANSIBLE=${SKIP_ANSIBLE})" >> provision-summary.md
+        INSTANCE_IPV4=""
+        INSTANCE_IPV6=""
       fi
+      {
+        echo "INSTANCE_IPV4=${INSTANCE_IPV4}"
+        echo "INSTANCE_IPV6=${INSTANCE_IPV6}"
+      } > dns.env
     - |
       {
         echo "## Infrastructure Provisioning Summary"
@@ -437,7 +538,6 @@ provision:
       mv provision-summary.md.tmp provision-summary.md
       cat provision-summary.md
   after_script:
-    - rm -f kit-modules/basis/ansible/generated.inventory.yml || true
     - rm -f ~/.ssh/id_rsa ~/.ssh/config || true
   # A GitLab job carries exactly one `artifacts:` block — one `expire_in` for every path in it,
   # no per-path retention. GitHub's equivalent has three separate artifacts with three different
@@ -452,7 +552,10 @@ provision:
   # encryption-at-rest — GPG remains the actual control. `tfstate-backup.json` (plaintext) is
   # deliberately never listed here — only its `.gpg` form is, and only once a passphrase is
   # configured (see the pre-destroy backup step above): the plaintext file is always removed from
-  # disk before this artifacts stage would ever pick it up.
+  # disk before this artifacts stage would ever pick it up. `dns.env` carries the
+  # `reports: dotenv` block — a distinct artifact mechanism from `paths:`, consumed by
+  # `provision-dns` via `needs:` (GitLab auto-injects dotenv-report keys as job-level CI/CD
+  # variables only for jobs that declare `needs:` on the producing job).
   artifacts:
     expire_in: 90 days
     when: always
@@ -461,3 +564,111 @@ provision:
       - provision-summary.md
       - tfplans.tar.gz.gpg
       - tfstate-backup.json.gpg
+    reports:
+      dotenv: dns.env
+
+provision-ansible:
+  stage: provision-follow
+  extends: .provision-base
+  needs:
+    - build-basis
+    - provision
+  rules:
+    - if: '$PIPELINE_KIND == "provision"'
+  script:
+    - |
+      if [ "$HAS_BASIS" != "true" ]; then
+        echo "No license/module — skipping Ansible."
+        {
+          echo "## Infrastructure Provisioning Summary — Ansible"
+          echo "**Action:** ${ACTION_TYPE}"
+          echo "**Environment:** ${ENVIRONMENT_TYPE}"
+          echo "**Result:** skipped — kit-modules/basis is not licensed/installed (has_basis=false)"
+        } > provision-summary.md
+        cat provision-summary.md
+        exit 0
+      fi
+    - |
+      if [ "$ACTION_TYPE" = "apply" ] && [ "$SKIP_ANSIBLE" != "true" ]; then
+        echo "- ansible: running (inventory + playbook)" >> provision-summary.md
+        bash kit-modules/basis/sh/ansible.sh -e "$ENVIRONMENT_TYPE" -a inventory
+        bash kit-modules/basis/sh/ansible.sh -e "$ENVIRONMENT_TYPE" -a playbook
+      else
+        echo "- ansible: skipped (ACTION_TYPE=${ACTION_TYPE}, SKIP_ANSIBLE=${SKIP_ANSIBLE})" >> provision-summary.md
+      fi
+    - |
+      {
+        echo "## Infrastructure Provisioning Summary — Ansible"
+        echo "**Action:** ${ACTION_TYPE}"
+        echo "**Environment:** ${ENVIRONMENT_TYPE}"
+        echo "**Timestamp:** $(date -u)"
+        echo ""
+        cat provision-summary.md 2>/dev/null || true
+      } > provision-summary.md.tmp
+      mv provision-summary.md.tmp provision-summary.md
+      cat provision-summary.md
+  after_script:
+    # Specific to what this job creates — moved here from the old combined `provision` job.
+    - rm -f kit-modules/basis/ansible/generated.inventory.yml || true
+    - rm -f ~/.ssh/id_rsa ~/.ssh/config || true
+  artifacts:
+    expire_in: 90 days
+    when: always
+    access: developer
+    paths:
+      - provision-summary.md
+
+provision-dns:
+  stage: provision-follow
+  extends: .provision-base
+  needs:
+    - build-basis
+    - provision
+  rules:
+    - if: '$PIPELINE_KIND == "provision"'
+  script:
+    - |
+      if [ "$HAS_BASIS" != "true" ]; then
+        echo "No license/module — skipping DNS."
+        {
+          echo "## Infrastructure Provisioning Summary — DNS"
+          echo "**Action:** ${ACTION_TYPE}"
+          echo "**Environment:** ${ENVIRONMENT_TYPE}"
+          echo "**Result:** skipped — kit-modules/basis is not licensed/installed (has_basis=false)"
+        } > provision-summary.md
+        cat provision-summary.md
+        exit 0
+      fi
+    # INSTANCE_IPV4/INSTANCE_IPV6 arrive as ordinary CI/CD variables — GitLab auto-injects the
+    # `provision` job's `dns.env` (reports: dotenv) keys because this job's `needs:` lists
+    # `provision` (plan's Architecture notes §6). -4/-6 are passed even when empty, matching
+    # job-provision.yml's `dns` job invocation exactly — dns.sh's own empty-override branch falls
+    # back to resolving that family from Terraform state, so a missing IPv6 output never blocks
+    # the still-valid IPv4 record.
+    - |
+      if [ "$ACTION_TYPE" = "apply" ]; then
+        echo "- dns: running" >> provision-summary.md
+        bash kit-modules/basis/sh/dns.sh -e "$ENVIRONMENT_TYPE" -4 "${INSTANCE_IPV4:-}" -6 "${INSTANCE_IPV6:-}" -y
+        echo "- dns: completed" >> provision-summary.md
+      else
+        echo "- dns: skipped (ACTION_TYPE=${ACTION_TYPE})" >> provision-summary.md
+      fi
+    - |
+      {
+        echo "## Infrastructure Provisioning Summary — DNS"
+        echo "**Action:** ${ACTION_TYPE}"
+        echo "**Environment:** ${ENVIRONMENT_TYPE}"
+        echo "**Timestamp:** $(date -u)"
+        echo ""
+        cat provision-summary.md 2>/dev/null || true
+      } > provision-summary.md.tmp
+      mv provision-summary.md.tmp provision-summary.md
+      cat provision-summary.md
+  after_script:
+    - rm -f ~/.ssh/id_rsa ~/.ssh/config || true
+  artifacts:
+    expire_in: 90 days
+    when: always
+    access: developer
+    paths:
+      - provision-summary.md
