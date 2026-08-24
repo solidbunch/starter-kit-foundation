@@ -50,15 +50,15 @@ validate-provision-inputs:
     ACTION_TYPE: $[[ inputs.ACTION_TYPE ]]
     CONFIRM_DESTROY: $[[ inputs.CONFIRM_DESTROY ]]
   script:
-    # Fail fast on 'stage' (no Terraform environment configured under
-    # kit-modules/basis/terraform/envs/ — a documented gap, see kit-modules/basis/CLAUDE.md)
-    # before wasting any AWS/SSH/composer setup time. Mirrors job-provision.yml's
+    # Fail fast on 'stage' (Terraform config exists, but ansible/inventory.yml has no stage
+    # host yet — a documented gap, see kit-modules/basis/CLAUDE.md) before wasting any
+    # AWS/SSH/composer setup time. Mirrors job-provision.yml's
     # "Validate ENVIRONMENT_TYPE has a Terraform environment" step.
     - |
       case "$ENVIRONMENT_TYPE" in
         dev|prod) ;;
         *)
-          echo "Error: ENVIRONMENT_TYPE '$ENVIRONMENT_TYPE' has no Terraform environment configured under kit-modules/basis/terraform/envs/. Only 'dev' and 'prod' are currently supported." >&2
+          echo "Error: ENVIRONMENT_TYPE '$ENVIRONMENT_TYPE' is not supported by this pipeline yet — 'stage' has a Terraform environment (kit-modules/basis/terraform/envs/stage) but no Ansible host wired up (ansible/inventory.yml), so provisioning would create an EC2 instance Ansible cannot then configure. Only 'dev' and 'prod' are currently supported." >&2
           exit 1
           ;;
       esac
@@ -151,7 +151,7 @@ provision:
       case "$ENVIRONMENT_TYPE" in
         dev|prod) ;;
         *)
-          echo "Error: ENVIRONMENT_TYPE '$ENVIRONMENT_TYPE' has no Terraform environment configured under kit-modules/basis/terraform/envs/. Only 'dev' and 'prod' are currently supported." >&2
+          echo "Error: ENVIRONMENT_TYPE '$ENVIRONMENT_TYPE' is not supported by this pipeline yet — 'stage' has a Terraform environment (kit-modules/basis/terraform/envs/stage) but no Ansible host wired up (ansible/inventory.yml), so provisioning would create an EC2 instance Ansible cannot then configure. Only 'dev' and 'prod' are currently supported." >&2
           exit 1
           ;;
       esac

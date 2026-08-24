@@ -58,14 +58,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Validate ENVIRONMENT_TYPE has a Terraform environment
-        # Fail fast on 'stage' (no Terraform environment configured yet) before wasting any
-        # AWS/SSH/composer setup time — the per-directory `[ ! -d "$TF_ENV_DIR" ]` guard later
+        # Fail fast on 'stage' (Terraform config exists, but ansible/inventory.yml has no stage
+        # host yet — see kit-modules/basis/CLAUDE.md, "stage is Terraform-only") before wasting
+        # any AWS/SSH/composer setup time. The per-directory `[ ! -d "$TF_ENV_DIR" ]` guard later
         # in this job still runs as defense-in-depth for dev/prod.
         run: |
           case "${{ inputs.ENVIRONMENT_TYPE }}" in
             dev|prod) ;;
             *)
-              echo "::error::ENVIRONMENT_TYPE '${{ inputs.ENVIRONMENT_TYPE }}' has no Terraform environment configured under kit-modules/basis/terraform/envs/. Only 'dev' and 'prod' are currently supported."
+              echo "::error::ENVIRONMENT_TYPE '${{ inputs.ENVIRONMENT_TYPE }}' is not supported by this workflow yet — 'stage' has a Terraform environment (kit-modules/basis/terraform/envs/stage) but no Ansible host wired up (ansible/inventory.yml), so provisioning would create an EC2 instance Ansible cannot then configure. Only 'dev' and 'prod' are currently supported."
               exit 1
               ;;
           esac
@@ -332,24 +333,26 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify Terraform state backend exists
-        # The S3 bucket backing Terraform state is bootstrapped once, locally, and is never
-        # created by CI (see .claude/rules/ci.md, "State backend — bootstrapped once, locally,
-        # never by CI"). If a project skips that one-time bootstrap, the 'shared' Terraform run
-        # below fails deep inside the S3 backend init with a raw NoSuchBucket/AccessDenied error
-        # that reads like a permissions problem. Check for the bucket explicitly here so the
-        # failure names the actual cause and points at the fix.
+        # The S3 bucket backing Terraform state is bootstrapped once, via the dedicated
+        # "Bootstrap Terraform State Backend" workflow (job-bootstrap-state.yml), and is never
+        # created by this workflow (see .claude/rules/ci.md, "State backend — bootstrapped via a
+        # dedicated workflow, never inline in provisioning"). If a project skips that one-time
+        # bootstrap, the 'shared' Terraform run below fails deep inside the S3 backend init with
+        # a raw NoSuchBucket/AccessDenied error that reads like a permissions problem. Check for
+        # the bucket explicitly here so the failure names the actual cause and points at the fix.
         if: steps.verify_basis.outputs.has_basis == 'true'
         run: |
           source .env
           if ! aws s3api head-bucket --bucket "$TF_VAR_tf_backend_bucket" --region "$AWS_DEFAULT_REGION" 2>/dev/null; then
-            echo "::error::Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' does not exist or is not accessible. This is not an AWS permissions problem — the CI role deliberately has no s3:CreateBucket permission. The state backend must be bootstrapped once, locally, before provisioning can run. Dispatch the 'Bootstrap Terraform State Backend' workflow (job-bootstrap-state.yml) against this AWS account, then re-run this workflow."
+            echo "::error::Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' does not exist or is not accessible. This is not an AWS permissions problem — the CI role deliberately has no s3:CreateBucket permission. The state backend must be bootstrapped once before provisioning can run. Dispatch the 'Bootstrap Terraform State Backend' workflow (job-bootstrap-state.yml) against this AWS account, then re-run this workflow."
             exit 1
           fi
 
       # 'shared' is the only cross-environment bulkhead CI still runs automatically — it must
       # never be destroyed as a side effect of tearing down one environment's EC2 instance. The
-      # 'state' layer (backend bootstrap) is no longer run by CI at all: it is bootstrapped once,
-      # locally, via `make tf state ...` — see .claude/rules/ci.md for the full procedure. Only
+      # 'state' layer (backend bootstrap) is not run by this workflow at all: it is bootstrapped
+      # once, via the dedicated "Bootstrap Terraform State Backend" workflow
+      # (job-bootstrap-state.yml) — see .claude/rules/ci.md for the full procedure. Only
       # 'plan'/'apply' run 'shared'; 'destroy' skips it entirely and is scoped to the
       # 'Terraform — environment' step below. ENVIRONMENT_TYPE is a restricted choice input
       # (dev/stage/prod only — see workflow_dispatch.inputs above), so this workflow has no way to
