@@ -394,20 +394,7 @@ jobs:
           export CURRENT_GID=$(id -g)
           source .env
 
-          docker compose -f docker-compose.toolkit.yml run --rm \
-            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
-            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
-            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
-            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
-            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
-            iac su -c "
-              cd \"./$TF_ENV_DIR\" && \
-              terraform init \
-                -backend-config=\"bucket=\$TF_VAR_tf_backend_bucket\" \
-                -backend-config=\"region=\$TF_VAR_aws_region\" \
-                -backend-config=\"dynamodb_table=\$TF_VAR_tf_lock_table\" >/dev/null && \
-              terraform state pull
-            " "${DEFAULT_USER}" > tfstate-backup.json
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c state-pull > tfstate-backup.json
 
           if [ ! -s tfstate-backup.json ]; then
             echo "::error::terraform state pull returned no output for layer '${EFFECTIVE_ENV_TYPE}' — aborting destroy without a state backup."
