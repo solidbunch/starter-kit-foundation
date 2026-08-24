@@ -77,7 +77,22 @@ not repeated there.
   `artifacts:` is an explicit allowlist that never includes these files, so there is nothing to
   scrub on that side.
 
-All five are `#!/bin/sh`, POSIX-only (no `bash`isms, no `echo -e`) — the GitLab deploy job runs in
+These five are deploy-side. `sh/ci/` also holds three provisioning-side guard scripts, shared the
+same way between `job-provision.yml`/`job-bootstrap-state.yml` on GitHub and
+`provision.gitlab-ci.yml`/`bootstrap-state.gitlab-ci.yml` on GitLab (eight scripts total in the
+directory) — see "Provisioning pipeline" and "State backend" below for the call sites:
+
+- **`sh/ci/extract-aws-region.sh`** — reads `TF_VAR_aws_region` out of
+  `config/environment/.env.main`. Called by both platforms' provisioning and bootstrap-state jobs
+  wherever the AWS region is needed, and by bootstrap-state's `CONFIRM`-equals-region guard (see
+  "State backend" below).
+- **`sh/ci/confirm-match.sh`** — exact-string comparison used by the `CONFIRM`/`CONFIRM_DESTROY`
+  guards, fails closed before any AWS/credential step runs.
+- **`sh/ci/verify-basis.sh`** — checks that `kit-modules/basis` actually resolved to real code
+  (licensed) before any Terraform/Ansible step runs; GitHub's `has_basis` step output and GitLab's
+  `provision`/`bootstrap-state` jobs both call it the same way.
+
+All eight are `#!/bin/sh`, POSIX-only (no `bash`isms, no `echo -e`) — the GitLab deploy job runs in
 bare `alpine:3.20`, which has no bash and never installs one, so every script that could run there
 has to work under busybox `ash`. GitHub's runner `/bin/sh` (dash) is POSIX too, so the same scripts
 work unmodified on both platforms.
@@ -103,6 +118,24 @@ GitLab CI), while `sh/local-ci/` is a local `act`+LocalStack test harness for ru
 never call one from the other.
 
 ## Provisioning pipeline
+
+A GitLab analog of this pipeline now exists — see `gitlab-ci.md`'s "Provisioning pipeline"
+section. It is not a line-for-line port; three deliberate structural deltas:
+
+- **Single job vs. build+provision split.** `job-provision.yml` is one big job end to end. GitLab
+  splits the same sequence across separate jobs — `validate-provision-inputs` (guard checks only),
+  `build-basis` (produces the `kit-modules/` artifact other jobs consume), and `provision` (the
+  actual Terraform/Ansible run) — because GitLab.com shared runners have no Docker daemon, the same
+  constraint that splits the deploy pipeline's dependency installation (see "Shared deploy scripts"
+  above).
+- **Step summary vs. summary-artifact file.** This job writes its run summary via GitHub's
+  step-summary mechanism (`$GITHUB_STEP_SUMMARY`). GitLab has no equivalent job-summary API on
+  every tier, so its `provision`/`bootstrap-state` jobs instead build a plain Markdown file
+  (`provision-summary.md` / `bootstrap-state-summary.md`) and upload it as a job artifact.
+- **`PLAN_RUN_ID` vs. `PLAN_JOB_ID`.** Same concept — pin an earlier plan run instead of
+  re-planning — different granularity: GitHub pins a workflow *run*, GitLab pins a *job* (GitLab
+  has no cross-run artifact download on Free tier). See gitlab-ci.md's "`PLAN_JOB_ID` vs GitHub's
+  `PLAN_RUN_ID`" section for the full reasoning.
 
 - `job-provision.yml` — **manual only** (`workflow_dispatch`), inputs: `ENVIRONMENT_TYPE`
   (dev/stage/prod), `ACTION_TYPE` (plan/apply/destroy), `SKIP_ANSIBLE` (bool). Auths to AWS via
@@ -136,6 +169,13 @@ never call one from the other.
   servers by itself; it needs an explicit re-provision/Ansible run against them afterward.
 
 ### State backend — bootstrapped via a dedicated workflow, never inline in provisioning
+
+A GitLab analog of `job-bootstrap-state.yml` also exists — see `gitlab-ci.md`'s "State-backend
+bootstrap" section (`.gitlab/ci/bootstrap-state.gitlab-ci.yml`, dispatched via
+`PIPELINE_KIND=bootstrap-state` rather than a separate workflow file, since GitLab shares one root
+`.gitlab-ci.yml` across all three pipeline kinds — see "`PIPELINE_KIND` gating" there). Same
+single-job-vs-split, step-summary-vs-artifact deltas as the provisioning pipeline above apply here
+too.
 
 CI's everyday provisioning role **assumes the S3/DynamoDB Terraform state backend already
 exists** — `job-provision.yml` never runs the `state` layer. The everyday CI-facing IAM role
