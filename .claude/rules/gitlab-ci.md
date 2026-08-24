@@ -459,7 +459,14 @@ though the resource group is shared across all three job kinds.
 
 **There is no `.gitlab-ci.yml` or UI surface for process mode — it is set only via the GitLab API,
 once per environment, after the resource group first exists (created on that environment's first
-pipeline run):**
+pipeline run):** concretely, the `PUT` below 404s until `provision-<env>` has been created by that
+environment's first `provision` pipeline actually running — this is necessarily a **post-first-run**
+step, it cannot be issued before an environment has ever been provisioned. It is also **per
+environment**, not global: `provision-dev`, `provision-stage`, and `provision-prod` are three
+independent resource groups, each needing its own `PUT`. Adding a new environment later
+silently reintroduces the unsafe `unordered` default for that new environment's resource group
+until this same API call is repeated against it — the earlier `PUT`s against the other
+environments do nothing for it.
 
 ```
 PUT /projects/:id/resource_groups/provision-<env>
@@ -592,12 +599,24 @@ that actually touches the GitLab UI's Variables page:
 - `PLAN_ARTIFACT_TOKEN` (optional) — a project access token, used as a `PRIVATE-TOKEN` fallback
   when the `JOB-TOKEN: $CI_JOB_TOKEN` fetch of a pinned plan artifact fails
   (`provision.gitlab-ci.yml:217-225`) — see the tier-ambiguity note below.
-- `CLOUDFLARE_API_TOKEN` (optional, protected) — only needed when `DNS_PROVIDER=cloudflare` in
-  `config/environment/.env.main`; read by `provision-dns`'s `dns.sh` call via
-  `.provision-base`'s `before_script` append into `config/environment/.env.secret` (see "Job
-  split" above for why the append must happen before `sh/env/init.sh`). Unset when
-  `DNS_PROVIDER` is empty/`none`/`route53` — `dns.sh` skips or uses AWS credentials instead. See
-  `kit-modules/basis/README.MD`/`CLAUDE.md` for the full DNS provider configuration surface —
+- `CLOUDFLARE_API_TOKEN` (Variable, optional, protected, environment-scoped — scope `*` or scope
+  exactly `dev`/`stage`/`prod` to match `.provision-base`'s `environment: name: $ENVIRONMENT_TYPE`;
+  a scope that doesn't match the running `ENVIRONMENT_TYPE` means the variable is never injected)
+  — only needed when `DNS_PROVIDER=cloudflare` in `config/environment/.env.main`; read by
+  `provision-dns`'s `dns.sh` call via `.provision-base`'s `before_script` append into
+  `config/environment/.env.secret` (see "Job split" above for why the append must happen before
+  `sh/env/init.sh`). Unset when `DNS_PROVIDER` is empty/`none`/`route53` — `dns.sh` skips or uses
+  AWS credentials instead. **"protected" here is GitLab's branch-restriction flag, a separate axis
+  from environment scope** — `provision.gitlab-ci.yml` gates its jobs solely on
+  `$PIPELINE_KIND == "provision"` with no branch/ref restriction of its own, so if this variable
+  is marked protected it is only injected when the pipeline runs on a protected branch/tag (repo
+  Settings → Repository → Protected branches); an unprotected-branch dispatch of a `provision`
+  pipeline would see it come through empty and `dns.sh` would skip/fail accordingly — mark it
+  protected only if every branch that can dispatch `PIPELINE_KIND=provision` is itself protected,
+  otherwise leave it unprotected. The Cloudflare token itself needs both `Zone:DNS:Edit` and
+  `Zone:Zone:Read` (Zone Resources: "All zones") to pass zone discovery and write the record;
+  `Zone:DNS:Edit` alone is sufficient only when `CLOUDFLARE_ZONE_ID` is also set (skips discovery).
+  See `kit-modules/basis/README.MD`/`CLAUDE.md` for the full DNS provider configuration surface —
   not repeated here.
 
 ### `PLAN_JOB_ID` vs GitHub's `PLAN_RUN_ID` — a genuine semantic difference

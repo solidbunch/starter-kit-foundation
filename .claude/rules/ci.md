@@ -281,6 +281,10 @@ Both jobs pin themselves to a **GitHub Environment** named after the run's envir
 that way — a missing environment is created implicitly and empty, carrying none of the variables
 below. Environment protection rules (required reviewers, wait timer) are configured there too,
 not in the workflow YAML; they gate **both** pipelines now that deploy is environment-pinned.
+That approval-prompt behavior only actually happens if the `dev`/`stage`/`prod` environments have
+required-reviewer/wait-timer rules configured in Settings → Environments — declaring
+`environment:` in the workflow YAML alone provides deployment tracking only, with zero prompts;
+don't assume protection exists just because the environment name is referenced there.
 Environments with variables/secrets need a public repo, or GitHub Pro/Team/Enterprise for a
 private one.
 
@@ -292,6 +296,7 @@ Secrets (**Settings → Secrets and variables → Actions → Secrets**):
 | `SSH_CONFIG` | yes | deploy + provision — sets `StrictHostKeyChecking accept-new` (trust-on-first-use): accepts an unseen host key automatically on first connect, then refuses to connect if that host's key later changes, closing the MITM/key-swap gap a bare `no` would leave open |
 | `COMPOSER_AUTH` | yes | deploy + provision, unlocks licensed modules (`infrastructure.md`) |
 | `TFPLAN_PASSPHRASE` | no | provision only, plan encryption (see above) |
+| `CLOUDFLARE_API_TOKEN` | no | provision only, required when `DNS_PROVIDER=cloudflare` — needs both `Zone:DNS:Edit` and `Zone:Zone:Read` (Zone Resources: "All zones") for the token to pass zone discovery *and* write the record; `Zone:DNS:Edit` alone is only sufficient when `CLOUDFLARE_ZONE_ID` is also set (skips discovery). Can be repo- or environment-scoped — all three jobs that read it (`provision`, `ansible`, `dns`) carry `environment:` |
 | `GITHUB_TOKEN` | — | auto-provided, nothing to configure |
 
 Variables (**Variables** tab, or per environment):
