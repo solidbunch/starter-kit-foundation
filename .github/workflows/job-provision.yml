@@ -537,7 +537,7 @@ jobs:
             errfile=$(mktemp)
             out=$(docker compose -f docker-compose.toolkit.yml run --rm \
               -w "/srv/$TF_ENV_DIR" \
-              iac bash -lc "terraform output -raw $name" 2>"$errfile")
+              iac bash -lc "terragrunt output -raw $name" 2>"$errfile")
             rc=$?
             if [ $rc -eq 0 ]; then
               echo "$out"
