@@ -388,6 +388,250 @@ Creates a `.gitlab-ci-local/` state directory as a side effect — gitignored, d
   ever reached — the manual "Run pipeline" button surfaces the error instead of silently doing
   nothing. Confirm by checking `develop` / `main` instead, not by reading this as a bug.
 
+## Provisioning pipeline
+
+GitLab analog of `.github/workflows/job-provision.yml` (Terraform `shared`→`<env>` + Ansible).
+Lives in the same root `.gitlab-ci.yml` as the deploy pipeline described above — see "How the
+provisioning pipeline coexists with the existing deploy pipeline" (`PIPELINE_KIND` gating) below
+for why it's one shared file rather than a separate entry point.
+
+### `spec:inputs` — the 7 pipeline inputs
+
+Declared in the root `.gitlab-ci.yml`'s `spec:` document (`.gitlab-ci.yml:1-31`), the only place
+GitLab allows pipeline inputs to be declared — "Inputs for pipelines must be defined in the
+`spec:inputs` header of the main `.gitlab-ci.yml` file"
+(https://docs.gitlab.com/ci/inputs/#define-input-parameters-with-specinputs). The `spec:` block is
+its own YAML document, separated from the rest of the file by `---` (`.gitlab-ci.yml:1,31`).
+
+| Input | Type | Default | Options / notes |
+|---|---|---|---|
+| `PIPELINE_KIND` | string | `deploy` | `options: [deploy, provision, bootstrap-state]` — see "`PIPELINE_KIND` gating" below |
+| `ENVIRONMENT_TYPE` | string | `dev` | `options: [dev, stage, prod]` — provisioning only; `stage` is rejected by both `validate-provision-inputs` and `provision`'s own guard (`.gitlab/ci/provision.gitlab-ci.yml:59-66,152-159`) since no `kit-modules/basis/terraform/envs/stage/` exists (`kit-modules/basis/CLAUDE.md`'s documented `stage` gap) |
+| `ACTION_TYPE` | string | `plan` | `options: [plan, apply, destroy]` |
+| `SKIP_ANSIBLE` | boolean | `false` | |
+| `PLAN_JOB_ID` | string | `''` | a GitLab **job** ID — see "`PLAN_JOB_ID` vs GitHub's `PLAN_RUN_ID`" below |
+| `CONFIRM_DESTROY` | string | `''` | must equal `ENVIRONMENT_TYPE` when `ACTION_TYPE=destroy`; checked twice — once in `validate-provision-inputs` (`.gitlab/ci/provision.gitlab-ci.yml:72-75`), once again inside `provision`'s own `before_script` (`.gitlab/ci/provision.gitlab-ci.yml:164-168`), because a job-level retry skips `validate-provision-inputs` entirely |
+| `CONFIRM` | string | `''` | `bootstrap-state` pipeline only; must equal the AWS region extracted from `.env.main`, not an environment name — see "State-backend bootstrap" below |
+
+Every input carries a `default:` — not stylistic. The root file also serves the push-triggered
+dev/prod deploy pipelines, which supply no pipeline inputs at all; an input without a default would
+break automatic dev deploy-on-push (`.gitlab-ci.yml:1-6`'s own header comment states this). Max 20
+inputs per pipeline (https://docs.gitlab.com/ci/inputs/) — this uses 7.
+
+### Minimum GitLab version — 18.1, and the pre-18.1 fallback
+
+Pipeline-level `spec:inputs` is GA only from GitLab **18.1** (behind the `ci_inputs_for_pipelines`
+feature flag, default-on, in 17.11) — https://docs.gitlab.com/ci/inputs/. On a self-managed
+instance older than 17.11, or with the flag disabled between 17.11 and 18.1, the root file's
+`spec:` header will not work as designed: the New pipeline page will not render the typed
+input form at all.
+
+**Fallback for a pre-18.1 target**, not implemented here: prefilled pipeline `variables:` with
+`description:`, which GitLab has supported since well before `spec:inputs` existed and which does
+render a form field on the New pipeline page —
+https://docs.gitlab.com/ci/variables/#prefill-variables-in-manual-pipelines. It has no `type:` or
+`options:` enforcement (`PIPELINE_KIND=bogus` would not be rejected at pipeline-creation time the
+way `options:` rejects it today) and no equivalent of `$[[ inputs.x ]]` config-time interpolation,
+so `PIPELINE_KIND` would have to be read as a plain job-level `$PIPELINE_KIND` CI variable
+everywhere it's used today — the same pattern already used for the other 6 inputs inside
+`provision.gitlab-ci.yml`/`bootstrap-state.gitlab-ci.yml` (see their own header comments on why
+those 6 are deliberately *not* mapped in root's top-level `variables:`). If this project ever needs
+to target an older GitLab instance, that is the mechanical change required; nothing else in this
+pipeline's design depends on 18.1 specifically.
+
+### `PIPELINE_KIND` gating — why one root file needs it
+
+The root `.gitlab-ci.yml` is shared by the deploy pipeline (this file's top section) and the
+provisioning/bootstrap-state pipelines. A web-triggered pipeline on `main` currently produces the
+three prod deploy jobs; without a gate, adding provisioning jobs to the same pipeline would make
+one "Run pipeline" click run both deploy and provisioning simultaneously. `PIPELINE_KIND` is
+interpolated once, at the root file's top-level `variables:`
+(`PIPELINE_KIND: $[[ inputs.PIPELINE_KIND ]]`, `.gitlab-ci.yml:71`), and every deploy/provision/
+bootstrap-state job carries a `rules:` on the resulting `$PIPELINE_KIND` CI variable (e.g.
+`.gitlab/ci/provision.gitlab-ci.yml:48-49`, `:86-88`, `:141-142`;
+`.gitlab/ci/bootstrap-state.gitlab-ci.yml:24-25`). Using a plain CI variable in each job's `rules:`
+rather than repeating `$[[ inputs.PIPELINE_KIND ]]` in every file keeps the config-time
+interpolation to one, auditable place — `.gitlab-ci.yml:56-71`'s own comment records why the other
+6 inputs are deliberately *not* mapped the same way (root-level mapping of `ENVIRONMENT_TYPE`
+previously collided with `deploy-dev`/`deploy-prod`'s own top-level `ENVIRONMENT_TYPE` and silently
+broke prod deploys — confirmed by live `gitlab-ci-local` testing during this work).
+
+The provisioning/bootstrap-state files are included **unconditionally**
+(`.gitlab-ci.yml:98-101`) — unlike `deploy-dev.gitlab-ci.yml`/`deploy-prod.gitlab-ci.yml`, which
+are branch-gated on `include: rules:` — and, by design, carry **no top-level `variables:` block**
+of their own (both files' own header comments state this explicitly). Top-level `variables:` from
+multiple included files deep-merge into one namespace, last include winning; that is exactly the
+bug described in "The bug this design avoids" above. Since the provisioning files have no
+top-level `variables:` at all, that collision surface doesn't exist for them — every one of their
+6 non-`PIPELINE_KIND` inputs is instead mapped in the individual job's own `variables:` block
+(e.g. `.gitlab/ci/provision.gitlab-ci.yml:50-53`, `:124-135`;
+`.gitlab/ci/bootstrap-state.gitlab-ci.yml:33-36`).
+
+### Required CI/CD variables
+
+From `config/environment/.env.main` (tracked in git, not secret — `config/environment/.env.main:86-101`):
+
+- `GITLAB_ROLE_NAME` (default `gitlab-ci-role`) — everyday provisioning IAM role name.
+- `GITLAB_BOOTSTRAP_ROLE_NAME` (default `gitlab-ci-bootstrap-role`) — narrower bootstrap-only role name.
+- `GITLAB_HOST` (default `gitlab.com`) — OIDC issuer host; override for self-managed/Dedicated GitLab.
+- `GITLAB_PROJECT_PATH` (placeholder `group/project`) — used in the OIDC `sub` claim.
+- `GITLAB_PROJECT_ID` (placeholder `00000000`) — numeric project ID, pinned in the trust policy only when `GITLAB_HOST` is exactly `gitlab.com`.
+- `GITLAB_PROVISION_BRANCHES` (default `"main develop"`) — space-separated branches allowed to assume the everyday role.
+
+Set in GitLab as **CI/CD variables** (Settings → CI/CD → Variables), not read from `.env.main` at
+runtime — the operator sets these directly from `kit-modules/basis/sh/aws/oidc.sh -p gitlab -m
+gen`'s output (`kit-modules/basis/sh/aws/oidc.sh:101-128` for `-h` usage; the `-p gitlab` provider
+seams are at `kit-modules/basis/sh/aws/oidc.sh:50,153-156,171-172,194-219`):
+
+- `AWS_ROLE_TO_ASSUME` — everyday role ARN, referenced by `provision`
+  (`.gitlab/ci/provision.gitlab-ci.yml:269`). Never referenced by `bootstrap-state`.
+- `AWS_BOOTSTRAP_ROLE_TO_ASSUME` — bootstrap role ARN, referenced by `bootstrap-state`
+  (`.gitlab/ci/bootstrap-state.gitlab-ci.yml:89`). Never referenced by `provision`.
+- `TFPLAN_PASSPHRASE` (optional) — GPG symmetric passphrase gating the pinned-plan
+  encrypt/decrypt (`provision.gitlab-ci.yml:198-207`) and the pre-destroy state-backup encryption
+  (`:367-384`). Unset ⇒ loud warning, never a hard failure; plaintext plans/state are never
+  uploaded as artifacts either way.
+- `PLAN_ARTIFACT_TOKEN` (optional) — a project access token, used as a `PRIVATE-TOKEN` fallback
+  when the `JOB-TOKEN: $CI_JOB_TOKEN` fetch of a pinned plan artifact fails
+  (`provision.gitlab-ci.yml:217-225`) — see the tier-ambiguity note below.
+
+### `PLAN_JOB_ID` vs GitHub's `PLAN_RUN_ID` — a genuine semantic difference
+
+GitHub's equivalent workflow pins an exact earlier *run* (`PLAN_RUN_ID` +
+`actions/download-artifact`). GitLab has no Free-tier equivalent of that cross-run download:
+`needs:artifacts` only resolves within the *same* pipeline; `needs:pipeline:job` is restricted to
+the same parent-child pipeline hierarchy and explicitly rejects `$CI_PIPELINE_ID`; `needs:project`
+is Premium+ and only ever yields the *latest successful* job, not a pinned one
+(`.gitlab/ci/provision.gitlab-ci.yml:24-36`'s header comment records this reasoning). The only
+mechanism that pins an exact earlier run on GitLab is the Job Artifacts API by **job ID**:
+`GET $CI_API_V4_URL/projects/$CI_PROJECT_ID/jobs/<id>/artifacts`
+(`provision.gitlab-ci.yml:212-214`). So the input is `PLAN_JOB_ID` — a GitLab **job** ID, found in
+the job's own URL/log after a `plan` run — not a run/pipeline ID. An explicit `PLAN_JOB_ID` that
+cannot be retrieved, unzipped, or decrypted **fails the job loudly**
+(`provision.gitlab-ci.yml:226-251`); it never silently falls back to a fresh plan-then-apply — that
+fallback only happens when `PLAN_JOB_ID` is empty to begin with.
+
+`CI_JOB_TOKEN`'s access to the Job Artifacts API download endpoint is tier-ambiguous in GitLab's own
+docs (listed as allowed on the job-token permissions page, while every `job_token` attribute on the
+Job Artifacts API reference page is annotated Premium/Ultimate) — this could not be resolved from
+docs alone. `PLAN_ARTIFACT_TOKEN` exists specifically as a fallback for this ambiguity, and the
+pinned-plan failure path stays loud either way, so a 401/403 can never degrade into applying an
+unreviewed plan.
+
+### Tier notes
+
+- **`spec:inputs`** — Free tier (https://docs.gitlab.com/ci/inputs/).
+- **`id_tokens`/OIDC role assumption** — Free tier (https://docs.gitlab.com/ci/secrets/id_token_authentication/).
+- **`resource_group:`** (used for `provision-$ENVIRONMENT_TYPE` and `bootstrap-state` serialization) — Free tier.
+- **`environment: name:`** — Free tier. **Deployment approvals / required approvers on a protected
+  environment are Premium+** (https://docs.gitlab.com/ci/environments/deployment_approvals/) — not
+  shipped as a guard here; the hand-rolled `CONFIRM_DESTROY`/`CONFIRM` exact-match checks are the
+  actual security boundary on every tier, run before any credential step
+  (`validate-provision-inputs`: `.gitlab/ci/provision.gitlab-ci.yml:72-75`; repeated inside
+  `provision`: `:164-168`; `bootstrap-state`: `.gitlab/ci/bootstrap-state.gitlab-ci.yml:54`).
+- **`needs:project`** (cross-project/pinned-plan alternative considered and rejected) — Premium+,
+  and only ever the latest successful job regardless of tier, so it wouldn't have solved the
+  pinned-plan requirement even on a paid tier.
+
+## State-backend bootstrap
+
+GitLab analog of `.github/workflows/job-bootstrap-state.yml` — one-time S3/DynamoDB Terraform
+backend bootstrap, under a separate, narrower IAM role. Implemented as its own file,
+`.gitlab/ci/bootstrap-state.gitlab-ci.yml`, included unconditionally
+(`.gitlab-ci.yml:101`) and gated on `PIPELINE_KIND == "bootstrap-state"`
+(`.gitlab/ci/bootstrap-state.gitlab-ci.yml:24-25`) — see "`PIPELINE_KIND` gating" above.
+
+- **`CONFIRM`-equals-region guard first.** `CONFIRM` here is the AWS region (e.g. `eu-west-1`), not
+  an environment name — a different semantic from `provision`'s `CONFIRM_DESTROY`, which confirms
+  `ENVIRONMENT_TYPE`. The guard runs before any AWS/credential step
+  (`bootstrap-state.gitlab-ci.yml:49-54`): the region is extracted fresh from `.env.main`
+  (`sh/ci/extract-aws-region.sh`), then compared against `$CONFIRM` via `sh/ci/confirm-match.sh`,
+  so a wrong `CONFIRM` fails before any `sts`/`aws` line appears in the log.
+- **Separate `AWS_BOOTSTRAP_ROLE_TO_ASSUME` role.** This job exchanges its OIDC token for the
+  bootstrap role only (`bootstrap-state.gitlab-ci.yml:89`), never `AWS_ROLE_TO_ASSUME` — the
+  bootstrap role is the only one with `s3:CreateBucket`/`dynamodb:CreateTable`
+  (`kit-modules/basis/sh/aws/oidc.sh`'s two-role design, `oidc.sh:149-178,215-245`). The everyday
+  `provision` job never references `AWS_BOOTSTRAP_ROLE_TO_ASSUME` either
+  (`provision.gitlab-ci.yml:269` only uses `AWS_ROLE_TO_ASSUME`) — CloudTrail's principal alone
+  tells you which pipeline touched AWS.
+- **`resource_group: bootstrap-state`** serializes concurrent dispatches against the same AWS
+  account, so two runs never race to create the same S3 bucket/DynamoDB lock table
+  (`bootstrap-state.gitlab-ci.yml:37-39`).
+- Needs `build-basis`'s `kit-modules/` artifact (`bootstrap-state.gitlab-ci.yml:26-32`), same
+  mechanism `provision` relies on — `kit-modules/basis` is git-ignored, so a real GitLab.com shared
+  runner's tracked-files-only clone never has it otherwise.
+
+**Operator runbook**: the exact, executable, human-only sequence (create the AWS OIDC identity
+provider, run `oidc.sh -p gitlab -m gen`, create both IAM roles, set the CI/CD variables listed
+above, run `-p gitlab -m test`, then dispatch `bootstrap-state` and a `plan` provisioning run) is
+task 5.4 of the GitLab provisioning parity plan
+(`.claude/plans/architect-plan-gitlab-provisioning-parity-v2-2026-08-23.md`) — not written in this
+file. An agent must never run any step of that runbook; it requires real AWS credentials.
+
+## `gitlab-ci-local` verification recipe
+
+Two distinct uses, not interchangeable:
+
+1. **`--list-all`** (job-graph resolution only, no real execution) — see "Local pre-check Claude
+   can actually run" above. Safe to run freely; touches no real working-directory state beyond the
+   gitignored `.gitlab-ci-local/` directory.
+2. **A real (non-`--list-all`) execution of a job** — actually runs the job's `script:`/
+   `before_script:`/`after_script:` in a container. Required by this plan's Architecture notes §E
+   for every task producing or changing `.gitlab-ci.yml`/`.gitlab/ci/*.yml`: with no real AWS
+   credentials and no GitLab-minted `id_tokens` JWT, `provision`/`bootstrap-state` are expected to
+   fail precisely at the `aws sts assume-role-with-web-identity` call
+   (`provision.gitlab-ci.yml:265-280`; `bootstrap-state.gitlab-ci.yml:85-100`), having already
+   passed the confirm guard, region extraction and `has_basis` classification. Reaching that wall
+   is the pass criterion; failing earlier is a defect.
+
+### Hard requirement — snapshot `kit-modules/basis` before any real execution
+
+**`gitlab-ci-local` executes against the real working directory — it is not sandboxed like `act`.**
+This already caused a `kit-modules/basis` data-loss incident during this work (recorded in the
+plan's Architecture notes §E and Risks section). Any real (non-`--list-all`) `gitlab-ci-local` run
+of a job that touches `kit-modules/basis`, `tfplans/`, `.env`, or Terraform state — in practice,
+every real run of `build-basis`, `provision`, or `bootstrap-state` — **must** begin with:
+
+```bash
+SNAP="$SCRATCHPAD/basis-snapshot-$(date +%F-%H%M%S)"
+mkdir -p "$SNAP"
+cp -a kit-modules/basis "$SNAP/"
+git -C kit-modules/basis status --porcelain > "$SNAP/basis-git-status-before.txt"
+```
+
+and end with:
+
+```bash
+git -C kit-modules/basis status --porcelain > "$SNAP/basis-git-status-after.txt"
+diff "$SNAP/basis-git-status-before.txt" "$SNAP/basis-git-status-after.txt"
+```
+
+On any unexpected difference, restore from `$SNAP` (`rm -rf kit-modules/basis && cp -a
+"$SNAP/basis" kit-modules/basis`) before doing anything else. A warning comment in the pipeline
+YAML is not sufficient — this snapshot/diff pair is a Done-when criterion, not advice, on every
+Stage 4 task in the plan (each task's own Done-when cell repeats it).
+
+Also delete the `.gitlab-ci-local/` state directory afterward (`rm -rf .gitlab-ci-local/`) — it is
+gitignored, and must never be committed, same as the `--list-all` case above.
+
+### `--input` limitation — `$[[ inputs.x ]]` does not propagate into included files' job-level `variables:`
+
+Discovered during this work, not previously documented here: `gitlab-ci-local`'s `--input` flag
+only resolves `$[[ inputs.x ]]` interpolation inside the **document that declares `spec:`** — the
+root `.gitlab-ci.yml`. It does **not** propagate into included files' job-level `variables:` blocks
+(e.g. `ENVIRONMENT_TYPE: $[[ inputs.ENVIRONMENT_TYPE ]]` in
+`.gitlab/ci/provision.gitlab-ci.yml:51,99,131` or `CONFIRM: $[[ inputs.CONFIRM ]]` in
+`.gitlab/ci/bootstrap-state.gitlab-ci.yml:36`), even though real GitLab resolves `$[[ inputs.x
+]]` anywhere in the merged configuration
+(https://docs.gitlab.com/ci/inputs/#use-inputs-in-included-templates confirms this is valid on
+real GitLab). Real local testing of anything downstream of one of these 6 job-level inputs must use
+`--variable` overrides directly on the job-level variable **names** instead (e.g. `--variable
+ENVIRONMENT_TYPE=dev --variable CONFIRM_DESTROY=dev`), not `--input`. This sits alongside the
+already-documented `workflow:` blind spot above ("Real, confirmed limitation…") as a second, separate
+`gitlab-ci-local` gap — `workflow:` is invisible to it entirely, while `--input` is visible but
+scoped to the wrong document for this repo's job-level-mapping design (see "`PIPELINE_KIND`
+gating" above for why that design was chosen).
+
 ## GitHub Actions side
 
 For the GH workflows this pipeline parallels (unchanged, still active), see `ci.md`.
