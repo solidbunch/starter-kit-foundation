@@ -469,7 +469,15 @@ top-level `variables:` at all, that collision surface doesn't exist for them —
 
 ### Required CI/CD variables
 
-From `config/environment/.env.main` (tracked in git, not secret — `config/environment/.env.main:86-101`):
+**Not GitLab CI/CD variables — `config/environment/.env.main` config, edited in the repo** (tracked
+in git, not secret — `config/environment/.env.main:86-101`). These are read locally by
+`kit-modules/basis/sh/aws/oidc.sh -p gitlab` when it *generates* the trust/permission policies
+below — the pipeline itself never reads them at runtime (confirmed: none of these six names appear
+anywhere in `.gitlab-ci.yml` or `.gitlab/ci/*.yml`; the `id_tokens:` block in both `provision.gitlab-ci.yml`
+and `bootstrap-state.gitlab-ci.yml` hardcodes `aud: sts.amazonaws.com` directly, it does not
+interpolate any of these). **Do not create matching GitLab CI/CD variables for these** — editing
+`.env.main` (once per project, before running `oidc.sh -p gitlab -m gen`) is the only place they
+belong:
 
 - `GITLAB_ROLE_NAME` (default `gitlab-ci-role`) — everyday provisioning IAM role name.
 - `GITLAB_BOOTSTRAP_ROLE_NAME` (default `gitlab-ci-bootstrap-role`) — narrower bootstrap-only role name.
@@ -478,10 +486,11 @@ From `config/environment/.env.main` (tracked in git, not secret — `config/envi
 - `GITLAB_PROJECT_ID` (placeholder `00000000`) — numeric project ID, pinned in the trust policy only when `GITLAB_HOST` is exactly `gitlab.com`.
 - `GITLAB_PROVISION_BRANCHES` (default `"main develop"`) — space-separated branches allowed to assume the everyday role.
 
-Set in GitLab as **CI/CD variables** (Settings → CI/CD → Variables), not read from `.env.main` at
-runtime — the operator sets these directly from `kit-modules/basis/sh/aws/oidc.sh -p gitlab -m
-gen`'s output (`kit-modules/basis/sh/aws/oidc.sh:101-128` for `-h` usage; the `-p gitlab` provider
-seams are at `kit-modules/basis/sh/aws/oidc.sh:50,153-156,171-172,194-219`):
+**Actual GitLab CI/CD variables** (Settings → CI/CD → Variables) — the operator sets these directly
+from `kit-modules/basis/sh/aws/oidc.sh -p gitlab -m gen`'s printed output
+(`kit-modules/basis/sh/aws/oidc.sh:101-128` for `-h` usage; the `-p gitlab` provider seams are at
+`kit-modules/basis/sh/aws/oidc.sh:50,153-156,171-172,194-219`) — this is the only step of the setup
+that actually touches the GitLab UI's Variables page:
 
 - `AWS_ROLE_TO_ASSUME` — everyday role ARN, referenced by `provision`
   (`.gitlab/ci/provision.gitlab-ci.yml:269`). Never referenced by `bootstrap-state`.
@@ -561,12 +570,148 @@ backend bootstrap, under a separate, narrower IAM role. Implemented as its own f
   mechanism `provision` relies on — `kit-modules/basis` is git-ignored, so a real GitLab.com shared
   runner's tracked-files-only clone never has it otherwise.
 
-**Operator runbook**: the exact, executable, human-only sequence (create the AWS OIDC identity
-provider, run `oidc.sh -p gitlab -m gen`, create both IAM roles, set the CI/CD variables listed
-above, run `-p gitlab -m test`, then dispatch `bootstrap-state` and a `plan` provisioning run) is
-task 5.4 of the GitLab provisioning parity plan
-(`.claude/plans/architect-plan-gitlab-provisioning-parity-v2-2026-08-23.md`) — not written in this
-file. An agent must never run any step of that runbook; it requires real AWS credentials.
+### Operator runbook — ONE-TIME MANUAL SETUP, real AWS account (not CI, not an agent)
+
+**No agent has AWS credentials in this environment and must never attempt any step below.**
+Everything here — the AWS Console clicks, the `aws iam` CLI calls, the `oidc.sh` invocations
+against a real account, the GitLab CI/CD Variables page, the "Run pipeline" dispatches — is
+100% a human-run procedure, same framing as `ci.md`'s "Lock-table rename" runbook. The agent's
+job stopped at writing this file down; it does not execute any line in it.
+
+This is the full one-time setup a real operator needs before GitLab provisioning can talk to a
+real AWS account. Do it once per AWS account, in order.
+
+```bash
+# 0. Prerequisites: real AWS credentials in the shell (aws configure / an assumable admin role),
+#    a GitLab project with Maintainer+ access to Settings → CI/CD → Variables, and — if this
+#    project's group/project path, self-managed host, or provisioning branches differ from the
+#    defaults — GITLAB_ROLE_NAME/GITLAB_BOOTSTRAP_ROLE_NAME/GITLAB_HOST/GITLAB_PROJECT_PATH/
+#    GITLAB_PROJECT_ID/GITLAB_PROVISION_BRANCHES edited in config/environment/.env.main FIRST (they
+#    are repo config, read locally by oidc.sh below — never set these as GitLab CI/CD variables,
+#    see "Required CI/CD variables" above for why).
+
+# 1. Identity provider — IAM → Identity providers → Add provider (skip if one already exists for
+#    this issuer host; oidc.sh -m gen prints the exact ARN it expects to find):
+#      Provider type: OpenID Connect
+#      Provider URL:  https://gitlab.com          (or your GITLAB_HOST, self-managed/Dedicated)
+#      Audience:      sts.amazonaws.com
+#    Equivalent CLI (get the thumbprint the AWS docs way — the console derives it automatically,
+#    the CLI requires it explicit):
+aws iam create-open-id-connect-provider \
+  --url "https://gitlab.com" \
+  --client-id-list "sts.amazonaws.com" \
+  --thumbprint-list "$(openssl s_client -servername gitlab.com -showcerts -connect gitlab.com:443 </dev/null 2>/dev/null \
+    | openssl x509 -fingerprint -sha1 -noout | cut -d= -f2 | tr -d ':' | tr 'A-F' 'a-f')"
+#    Confirm the provider ARN is arn:aws:iam::<ACCOUNT_ID>:oidc-provider/gitlab.com — oidc.sh
+#    checks against exactly this ARN shape (ISSUER_HOST = $GITLAB_HOST, no scheme prefix in the
+#    ARN itself).
+
+# 2. Generate both IAM roles' trust/permission policies (run from the foundation repo root, with
+#    kit-modules/basis installed and .env built — make env dev first if it isn't):
+bash kit-modules/basis/sh/aws/oidc.sh -p gitlab -m gen -e dev
+#    Follow its printed STEP 0 / STEP 1 / STEP 2 output exactly:
+#      STEP 0 — confirms/creates the identity provider (already done in step 1 above)
+#      STEP 1 — everyday provisioning role ($GITLAB_ROLE_NAME, default gitlab-ci-role):
+#               IAM → Roles → Create role → Web identity → paste the printed trust policy
+#               (STEP 1b) and permission policy (STEP 1c) exactly as printed — they already
+#               interpolate this account's TF_VAR_tf_backend_bucket/TF_VAR_tf_lock_table/
+#               TF_VAR_aws_region/GITLAB_PROVISION_BRANCHES, nothing to fill in by hand.
+#      STEP 2 — state-backend bootstrap role ($GITLAB_BOOTSTRAP_ROLE_NAME, default
+#               gitlab-ci-bootstrap-role): same mechanism, narrower permissions
+#               (s3:CreateBucket/dynamodb:CreateTable, everyday role never gets these).
+#    Copy each role's ARN from `aws iam get-role --role-name <name> --query Role.Arn --output text`
+#    after creating it — you need both in step 3.
+
+# 3. GitLab CI/CD variables — Settings → CI/CD → Variables → Add variable, for THIS project.
+#    Only these four are ever GitLab CI/CD variables — the pipeline reads nothing else this way
+#    (GITLAB_ROLE_NAME/GITLAB_BOOTSTRAP_ROLE_NAME/GITLAB_HOST/GITLAB_PROJECT_PATH/GITLAB_PROJECT_ID/
+#    GITLAB_PROVISION_BRANCHES are .env.main config, already set in step 0 below — do NOT also add
+#    them here as CI/CD variables, the pipeline never reads them at runtime, only oidc.sh does,
+#    locally, when it generated the policies you pasted in step 2):
+#      AWS_ROLE_TO_ASSUME             = <everyday role ARN from step 2>
+#                                        Environment scope: dev (repeat per environment if the
+#                                        same role's ARN is reused across dev/stage/prod, or set
+#                                        per-environment ARNs if you split the role later)
+#      AWS_BOOTSTRAP_ROLE_TO_ASSUME   = <bootstrap role ARN from step 2>
+#                                        Environment scope: All (default) — do NOT scope to dev/
+#                                        stage/prod, this role is not environment-specific
+#    Optional, only if used:
+#      TFPLAN_PASSPHRASE              = <GPG symmetric passphrase>  (plan encryption)
+#      PLAN_ARTIFACT_TOKEN            = <project access token>      (PRIVATE-TOKEN fallback for
+#                                                                     cross-job plan artifact fetch)
+#    See "Required CI/CD variables" above for what each one gates.
+
+# 4. Verify the identity provider + both roles are actually wired correctly, before dispatching
+#    anything that spends real AWS credentials:
+bash kit-modules/basis/sh/aws/oidc.sh -p gitlab -m test -e dev
+#    Expect: [Success] on both roles' "IAM Role found", "Trust policy configured correctly", and
+#    "sub" scoping classified [Success] (not [Warning]/[Error]) for the branches you expect. Exit
+#    code non-zero if either role failed any check — fix the flagged item and re-run before
+#    proceeding; do not dispatch a pipeline against a role -m test has already flagged.
+
+# 5. Dispatch the one-time state-backend bootstrap pipeline:
+#    GitLab UI → CI/CD → Pipelines → Run pipeline. On the "Run pipeline" form:
+#      Branch: main
+#      PIPELINE_KIND   = bootstrap-state
+#      CONFIRM         = <the exact AWS region from .env.main's TF_VAR_aws_region, e.g. eu-west-1>
+#                         (NOT an environment name — see "CONFIRM-equals-region guard" above; a
+#                         mismatch fails before any AWS call is made)
+#    Leave every other input at its default. Click "Run pipeline", then watch the bootstrap-state
+#    job's log to confirm the S3 bucket + DynamoDB lock table were created (or already existed).
+
+# 6. Dispatch a provisioning plan run to confirm the everyday role works end to end:
+#    GitLab UI → CI/CD → Pipelines → Run pipeline.
+#      Branch: main (or develop, whichever GITLAB_PROVISION_BRANCHES allows)
+#      PIPELINE_KIND    = provision
+#      ENVIRONMENT_TYPE = dev
+#      ACTION_TYPE      = plan
+#    Leave SKIP_ANSIBLE/PLAN_JOB_ID/CONFIRM_DESTROY/CONFIRM at their defaults for a plain plan.
+#    A clean run through Terraform plan output (no apply, nothing destroyed) confirms the whole
+#    chain: OIDC token → STS exchange → AWS_ROLE_TO_ASSUME → Terraform against the real backend.
+```
+
+**Rollback — if a step fails partway:**
+
+- **Step 1 (identity provider) created but step 2/3 abandoned:** safe to leave in place — an
+  unused identity provider does nothing on its own. To remove it anyway:
+  `aws iam delete-open-id-connect-provider --open-id-connect-provider-arn arn:aws:iam::<ACCOUNT_ID>:oidc-provider/gitlab.com`
+  (only if no role's trust policy still references it — check with
+  `aws iam list-open-id-connect-providers` first).
+- **Step 2 (a role half-created — e.g. trust policy pasted but permission policy not attached, or
+  vice versa):** don't try to patch a partial role by hand. Delete it and re-run `-m gen` fresh:
+  `aws iam list-attached-role-policies --role-name gitlab-ci-role` to see what's attached, detach
+  each with `aws iam detach-role-policy --role-name gitlab-ci-role --policy-arn <arn>`, then
+  `aws iam delete-role --role-name gitlab-ci-role`. Repeat for the bootstrap role
+  (`gitlab-ci-bootstrap-role`) if it was also touched. Re-run step 2 from scratch — `-m gen`'s
+  output is idempotent to re-paste.
+- **Step 3 (variables set wrong):** just correct the value in Settings → CI/CD → Variables and
+  re-run step 4 (`-m test`) before dispatching anything.
+- **Step 5/6 (pipeline dispatched, failed):** no AWS resource is created by a failed OIDC/STS
+  exchange — nothing to roll back on the AWS side. Fix whatever `-m test` or the job log flagged,
+  then re-dispatch the same pipeline. A **partially-applied** `bootstrap-state` run (bucket created,
+  DynamoDB table not, or vice versa) is safe to just re-dispatch — `sh/bootstrap-state.sh` is
+  idempotent and skips a resource that already exists (see `kit-modules/basis/CLAUDE.md`); it does
+  not partially tear down what step 5 already created.
+
+**What a failed STS exchange looks like** — the exact error text both `provision.gitlab-ci.yml`
+and `bootstrap-state.gitlab-ci.yml` print when `aws sts assume-role-with-web-identity` fails
+(before/regardless of any AWS-side error text `aws` itself writes to `sts.stderr`, which is also
+echoed immediately after this line):
+
+```
+Error: OIDC token unavailable or STS denied the web-identity exchange (aws sts assume-role-with-web-identity failed). Verify AWS_ROLE_TO_ASSUME is a valid role ARN, the GitLab OIDC identity provider exists in this AWS account, and the role's trust policy matches this project (see kit-modules/basis/sh/aws/oidc.sh -p gitlab -m test).
+```
+
+(`bootstrap-state.gitlab-ci.yml`'s equivalent names `AWS_BOOTSTRAP_ROLE_TO_ASSUME` instead.) The
+underlying `aws` CLI error appended right after that line is typically AWS's own
+`An error occurred (AccessDenied) when calling the AssumeRoleWithWebIdentity operation: Not
+authorized to perform sts:AssumeRoleWithWebIdentity` — which almost always means one of: the role
+ARN in the CI/CD variable is wrong/typo'd, the trust policy's `sub` condition doesn't match this
+project's path/branch (re-run `-m test`, check the "sub" scoping line), or the identity provider
+ARN embedded in the trust policy's `Principal.Federated` doesn't match what actually exists in
+this AWS account (stale account ID, wrong issuer host after a `GITLAB_HOST` change). `-m test`
+(step 4 above) is the tool that catches all three before a pipeline dispatch ever reaches this
+error.
 
 ## `gitlab-ci-local` verification recipe
 
