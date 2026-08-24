@@ -79,10 +79,21 @@ build-basis:
   image:
     name: $APP_COMPOSER_IMAGE
     entrypoint: ['']
+  # Also gated in for PIPELINE_KIND=="bootstrap-state" — bootstrap-state.gitlab-ci.yml's
+  # `bootstrap-state` job needs: this job's kit-modules/ artifact (see that file's own comment) for
+  # the same reason `provision` below does: kit-modules/basis is git-ignored, so a real GitLab.com
+  # shared runner's tracked-files-only clone never has it without this artifact.
   rules:
     - if: '$PIPELINE_KIND == "provision"'
+    - if: '$PIPELINE_KIND == "bootstrap-state"'
   needs:
-    - validate-provision-inputs
+    # optional: true — validate-provision-inputs is NOT part of a bootstrap-state pipeline (its
+    # guards are provisioning-specific: stage-gap, region, CONFIRM_DESTROY); bootstrap-state has
+    # its own independent CONFIRM-region guard in its own job. Without optional: true, GitLab
+    # would refuse to create a bootstrap-state pipeline at all, since build-basis would `needs:` a
+    # job that never exists in it.
+    - job: validate-provision-inputs
+      optional: true
   variables:
     COMPOSER_ALLOW_SUPERUSER: "1"
     ENVIRONMENT_TYPE: $[[ inputs.ENVIRONMENT_TYPE ]]

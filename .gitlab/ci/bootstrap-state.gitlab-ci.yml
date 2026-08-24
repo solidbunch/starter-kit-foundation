@@ -23,6 +23,13 @@ bootstrap-state:
     entrypoint: ['']
   rules:
     - if: '$PIPELINE_KIND == "bootstrap-state"'
+  # kit-modules/basis is git-ignored — a real GitLab.com shared runner clones tracked files only,
+  # so without build-basis's kit-modules/ artifact this job's has_basis check would always see
+  # "absent" and permanently short-circuit, even on a fully licensed project. Same mechanism
+  # provision.gitlab-ci.yml's `provision` job already relies on via its own `needs: [build-basis]`
+  # (see that file's build-basis job for the licensed-composer-install step this pulls in).
+  needs:
+    - build-basis
   variables:
     IAC_NATIVE: "1"
     COMPOSER_ALLOW_SUPERUSER: "1"
