@@ -1107,8 +1107,25 @@ the Terragrunt graph).
    `terraform/state/backend.tf`, DynamoDB table resource removed again (not restored),
    `var.tf_lock_table`/`TF_VAR_tf_lock_table` removed project-wide (all `variables.tf` files,
    `terraform.sh`, `bootstrap-state.sh`, `sh/aws/oidc.sh`'s IAM policy JSON + `-m test` checks,
-   `README.MD`'s policy example). Re-verification of the full fresh-bootstrap dance against
-   LocalStack with this corrected fix is pending — see the entry below once it lands.
+   `README.MD`'s policy example). Re-ran the full fresh-bootstrap dance against LocalStack with
+   this corrected fix: `apply` on `state` → `Apply complete! Resources: 4 added` (bucket only, no
+   table) → real `-migrate-state` into the S3 backend (no `dynamodb_table` flag) → `terraform.sh
+   -e state -c plan` → `No changes.` → `terraform.sh -e shared -c init`/`-c apply` generated a
+   clean `backend_generated.tf`/`provider_generated.tf` with `use_lockfile = false` (LocalStack)
+   and no `dynamodb` key anywhere, then reached the same pre-existing IPv6 subnet-association
+   limitation as before (not a regression) — confirmed working end to end, no DynamoDB anywhere.
+
+   A subsequent adversarial review (reviewer + architect agents) of this same change found the
+   real AWS bootstrap-role IAM policy was still missing `s3:DeleteObject` — `use_lockfile`
+   acquires its lock via a conditional `PutObject` but releases it via `DeleteObject`, so the
+   first real bootstrap run against a fresh AWS account would have migrated state successfully
+   and then failed releasing the lock, going red with a stray `.tflock` object left behind.
+   LocalStack Community's S3 mock doesn't enforce IAM at all (`iam: disabled`), so this specific
+   gap was invisible to every LocalStack run above — fixed in `sh/aws/oidc.sh`'s bootstrap-role
+   policy JSON (added `s3:DeleteObject` alongside the existing `GetObject`/`PutObject`), matching
+   what the everyday role already had. Not independently re-verified against real AWS (no
+   credentials available in this environment) — flagged to the user as the one AWS-IAM-shaped
+   change in this migration that only real AWS can confirm.
 
 **Terragrunt+LocalStack wiring validated working**: `terraform.sh -e shared -c init` against
 LocalStack generates the expected `backend_generated.tf`/`provider_generated.tf` with LocalStack
