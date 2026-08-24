@@ -1,7 +1,7 @@
 FROM alpine:3.24
 
 RUN apk update && \
-    apk add --no-cache bash certbot openssl
+    apk add --no-cache bash certbot openssl libpsl-utils
 
 ##################################
 #   Prepare and run entrypoint   #
