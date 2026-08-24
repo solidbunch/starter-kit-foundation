@@ -1,9 +1,10 @@
 #!/bin/bash
 # ============================================================
 # Script: tf-localstack-override.sh
-# Purpose: Write/remove Terraform *_override.tf files that point basis's three Terraform layers
-#          (terraform/state, terraform/envs/shared, terraform/envs/dev) at LocalStack instead of
-#          real AWS, for the local CI/CD provisioning emulation harness (sh/local-ci/*).
+# Purpose: Write/remove the Terraform *_override.tf file that points basis's `state` layer
+#          (terraform/state — the one layer deliberately kept outside the Terragrunt graph, see
+#          terraform/root.hcl's header) at LocalStack instead of real AWS, for the local CI/CD
+#          provisioning emulation harness (sh/local-ci/*).
 # Usage:
 #   bash ./sh/local-ci/tf-localstack-override.sh -m write|clean [-e <endpoint-url>]
 # Examples:
@@ -14,9 +15,16 @@
 #   Terraform natively merges `*_override.tf` into a configuration (kit-modules/basis/.gitignore
 #   already ignores `override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json`), so
 #   this generator never touches a tracked basis file. `write` drops `localstack_override.tf`
-#   into terraform/state, terraform/envs/shared and terraform/envs/dev; `clean` removes exactly
-#   those three files and nothing else. Called by sh/local-ci/harness-up.sh (write) and
-#   sh/local-ci/harness-down.sh (clean) — see the plan's contract 4.
+#   into terraform/state; `clean` removes exactly that file. Called by sh/local-ci/harness-up.sh
+#   (write) and sh/local-ci/harness-down.sh (clean).
+#
+#   Every other layer (terraform/envs/*) is now Terragrunt-managed — those get their LocalStack
+#   endpoints from terraform/root.hcl's own `local.localstack_endpoint` conditional instead (gated
+#   on the LOCALCI_LOCALSTACK_ENDPOINT env var, which harness-up.sh writes into
+#   config/environment/.env.type.dev.override), not from an override.tf file here. An override.tf
+#   redeclaring `terraform { backend "s3" {} }` or `provider "aws" {}` in one of those directories
+#   would collide with Terragrunt's own generated backend_generated.tf/provider_generated.tf —
+#   Terraform rejects duplicate backend/provider blocks outright.
 # ============================================================
 
 # Stop on errors, unset vars, and fail pipelines; preserve ERR traps
@@ -33,11 +41,10 @@ source "$PROJECT_ROOT/sh/utils/colors.sh"
 BASIS_TERRAFORM_DIR="$PROJECT_ROOT/kit-modules/basis/terraform"
 OVERRIDE_FILENAME="localstack_override.tf"
 
-# Layers this script writes/cleans, and whether each carries an s3 backend override.
+# Layers this script writes/cleans. Only `state` — see the header comment for why the
+# Terragrunt-managed envs/* layers are handled by root.hcl instead.
 LAYER_DIRS=(
     "$BASIS_TERRAFORM_DIR/state"
-    "$BASIS_TERRAFORM_DIR/envs/shared"
-    "$BASIS_TERRAFORM_DIR/envs/dev"
 )
 
 MODE=""
@@ -146,41 +153,8 @@ terraform {
 EOF
 }
 
-write_remote_state_override() {
-    # Overrides envs/dev/main.tf's `data "terraform_remote_state" "shared"` block. Terraform's
-    # override merge replaces the WHOLE `config` map when it is re-declared (no deep-merge of map
-    # attributes), so every key from the original block (bucket/key/region) must be repeated here
-    # alongside the LocalStack-only additions — read from kit-modules/basis/terraform/envs/dev/main.tf
-    # before changing this.
-    cat <<EOF
-
-data "terraform_remote_state" "shared" {
-  backend = "s3"
-  config = {
-    bucket = var.tf_backend_bucket
-    key    = "envs/shared/network.tfstate"
-    region = var.aws_region
-
-    endpoints = {
-      s3       = "$ENDPOINT_URL"
-      dynamodb = "$ENDPOINT_URL"
-      sts      = "$ENDPOINT_URL"
-    }
-    use_path_style              = true
-    skip_credentials_validation = true
-    skip_requesting_account_id  = true
-    skip_metadata_api_check     = true
-    access_key                  = "test"
-    secret_key                  = "test"
-  }
-}
-EOF
-}
-
 do_write() {
     local state_dir="$BASIS_TERRAFORM_DIR/state"
-    local shared_dir="$BASIS_TERRAFORM_DIR/envs/shared"
-    local dev_dir="$BASIS_TERRAFORM_DIR/envs/dev"
 
     # terraform/state uses an s3 backend — provider + backend override.
     # key copied verbatim from state/backend.tf.
@@ -189,23 +163,6 @@ do_write() {
         write_backend_block "state/terraform.tfstate"
     } > "$state_dir/$OVERRIDE_FILENAME"
     echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $state_dir/$OVERRIDE_FILENAME"
-
-    # terraform/envs/shared uses an s3 backend — provider + backend override.
-    # key copied verbatim from envs/shared/backend.tf.
-    {
-        write_provider_block
-        write_backend_block "envs/shared/network.tfstate"
-    } > "$shared_dir/$OVERRIDE_FILENAME"
-    echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $shared_dir/$OVERRIDE_FILENAME"
-
-    # terraform/envs/dev uses an s3 backend AND reads shared's state via terraform_remote_state —
-    # provider + backend + remote-state override. key copied verbatim from envs/dev/backend.tf.
-    {
-        write_provider_block
-        write_backend_block "envs/dev/terraform.tfstate"
-        write_remote_state_override
-    } > "$dev_dir/$OVERRIDE_FILENAME"
-    echo -e "${LIGHTGREEN}[Info]${RESET} Wrote $dev_dir/$OVERRIDE_FILENAME"
 
     echo -e "${LIGHTGREEN}[Success]${RESET} LocalStack Terraform overrides written (endpoint: $ENDPOINT_URL)"
 }

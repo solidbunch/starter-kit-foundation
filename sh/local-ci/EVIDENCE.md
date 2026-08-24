@@ -1062,3 +1062,61 @@ production `apply` run using the generated-inventory path) was documented in thi
 carried through to `sh/local-ci/README.md` or explicitly into a hand-off list. It is carried
 forward explicitly here and included in the final report's findings for the user to decide on —
 see Task 4.2's original entry above for the full technical detail.
+
+## 2026-08-24 — Terragrunt migration: LocalStack harness rework, re-validated end-to-end
+
+`kit-modules/basis` merged a Terragrunt migration (`envs/{shared,dev,stage,prod}` now driven by
+`terraform/root.hcl` + per-env `terragrunt.hcl`, S3-native `use_lockfile` locking instead of
+DynamoDB for those layers). The pre-existing LocalStack harness predated this and needed rework —
+its per-layer `*_override.tf` approach for `envs/shared`/`envs/dev` collided with Terragrunt's own
+generated `backend_generated.tf`/`provider_generated.tf` ("Duplicate backend configuration" /
+"Duplicate provider configuration"), and its `data "terraform_remote_state" "shared"` override
+targeted a data source that no longer exists (replaced by `dependency "shared"` blocks).
+
+**Fix**: `terraform/root.hcl` itself now reads `LOCALCI_LOCALSTACK_ENDPOINT` (explicit opt-in var,
+written by `harness-up.sh`) and conditionally generates a LocalStack-pointed backend/provider
+instead of the real-AWS one — no override `.tf` file needed for Terragrunt-managed layers.
+`sh/local-ci/tf-localstack-override.sh` now only touches `terraform/state` (the one layer outside
+the Terragrunt graph).
+
+**Real bugs found and fixed by actually running this against LocalStack** (not just read, executed):
+
+1. **HCL heredoc string cannot appear directly as one branch of a `? :` conditional** — the `:`
+   on its own line after a multi-line heredoc's closing marker doesn't parse. Fixed by moving each
+   branch's content into its own named `local`, then a plain `local.a : local.b` ternary between
+   two strings.
+2. **A `? {} : {...}` conditional between an empty object literal and a populated one does not
+   type-unify in HCL** — crashed Terragrunt with a Go panic (nil pointer) after first reporting
+   "The true and false result expressions must have consistent types". Fixed by rewriting
+   `remote_state.config` as one object with same-typed ternaries per key (`bool:bool`,
+   `null:object`, `null:string` — `null` unifies with any type, unlike `{}` vs a populated object).
+3. **`terraform/state/bucket.tf`'s `aws_dynamodb_table.terraform_locks` resource had been removed
+   entirely** as part of the same migration (envs moved to S3-native locking). `state` itself
+   deliberately did NOT move to `use_lockfile` (it's the self-bootstrapping layer creating its own
+   backend's bucket — see CLAUDE.md's "State locking" section) and its `backend.tf` still passes
+   `-backend-config dynamodb_table=...` on every init. With the resource gone, a real fresh
+   bootstrap (confirmed against a clean LocalStack instance) creates the S3 bucket but never the
+   lock table — every following `init`/`plan`/`apply` against `state` then fails outright:
+   `Error acquiring the state lock ... ResourceNotFoundException: Cannot do operations on a
+   non-existent table`. This would have hit the very first real `bootstrap-state.sh` run against
+   a real, never-before-bootstrapped AWS account. Fixed by restoring the resource block. Re-ran
+   the full fresh-bootstrap dance afterward (`apply` on `state` with the restored resource →
+   `Apply complete! Resources: 5 added` including the table → real `-migrate-state` into the S3
+   backend → `terraform.sh -e state -c plan` → `No changes.`) — confirmed working end to end.
+
+**Terragrunt+LocalStack wiring validated working**: `terraform.sh -e shared -c init` against
+LocalStack generates the expected `backend_generated.tf`/`provider_generated.tf` with LocalStack
+endpoints/dummy credentials, and `apply` genuinely reaches AWS provider calls and creates real
+resources in LocalStack (VPC, internet gateway, route table, S3 bucket, DynamoDB table) before
+hitting the **same pre-existing, already-documented "genuine, reproduced, un-fixable-from-here"
+LocalStack Community IPv6 subnet-association gap** noted above (`Error: waiting for EC2 Subnet ...
+IPv6 CIDR block ... to become associated: unexpected state '{'State': 'associated'}'`) — identical
+error signature to the earlier pre-Terragrunt evidence, confirming this is the same known
+LocalStack limitation, not a regression from the Terragrunt migration or this fix. `envs/dev`'s
+`dependency "shared"` block correctly surfaces the consequence
+(`This object does not have an attribute named "subnet_ids"`) rather than silently falling back to
+mock outputs, since `init` is not in `dependency.shared`'s `mock_outputs_allowed_terraform_commands`
+— exactly as configured.
+
+Cleanup: harness torn down twice (once per bootstrap attempt in this session), both restores
+verified byte-identical against their snapshots.

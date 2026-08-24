@@ -403,13 +403,24 @@ you're likely to hit them:
 
 - **The harness never touches real AWS.** Every AWS-shaped call the harness drives (Terraform
   provider, S3/DynamoDB backend, EC2/STS calls) is redirected to `http://localstack:4566` via
-  `config/environment/.env.type.dev.override` (git-ignored, `.gitignore:49` `.env.*override`) and
-  `kit-modules/basis`'s own `*_override.tf`-merge mechanism
-  (`kit-modules/basis/terraform/{state,envs/shared,envs/dev}/localstack_override.tf`, git-ignored
-  by basis's own `.gitignore` — `override.tf`, `*_override.tf`). Both are generated fresh by
-  `harness-up.sh` and removed by `harness-down.sh`; real CI never has either file.
+  `config/environment/.env.type.dev.override` (git-ignored, `.gitignore:49` `.env.*override`), and
+  two mechanisms on the `kit-modules/basis` side, split by which layer is Terragrunt-managed:
+  - `terraform/state` — the one layer outside the Terragrunt graph (see `terraform/root.hcl`'s
+    header) — still gets a real `*_override.tf` merge file
+    (`kit-modules/basis/terraform/state/localstack_override.tf`, git-ignored by basis's own
+    `.gitignore` — `override.tf`, `*_override.tf`), written by `harness-up.sh` and removed by
+    `harness-down.sh`.
+  - Every other layer (`terraform/envs/*`) is Terragrunt-managed — `terraform/root.hcl` itself
+    reads `LOCALCI_LOCALSTACK_ENDPOINT` (one of the vars `harness-up.sh` writes into
+    `.env.type.dev.override`) and conditionally generates a LocalStack-pointed
+    `backend_generated.tf`/`provider_generated.tf` instead of the real-AWS one. No override `.tf`
+    file is written into `envs/shared`/`envs/dev`/etc — a redeclared `terraform { backend "s3" {} }`
+    or `provider "aws" {}` there would collide with Terragrunt's own generated files. Real CI never
+    sets `LOCALCI_LOCALSTACK_ENDPOINT`, so this conditional is always the no-op (real AWS) branch
+    outside the harness.
 - **Zero tracked `kit-modules/basis` files are edited by the harness itself.** The only basis-side
-  artifacts the harness writes (the LocalStack override `.tf` files, the throwaway SSH public key
+  artifacts the harness writes (the `state` layer's LocalStack override `.tf` file, the
+  Terragrunt-generated `backend_generated.tf`/`provider_generated.tf`, the throwaway SSH public key
   under `terraform/public_keys/`) are already git-ignored by basis's own `.gitignore` — untracked
   by design, not by the harness bypassing anything.
 - **`kit-modules/basis` and the three env files are snapshotted before every harness-up run and
@@ -536,9 +547,10 @@ Local CI/CD harness — up
 [Success] Throwaway SSH keypair generated
 [Success] Wrote .../config/environment/.env.type.dev.override
 [Info] Wrote .../kit-modules/basis/terraform/state/localstack_override.tf
-[Info] Wrote .../kit-modules/basis/terraform/envs/shared/localstack_override.tf
-[Info] Wrote .../kit-modules/basis/terraform/envs/dev/localstack_override.tf
 [Success] LocalStack Terraform overrides written (endpoint: http://localstack:4566)
+# `envs/shared`/`envs/dev`/etc get no override file — terraform/root.hcl reads
+# LOCALCI_LOCALSTACK_ENDPOINT (also written above, into .env.type.dev.override) and generates a
+# LocalStack-pointed backend/provider itself. See "This never affects dev/stage/prod" below.
 [Info] Starting local CI services (docker-compose.localci.yml)...
  Container starter-kit-localci-ansible-target Started
  Container starter-kit-localci-localstack Started
@@ -556,9 +568,7 @@ Local CI/CD harness — down
  Container starter-kit-localci-localstack Stopped
 Going to remove starter-kit-localci-localstack, starter-kit-localci-ansible-target
 [Info] Removed .../kit-modules/basis/terraform/state/localstack_override.tf
-[Info] Removed .../kit-modules/basis/terraform/envs/shared/localstack_override.tf
-[Info] Removed .../kit-modules/basis/terraform/envs/dev/localstack_override.tf
-[Success] LocalStack Terraform overrides cleaned (3 file(s) removed)
+[Success] LocalStack Terraform overrides cleaned (1 file(s) removed)
 [Info] Removed .../config/environment/.env.type.dev.override
 [Info] Removed .../kit-modules/basis/terraform/public_keys/starter-kit_deploy_key.pub
 [Info] Removed .../tmp/local-ci/starter-kit_deploy_key

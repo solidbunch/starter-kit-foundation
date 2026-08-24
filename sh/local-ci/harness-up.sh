@@ -20,8 +20,11 @@
 #   4. Writes tmp/local-ci/harness-state.env (the crash-safety sentinel).
 #   5. Generates a throwaway SSH keypair for the harness (public key into kit-modules/basis's own
 #      git-ignored terraform/public_keys/, private key only ever under tmp/local-ci/).
-#   6. Writes config/environment/.env.type.dev.override (LocalStack endpoint env vars).
-#   7. Writes the LocalStack Terraform overrides (sh/local-ci/tf-localstack-override.sh -m write).
+#   6. Writes config/environment/.env.type.dev.override (LocalStack endpoint env vars, including
+#      LOCALCI_LOCALSTACK_ENDPOINT — read by terraform/root.hcl to point every Terragrunt-managed
+#      layer's generated backend/provider at LocalStack).
+#   7. Writes the `state` layer's LocalStack Terraform override (the one layer outside the
+#      Terragrunt graph — sh/local-ci/tf-localstack-override.sh -m write).
 #   8. Brings up docker-compose.localci.yml's services.
 # ============================================================
 
@@ -238,6 +241,7 @@ AWS_ENDPOINT_URL_DYNAMODB=http://localstack:4566
 AWS_ENDPOINT_URL_STS=http://localstack:4566
 AWS_ENDPOINT_URL_EC2=http://localstack:4566
 AWS_EC2_METADATA_DISABLED=true
+LOCALCI_LOCALSTACK_ENDPOINT=http://localstack:4566
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_DEFAULT_REGION=eu-west-1
