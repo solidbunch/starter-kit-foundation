@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Local CI/CD provisioning-emulation harness only (sh/local-ci/*, task 4.x). Never used outside
+# Local CI/CD provisioning-emulation harness only (sh/local-ci/*). Never used outside
 # docker-compose.localci.yml's ansible-target service.
 #
 # Installs the harness's throwaway SSH public key(s) into admin's authorized_keys at container

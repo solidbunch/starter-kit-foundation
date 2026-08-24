@@ -72,9 +72,8 @@ jobs:
           # step is a thin wrapper that translates its stdout into $GITHUB_OUTPUT and re-attaches
           # the GitHub ::error::/::warning:: annotation prefixes the shared script cannot emit.
           # Note: the shared script's unlicensed/absent message wording says "Skipping
-          # provisioning" (preserved verbatim from job-provision.yml per task 3.3) rather than
-          # this workflow's former "Skipping bootstrap" — cosmetic only, same has_basis=false
-          # outcome.
+          # provisioning" (preserved verbatim from job-provision.yml) rather than this workflow's
+          # former "Skipping bootstrap" — cosmetic only, same has_basis=false outcome.
           set +e
           BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
           BASIS_RC=$?

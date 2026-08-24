@@ -1,7 +1,6 @@
 spec:
   inputs:
-    # Cross-task contract — see Architecture notes §F in the GitLab provisioning parity plan and
-    # .claude/rules/gitlab-ci.md. Every input MUST carry a default: the root file also serves the
+    # See .claude/rules/gitlab-ci.md for the full contract. Every input MUST carry a default: the root file also serves the
     # push-triggered dev/prod deploy pipelines, which supply no pipeline inputs at all — an input
     # without a default would break automatic dev deploy-on-push.
     PIPELINE_KIND:

@@ -37,7 +37,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../" && pwd)"
 source "$PROJECT_ROOT/sh/utils/colors.sh"
 
 # ------------------------------------------------------------------
-# Contract 8: this name must equal the branch created by basis task 6.1. Overridable so an
+# Contract 8: this name must equal the branch created in the basis repo. Overridable so an
 # operator override is explicit and visible in shell history, never a silent code edit.
 # ------------------------------------------------------------------
 BASIS_ALLOWED_BRANCH="${LOCALCI_BASIS_ALLOWED_BRANCH:-fix/provisioning-epic}"
@@ -49,7 +49,7 @@ OVERRIDE_ENV_FILE="$PROJECT_ROOT/config/environment/.env.type.dev.override"
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.localci.yml"
 
 # AMI override values recorded empirically against LocalStack's mock AMI catalogue — see
-# sh/local-ci/EVIDENCE.md, task 0.2. basis's real filter (owners=["136693071363"],
+# sh/local-ci/EVIDENCE.md. basis's real filter (owners=["136693071363"],
 # name=debian-12-arm64-*) matches nothing in LocalStack's mock catalogue.
 LOCALCI_AMI_OWNERS='["099720109477"]'
 LOCALCI_AMI_NAME_PATTERN='ubuntu/images/hvm-ssd/ubuntu-*'

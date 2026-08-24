@@ -1,14 +1,14 @@
 services:
 
   # LocalStack Community — emulates AWS S3/DynamoDB/EC2/STS for the local CI/CD provisioning
-  # emulation harness (sh/local-ci/*, task 3.x). Never part of the always-running app stack
+  # emulation harness (sh/local-ci/*). Never part of the always-running app stack
   # (docker-compose.yml) or the on-demand toolkit stack (docker-compose.toolkit.yml) — this file
   # is only brought up by sh/local-ci/harness-up.sh and torn down by sh/local-ci/harness-down.sh.
   localstack:
     # Pinned — deliberately NOT `:latest`. `latest` currently resolves to an image build that
     # hard-requires a LOCALSTACK_AUTH_TOKEN (Pro license) and refuses to start even when only
     # community services are requested. `4.9` (resolves to 4.9.2, edition "community") is the
-    # verified-working pin. See sh/local-ci/EVIDENCE.md, task 0.2, for the exact failure this
+    # verified-working pin. See sh/local-ci/EVIDENCE.md for the exact failure this
     # avoids and the verification of the pinned tag.
     image: localstack/localstack:4.9
     container_name: "${APP_NAME}-localci-localstack"
@@ -17,13 +17,13 @@ services:
       - "4566:4566"
     environment:
       # Only the services basis's Terraform actually uses (verified: zero aws_iam_* resources in
-      # kit-modules/basis/terraform/, see sh/local-ci/EVIDENCE.md task 0.2) — no `iam`.
+      # kit-modules/basis/terraform/, see sh/local-ci/EVIDENCE.md) — no `iam`.
       SERVICES: s3,dynamodb,ec2,sts
     # No volume / persistence: LocalStack Community does not persist state across container
     # restarts regardless, and this harness is one-shot verification, not a long-lived sandbox
-    # (documented limitation, see sh/local-ci/README.md once task 5.7 writes it).
+    # (documented limitation, see sh/local-ci/README.md).
 
-  # Bare Docker SSH target for kit-modules/basis's real Ansible playbook (sh/local-ci/*, task 4.x)
+  # Bare Docker SSH target for kit-modules/basis's real Ansible playbook (sh/local-ci/*)
   # — see contract 5 in .claude/plans/architect-plan-provisioning-epic.md. Not Molecule: basis's
   # playbook has no roles, so there is no role-scenario unit for Molecule to drive; a plain
   # systemd-as-PID-1 SSH target matches basis's actual connection type (default SSH via a
@@ -40,7 +40,7 @@ services:
     # Specification key, maps to `docker run --cgroupns=host`) rather than an explicit
     # /sys/fs/cgroup bind mount: this host runs cgroup v2 (`docker info` → `Cgroup Version: 2`),
     # where `--privileged` already grants the necessary /sys/fs/cgroup access and the extra mount
-    # is not needed — verified live at task 4.1 execution time, see sh/local-ci/EVIDENCE.md.
+    # is not needed — verified live, see sh/local-ci/EVIDENCE.md.
     privileged: true
     cgroup: host
     command: /lib/systemd/systemd
@@ -64,11 +64,11 @@ services:
 # repo does. This block is kept only for parity with the existing files' shape; the real wiring
 # this service depends on is "same directory, no -p override, no per-service `networks:` key".
 #
-# NOT YET PROVEN LIVE — static authoring only in this pass. Task 3.1's "done when" requires a real
+# NOT YET PROVEN LIVE — static authoring only in this pass. Being "done" requires a real
 #   docker compose -f docker-compose.toolkit.yml run --rm iac bash -lc \
 #     "curl -s http://localstack:4566/_localstack/health"
 # returning JSON with "s3"/"ec2"/"dynamodb" available, run from inside the `iac` container while
-# this file's `localstack` service is up — that live proof happens at task 3.2/3.3 execution time,
+# this file's `localstack` service is up — that live proof happens at harness runtime,
 # not here.
 networks:
   project_network:

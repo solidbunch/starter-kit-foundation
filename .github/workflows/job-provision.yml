@@ -96,7 +96,7 @@ jobs:
 
       - name: Configure AWS credentials (act / LocalStack)
         # Local emulation only — act auto-injects ACT=true into the job env (confirmed empirically,
-        # sh/local-ci/EVIDENCE.md task 0.1). GitHub OIDC (aws-actions/configure-aws-credentials
+        # see sh/local-ci/EVIDENCE.md). GitHub OIDC (aws-actions/configure-aws-credentials
         # above) cannot be emulated by act, so this sibling step exports the static LocalStack
         # community-tier dummy credentials instead. Inert on real GitHub runs, where ACT is unset.
         if: ${{ env.ACT }}

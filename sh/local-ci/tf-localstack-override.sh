@@ -121,8 +121,7 @@ write_backend_block() {
     # does NOT catch this) to require every attribute to be restated, not just the ones being
     # added: omitting `key` here left it unset after merge, and `terraform init` fell back to an
     # interactive prompt for it (fatal on a non-interactive CI runner). Restating `key` and
-    # `encrypt` from the original per-layer backend.tf avoids that. See sh/local-ci/EVIDENCE.md,
-    # task 3.4.
+    # `encrypt` from the original per-layer backend.tf avoids that. See sh/local-ci/EVIDENCE.md.
     local state_key="$1"
     cat <<EOF
 

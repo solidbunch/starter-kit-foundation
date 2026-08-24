@@ -234,7 +234,7 @@ That evidence stands as the real-execution proof for this fallback; it is not a 
   (resolves to `4.9.2`, `edition: community`) instead. Never change this to `:latest`.
 - **No IAM policy enforcement** — irrelevant here. `kit-modules/basis`'s Terraform declares zero
   `aws_iam_*` resources (`grep -rn 'resource "aws_iam' kit-modules/basis/terraform/` → no matches,
-  re-verified at task 0.2), so the absence of IAM enforcement never masks a real bug this harness
+  re-verified), so the absence of IAM enforcement never masks a real bug this harness
   would otherwise catch.
 - **No state persistence across container restarts.** LocalStack Community does not persist any
   created resource (buckets, tables, VPCs, instances, Terraform state) once the `localstack`
@@ -395,7 +395,7 @@ you're likely to hit them:
   itself calls, which is exactly what this harness's Terraform/Ansible evidence already did.
 - **This is a distinct problem from the DinD proof itself, which does work.** `act --bind
   --container-daemon-socket /var/run/docker.sock` genuinely lets the workflow's own `docker compose`
-  calls reach the host daemon and see the real repo at `/srv` (task 0.1, `DIND_OK`) — the
+  calls reach the host daemon and see the real repo at `/srv` (`DIND_OK`) — the
   root-vs-non-root user tradeoff above is a separate, more specific problem with one particular
   step's entrypoint script under act's execution model, not evidence that DinD itself is broken.
 
@@ -456,7 +456,7 @@ the snapshot + verified restore, which the guard table's "allow" rows still alwa
 ### `LOCALCI_BASIS_ALLOWED_BRANCH` — when you need it
 
 `harness-up.sh`'s `BASIS_ALLOWED_BRANCH` constant defaults to `fix/provisioning-epic` — the exact
-branch name `kit-modules/basis` task 6.1 created (contract 8: the two must match, or every harness
+branch name created in the `kit-modules/basis` repo (contract 8: the two must match, or every harness
 run is refused). If you deliberately want to run the harness against `kit-modules/basis` in a
 dirty or ahead-of-origin state on some **other** branch (e.g. testing a different fix on a
 different branch name), set the override explicitly so the operator's intent is visible in shell

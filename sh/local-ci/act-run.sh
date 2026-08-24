@@ -74,7 +74,7 @@ Options:
 
 Always runs 'act workflow_dispatch' (the only trigger this harness's job-provision.yml emulation
 uses) and always adds '--bind --container-daemon-socket /var/run/docker.sock' unless the caller's
-extra args already override that pair (task 0.1 proved this exact combination is required).
+extra args already override that pair (this exact combination is required).
 
 Every act run's stdout/stderr is teed to logs/local-ci/<label>.log.
 

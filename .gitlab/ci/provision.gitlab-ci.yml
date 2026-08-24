@@ -10,18 +10,16 @@
 # confirmed by live gitlab-ci-local testing). Job-level variables: never collides with a
 # different file's top-level variables:, since it's a different job entirely.
 #
-# `validate-provision-inputs`, `build-basis` and `provision` are real (tasks 4.3/4.4 of the GitLab
-# provisioning parity plan). `provision` runs entirely native (IAC_NATIVE: "1", image: $APP_IAC_IMAGE)
-# — this job's container IS the toolchain, there is no Docker daemon to shell out to on a plain
-# GitLab.com shared runner. Pinned-plan retrieval (task 4.5) is now implemented — see
-# `before_script:` step 5.5 below (it runs before the AWS OIDC exchange, since it needs no AWS
-# credentials). The pre-destroy state backup (task 4.6) is now implemented too — see the
-# `script:` block below, between the 'shared' step and the environment-layer step: on
-# ACTION_TYPE=destroy it runs `terraform.sh -c state-pull` into `tfstate-backup.json`, aborts the
-# destroy if that file is empty, and GPG-encrypts it (same TFPLAN_PASSPHRASE gate as 4.5) before
-# the environment-layer `terraform.sh -c destroy` call runs.
+# `provision` runs entirely native (IAC_NATIVE: "1", image: $APP_IAC_IMAGE) — this job's container
+# IS the toolchain, there is no Docker daemon to shell out to on a plain GitLab.com shared runner.
+# Pinned-plan retrieval — see `before_script:` step 5.5 below (it runs before the AWS OIDC
+# exchange, since it needs no AWS credentials). The pre-destroy state backup — see the `script:`
+# block below, between the 'shared' step and the environment-layer step: on ACTION_TYPE=destroy it
+# runs `terraform.sh -c state-pull` into `tfstate-backup.json`, aborts the destroy if that file is
+# empty, and GPG-encrypts it (same TFPLAN_PASSPHRASE gate as the pinned-plan flow) before the
+# environment-layer `terraform.sh -c destroy` call runs.
 #
-# Pinned-plan flow (task 4.5), mirrors job-provision.yml's TFPLAN_PASSPHRASE-gated GPG
+# Pinned-plan flow mirrors job-provision.yml's TFPLAN_PASSPHRASE-gated GPG
 # encrypt/decrypt with one platform-forced difference: GitHub pins a *run* (`PLAN_RUN_ID` +
 # `actions/download-artifact`), GitLab has no Free-tier equivalent (`needs:artifacts` is
 # same-pipeline only, `needs:project` is Premium+ and only ever latest-successful) — the only
@@ -189,7 +187,7 @@ provision:
       echo "$BASIS_MSG"
       export HAS_BASIS="${BASIS_OUTPUT#has_basis=}"
       echo "has_basis=${HAS_BASIS}"
-    # 5.5) TFPLAN_PASSPHRASE availability + pinned-plan retrieval (task 4.5). Both are
+    # 5.5) TFPLAN_PASSPHRASE availability + pinned-plan retrieval. Both are
     #      GitLab-API/GPG operations independent of AWS credentials, so they run BEFORE the
     #      OIDC/STS exchange (step 6) below — an operator who mistyped PLAN_JOB_ID or forgot
     #      TFPLAN_PASSPHRASE finds out immediately, without spending an AWS role assumption on a
@@ -331,7 +329,7 @@ provision:
     # destroy path for 'shared' from this pipeline — see job-provision.yml/ci.md for the same rule
     # on the GitHub side). On plan, -f pins the plan file for a later encrypt+upload; on apply, a
     # pinned plan file already unpacked above (by PLAN_JOB_ID) is applied via -f, otherwise a
-    # fresh plan-then-apply runs, same as before task 4.5.
+    # fresh plan-then-apply runs.
     - |
       if [ "$ACTION_TYPE" != "destroy" ]; then
         echo "- shared: running (${ACTION_TYPE})" >> provision-summary.md
@@ -351,7 +349,7 @@ provision:
       else
         echo "- shared: skipped — destroy only tears down the '${ENVIRONMENT_TYPE}' environment layer, never the shared network" >> provision-summary.md
       fi
-    # Pre-destroy state backup (task 4.6) — must complete, and abort on empty state, BEFORE the
+    # Pre-destroy state backup — must complete, and abort on empty state, BEFORE the
     # environment-layer 'terraform.sh -c destroy' call below runs. 'terraform.sh -c state-pull'
     # runs its own internal init (see kit-modules/basis/sh/terraform.sh) and writes ONLY the
     # pulled state JSON to stdout, so redirecting straight to a file yields clean JSON with no
@@ -444,13 +442,12 @@ provision:
   # A GitLab job carries exactly one `artifacts:` block — one `expire_in` for every path in it,
   # no per-path retention. GitHub's equivalent has three separate artifacts with three different
   # retentions (`tfplans.tar.gz.gpg` 7 days, `provision-summary.md` 30 days,
-  # `tfstate-backup-<env>.json.gpg` 90 days, task 4.6's exact spec); here they must share one
-  # value. 90 days is used for the whole block — a superset of GitHub's 7/30-day windows rather
-  # than a shorter one — so the state-backup artifact gets the retention task 4.6 actually asks
-  # for, and `provision-summary.md`/`tfplans.tar.gz.gpg` simply live a bit longer than their
-  # GitHub counterparts (both already GPG-encrypted at rest where sensitive, so the longer
-  # retention doesn't add plaintext exposure). `access: developer` is defence in depth per the
-  # plan's design doc — GitLab's own docs note `artifacts:access` only affects UI/API access,
+  # `tfstate-backup-<env>.json.gpg` 90 days); here they must share one value. 90 days is used for
+  # the whole block — a superset of GitHub's 7/30-day windows rather than a shorter one — so the
+  # state-backup artifact gets the retention it needs, and `provision-summary.md`/
+  # `tfplans.tar.gz.gpg` simply live a bit longer than their GitHub counterparts (both already
+  # GPG-encrypted at rest where sensitive, so the longer retention doesn't add plaintext
+  # exposure). `access: developer` is defence in depth — GitLab's own docs note `artifacts:access` only affects UI/API access,
   # job-token access to the runner API is unaffected regardless, and there is no artifact-level
   # encryption-at-rest — GPG remains the actual control. `tfstate-backup.json` (plaintext) is
   # deliberately never listed here — only its `.gpg` form is, and only once a passphrase is
