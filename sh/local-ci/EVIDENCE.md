@@ -1091,18 +1091,24 @@ the Terragrunt graph).
    `remote_state.config` as one object with same-typed ternaries per key (`bool:bool`,
    `null:object`, `null:string` — `null` unifies with any type, unlike `{}` vs a populated object).
 3. **`terraform/state/bucket.tf`'s `aws_dynamodb_table.terraform_locks` resource had been removed
-   entirely** as part of the same migration (envs moved to S3-native locking). `state` itself
-   deliberately did NOT move to `use_lockfile` (it's the self-bootstrapping layer creating its own
-   backend's bucket — see CLAUDE.md's "State locking" section) and its `backend.tf` still passes
-   `-backend-config dynamodb_table=...` on every init. With the resource gone, a real fresh
-   bootstrap (confirmed against a clean LocalStack instance) creates the S3 bucket but never the
-   lock table — every following `init`/`plan`/`apply` against `state` then fails outright:
-   `Error acquiring the state lock ... ResourceNotFoundException: Cannot do operations on a
-   non-existent table`. This would have hit the very first real `bootstrap-state.sh` run against
-   a real, never-before-bootstrapped AWS account. Fixed by restoring the resource block. Re-ran
-   the full fresh-bootstrap dance afterward (`apply` on `state` with the restored resource →
-   `Apply complete! Resources: 5 added` including the table → real `-migrate-state` into the S3
-   backend → `terraform.sh -e state -c plan` → `No changes.`) — confirmed working end to end.
+   entirely** as part of the same migration (envs moved to S3-native locking). With the resource
+   gone but `state/backend.tf` still passing `-backend-config dynamodb_table=...` on every init, a
+   real fresh bootstrap (confirmed against a clean LocalStack instance) creates the S3 bucket but
+   never the lock table — every following `init`/`plan`/`apply` against `state` then fails
+   outright: `Error acquiring the state lock ... ResourceNotFoundException: Cannot do operations
+   on a non-existent table`. This would have hit the very first real `bootstrap-state.sh` run
+   against a real, never-before-bootstrapped AWS account.
+   **First fix attempted was wrong**: restoring the DynamoDB table resource so `state` keeps
+   DynamoDB locking permanently, on the reasoning that `state` is the self-bootstrapping layer and
+   "needs its own thing to create". That reasoning doesn't hold — `use_lockfile` is a plain S3
+   backend attribute, independent of Terragrunt entirely; `state/backend.tf` can set
+   `use_lockfile = true` directly with no help from anything Terragrunt generates, exactly like
+   the migration already did for `envs/*`. **Actual fix**: `use_lockfile = true` added directly to
+   `terraform/state/backend.tf`, DynamoDB table resource removed again (not restored),
+   `var.tf_lock_table`/`TF_VAR_tf_lock_table` removed project-wide (all `variables.tf` files,
+   `terraform.sh`, `bootstrap-state.sh`, `sh/aws/oidc.sh`'s IAM policy JSON + `-m test` checks,
+   `README.MD`'s policy example). Re-verification of the full fresh-bootstrap dance against
+   LocalStack with this corrected fix is pending — see the entry below once it lands.
 
 **Terragrunt+LocalStack wiring validated working**: `terraform.sh -e shared -c init` against
 LocalStack generates the expected `backend_generated.tf`/`provider_generated.tf` with LocalStack

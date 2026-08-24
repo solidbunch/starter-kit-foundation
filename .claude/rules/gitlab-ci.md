@@ -544,7 +544,7 @@ unreviewed plan.
 
 ## State-backend bootstrap
 
-GitLab analog of `.github/workflows/job-bootstrap-state.yml` — one-time S3/DynamoDB Terraform
+GitLab analog of `.github/workflows/job-bootstrap-state.yml` — one-time S3 Terraform
 backend bootstrap, under a separate, narrower IAM role. Implemented as its own file,
 `.gitlab/ci/bootstrap-state.gitlab-ci.yml`, included unconditionally
 (`.gitlab-ci.yml:101`) and gated on `PIPELINE_KIND == "bootstrap-state"`
@@ -558,13 +558,13 @@ backend bootstrap, under a separate, narrower IAM role. Implemented as its own f
   so a wrong `CONFIRM` fails before any `sts`/`aws` line appears in the log.
 - **Separate `AWS_BOOTSTRAP_ROLE_TO_ASSUME` role.** This job exchanges its OIDC token for the
   bootstrap role only (`bootstrap-state.gitlab-ci.yml:89`), never `AWS_ROLE_TO_ASSUME` — the
-  bootstrap role is the only one with `s3:CreateBucket`/`dynamodb:CreateTable`
+  bootstrap role is the only one with `s3:CreateBucket`
   (`kit-modules/basis/sh/aws/oidc.sh`'s two-role design, `oidc.sh:149-178,215-245`). The everyday
   `provision` job never references `AWS_BOOTSTRAP_ROLE_TO_ASSUME` either
   (`provision.gitlab-ci.yml:269` only uses `AWS_ROLE_TO_ASSUME`) — CloudTrail's principal alone
   tells you which pipeline touched AWS.
 - **`resource_group: bootstrap-state`** serializes concurrent dispatches against the same AWS
-  account, so two runs never race to create the same S3 bucket/DynamoDB lock table
+  account, so two runs never race to create the same S3 bucket
   (`bootstrap-state.gitlab-ci.yml:37-39`).
 - Needs `build-basis`'s `kit-modules/` artifact (`bootstrap-state.gitlab-ci.yml:26-32`), same
   mechanism `provision` relies on — `kit-modules/basis` is git-ignored, so a real GitLab.com shared
@@ -614,11 +614,11 @@ bash kit-modules/basis/sh/aws/oidc.sh -p gitlab -m gen -e dev
 #      STEP 1 — everyday provisioning role ($GITLAB_ROLE_NAME, default gitlab-ci-role):
 #               IAM → Roles → Create role → Web identity → paste the printed trust policy
 #               (STEP 1b) and permission policy (STEP 1c) exactly as printed — they already
-#               interpolate this account's TF_VAR_tf_backend_bucket/TF_VAR_tf_lock_table/
-#               TF_VAR_aws_region/GITLAB_PROVISION_BRANCHES, nothing to fill in by hand.
+#               interpolate this account's TF_VAR_tf_backend_bucket/TF_VAR_aws_region/
+#               GITLAB_PROVISION_BRANCHES, nothing to fill in by hand.
 #      STEP 2 — state-backend bootstrap role ($GITLAB_BOOTSTRAP_ROLE_NAME, default
 #               gitlab-ci-bootstrap-role): same mechanism, narrower permissions
-#               (s3:CreateBucket/dynamodb:CreateTable, everyday role never gets these).
+#               (s3:CreateBucket, everyday role never gets it).
 #    Copy each role's ARN from `aws iam get-role --role-name <name> --query Role.Arn --output text`
 #    after creating it — you need both in step 3.
 
@@ -657,7 +657,7 @@ bash kit-modules/basis/sh/aws/oidc.sh -p gitlab -m test -e dev
 #                         (NOT an environment name — see "CONFIRM-equals-region guard" above; a
 #                         mismatch fails before any AWS call is made)
 #    Leave every other input at its default. Click "Run pipeline", then watch the bootstrap-state
-#    job's log to confirm the S3 bucket + DynamoDB lock table were created (or already existed).
+#    job's log to confirm the S3 bucket was created (or already existed).
 
 # 6. Dispatch a provisioning plan run to confirm the everyday role works end to end:
 #    GitLab UI → CI/CD → Pipelines → Run pipeline.
@@ -688,10 +688,9 @@ bash kit-modules/basis/sh/aws/oidc.sh -p gitlab -m test -e dev
   re-run step 4 (`-m test`) before dispatching anything.
 - **Step 5/6 (pipeline dispatched, failed):** no AWS resource is created by a failed OIDC/STS
   exchange — nothing to roll back on the AWS side. Fix whatever `-m test` or the job log flagged,
-  then re-dispatch the same pipeline. A **partially-applied** `bootstrap-state` run (bucket created,
-  DynamoDB table not, or vice versa) is safe to just re-dispatch — `sh/bootstrap-state.sh` is
-  idempotent and skips a resource that already exists (see `kit-modules/basis/CLAUDE.md`); it does
-  not partially tear down what step 5 already created.
+  then re-dispatch the same pipeline. A **partially-applied** `bootstrap-state` run is safe to just
+  re-dispatch — `sh/bootstrap-state.sh` is idempotent and skips the bucket if it already exists
+  (see `kit-modules/basis/CLAUDE.md`); it does not partially tear down what step 5 already created.
 
 **What a failed STS exchange looks like** — the exact error text both `provision.gitlab-ci.yml`
 and `bootstrap-state.gitlab-ci.yml` print when `aws sts assume-role-with-web-identity` fails

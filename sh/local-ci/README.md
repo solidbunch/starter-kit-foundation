@@ -6,7 +6,7 @@
 `kit-modules/basis`) and configures servers (Ansible). This harness runs that **real** pipeline
 locally, with no cloud account and no cost:
 
-- LocalStack Community stands in for AWS (S3, DynamoDB, EC2, STS).
+- LocalStack Community stands in for AWS (S3, EC2, STS).
 - A bare Debian 12 + systemd container (`ansible-target`) stands in for a freshly-provisioned EC2
   instance, reachable over real SSH.
 - `act` runs the actual, unmodified `job-provision.yml` file — not a generated copy — so what runs
@@ -39,7 +39,7 @@ make localci tf                       # prints the real commands to copy-paste, 
 # bootstrap per account — this two-phase dance must be repeated every time the harness is brought
 # up against a freshly-started LocalStack container.
 #
-# Phase 1 — bootstrap the bucket + lock table using LOCAL state, with resources still routed at
+# Phase 1 — bootstrap the bucket using LOCAL state, with resources still routed at
 # LocalStack. Move the tracked backend.tf out of the way, AND the harness's own generated state
 # override (sh/local-ci/tf-localstack-override.sh always restates a full S3 backend block for
 # terraform/state, so leaving it in place recreates the same chicken-and-egg problem). Replace it
@@ -60,10 +60,9 @@ provider "aws" {
   secret_key                  = "test"
 
   endpoints {
-    s3       = "http://localstack:4566"
-    dynamodb = "http://localstack:4566"
-    ec2      = "http://localstack:4566"
-    sts      = "http://localstack:4566"
+    s3  = "http://localstack:4566"
+    ec2 = "http://localstack:4566"
+    sts = "http://localstack:4566"
   }
 }
 EOF
@@ -77,16 +76,14 @@ mv /tmp/state-localstack_override.tf kit-modules/basis/terraform/state/localstac
 # `-migrate-state` dance as the real-AWS bootstrap (kit-modules/basis/README.MD, "Method 2: Local
 # Deployment"), adapted to point at LocalStack: the restored localstack_override.tf already
 # supplies the endpoints/dummy credentials, `-backend-config` only needs to inject
-# bucket/region/dynamodb_table, matching what harness-up.sh exports
-# (TF_VAR_tf_backend_bucket=localci-terraform-state, TF_VAR_aws_region=eu-west-1,
-# TF_VAR_tf_lock_table=localci-terraform-locks):
+# bucket/region, matching what harness-up.sh exports (TF_VAR_tf_backend_bucket=localci-terraform-state,
+# TF_VAR_aws_region=eu-west-1):
 make basis   # interactive shell in the iac container, repo mounted at /srv
 #   inside the container:
 cd /srv/kit-modules/basis/terraform/state
 terraform init -migrate-state \
   -backend-config="bucket=$TF_VAR_tf_backend_bucket" \
-  -backend-config="region=$TF_VAR_aws_region" \
-  -backend-config="dynamodb_table=$TF_VAR_tf_lock_table"
+  -backend-config="region=$TF_VAR_aws_region"
 #   answer "yes" when asked to copy the existing state to the new backend
 
 # From here on, the normal per-layer sequence works exactly as before:
@@ -243,7 +240,7 @@ That evidence stands as the real-execution proof for this fallback; it is not a 
   LocalStack restarts mid-harness, every subsequent Terraform/Ansible command must fail loudly
   (missing state/resources), not silently succeed against nothing.
 - **LocalStack's EC2 is a mock.** A green `terraform apply` here proves the Terraform + AWS
-  provider + S3/DynamoDB backend + this harness's LocalStack wiring are all correct — it does
+  provider + S3 backend + this harness's LocalStack wiring are all correct — it does
   **not** prove the resulting resources would behave like real EC2 infrastructure. Never read a
   green local run as "verified against AWS".
 - **Genuine, reproduced, un-fixable-from-here gap: EC2 subnet IPv6-association emulation.**
@@ -269,7 +266,7 @@ That evidence stands as the real-execution proof for this fallback; it is not a 
   from this local-only harness without editing basis's tracked module code, which is out of scope.
   This is a real, reported LocalStack Community-tier limitation, not a defect in the harness, the
   override design, or the ported pipeline code — everything up to the IPv6 wait (provider wiring,
-  the S3/DynamoDB-backed state backend for two of three layers, `terraform.sh -f`'s pinned-plan save/apply flow,
+  the S3-backed state backend for two of three layers, `terraform.sh -f`'s pinned-plan save/apply flow,
   VPC/IGW/route-table/key-pair creation, and the `dev` layer's remote-state read chain up to the
   exact point the missing `subnet_ids` output blocks it) is proven genuinely working.
 
@@ -402,7 +399,7 @@ you're likely to hit them:
 ## This never affects dev/stage/prod
 
 - **The harness never touches real AWS.** Every AWS-shaped call the harness drives (Terraform
-  provider, S3/DynamoDB backend, EC2/STS calls) is redirected to `http://localstack:4566` via
+  provider, S3 backend, EC2/STS calls) is redirected to `http://localstack:4566` via
   `config/environment/.env.type.dev.override` (git-ignored, `.gitignore:49` `.env.*override`), and
   two mechanisms on the `kit-modules/basis` side, split by which layer is Terragrunt-managed:
   - `terraform/state` — the one layer outside the Terragrunt graph (see `terraform/root.hcl`'s

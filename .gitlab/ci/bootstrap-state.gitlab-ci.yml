@@ -35,13 +35,13 @@ bootstrap-state:
     COMPOSER_ALLOW_SUPERUSER: "1"
     CONFIRM: $[[ inputs.CONFIRM ]]
   # One-time-per-AWS-account operation — serialize concurrent dispatches against the same account
-  # so two runs never race to create the same S3 bucket/DynamoDB lock table.
+  # so two runs never race to create the same S3 bucket.
   resource_group: bootstrap-state
   # AWS credentials come from GitLab's own OIDC ID token, not a static secret — audience must be
   # sts.amazonaws.com to match the "aud" condition oidc.sh -p gitlab writes into both roles' trust
   # policies (kit-modules/basis/sh/aws/oidc.sh). This job uses the narrower BOOTSTRAP role
   # (AWS_BOOTSTRAP_ROLE_TO_ASSUME), never the everyday AWS_ROLE_TO_ASSUME — the bootstrap role is
-  # the only one with s3:CreateBucket/dynamodb:CreateTable, see ci.md's "State backend" section.
+  # the only one with s3:CreateBucket, see ci.md's "State backend" section.
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: sts.amazonaws.com

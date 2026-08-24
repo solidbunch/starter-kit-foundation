@@ -247,7 +247,6 @@ AWS_SECRET_ACCESS_KEY=test
 AWS_DEFAULT_REGION=eu-west-1
 TF_VAR_aws_region=eu-west-1
 TF_VAR_tf_backend_bucket=localci-terraform-state
-TF_VAR_tf_lock_table=localci-terraform-locks
 TF_VAR_aws_ami_owners=$LOCALCI_AMI_OWNERS
 TF_VAR_aws_ami_name_pattern=$LOCALCI_AMI_NAME_PATTERN
 APP_DOMAIN=localci.starter-kit.loc

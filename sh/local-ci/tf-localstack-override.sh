@@ -112,10 +112,9 @@ provider "aws" {
   secret_key                  = "test"
 
   endpoints {
-    s3       = "$ENDPOINT_URL"
-    dynamodb = "$ENDPOINT_URL"
-    ec2      = "$ENDPOINT_URL"
-    sts      = "$ENDPOINT_URL"
+    s3  = "$ENDPOINT_URL"
+    ec2 = "$ENDPOINT_URL"
+    sts = "$ENDPOINT_URL"
   }
 }
 EOF
@@ -127,8 +126,9 @@ write_backend_block() {
     # `terraform init` for real against this override — a static `-backend=false` validate pass
     # does NOT catch this) to require every attribute to be restated, not just the ones being
     # added: omitting `key` here left it unset after merge, and `terraform init` fell back to an
-    # interactive prompt for it (fatal on a non-interactive CI runner). Restating `key` and
-    # `encrypt` from the original per-layer backend.tf avoids that. See sh/local-ci/EVIDENCE.md.
+    # interactive prompt for it (fatal on a non-interactive CI runner). Restating `key`/`encrypt`/
+    # `use_lockfile` from the original per-layer backend.tf avoids that. See
+    # sh/local-ci/EVIDENCE.md.
     local state_key="$1"
     cat <<EOF
 
@@ -136,11 +136,14 @@ terraform {
   backend "s3" {
     key     = "$state_key"
     encrypt = true
+    # LocalStack Community's S3 mock doesn't implement the conditional-write (If-None-Match)
+    # semantics use_lockfile depends on — same reasoning as terraform/root.hcl's LocalStack branch
+    # for every other layer. A single local harness run has no concurrent writer anyway.
+    use_lockfile = false
 
     endpoints = {
-      s3       = "$ENDPOINT_URL"
-      dynamodb = "$ENDPOINT_URL"
-      sts      = "$ENDPOINT_URL"
+      s3  = "$ENDPOINT_URL"
+      sts = "$ENDPOINT_URL"
     }
     use_path_style              = true
     skip_credentials_validation = true
