@@ -80,11 +80,13 @@ entry's own existing name.
 `ghcr.io/solidbunch/starter-kit-composer:2.10-php8.4-alpine3.24-r1` (rebuilds `FROM` the fixed
 `php` tag, so it inherits the same entrypoint), `ghcr.io/solidbunch/starter-kit-iac:1.1.1`.
 
-**These tags are local-only.** They were built on this machine (`make docker build php` /
-`make docker build composer` / `make docker build iac`) and `config/environment/.env.main` on this
-branch points at them, but `make docker push` has **not** been run — the fix is not on `ghcr.io`,
-not on dev/stage/prod, and not visible to any other clone of this repo until that manual push
-happens. Every quirk documented below in this file (the macOS `addgroup: gid '20' in use` in Task
+**These tags were local-only at the time this was written.** They were built on this machine
+(`make docker build php` / `make docker build composer` / `make docker build iac`) and
+`config/environment/.env.main` on this branch pointed at them, with `make docker push` **not**
+yet run. **Superseded:** the iac image has since been bumped to `1.1.2` and pushed to `ghcr.io` —
+the tag/push-status claim above no longer reflects current reality; it's left as-is here as a
+record of the state at the time of this debugging session. Every quirk documented below in this
+file (the macOS `addgroup: gid '20' in use` in Task
 3.4, the act `addgroup: gid '0' in use` in Task 5.2/5.3/5.4) remains exactly accurate for anyone
 still pulling the old tags (`php:8.4-fpm-alpine3.24`, `composer:2.10-php8.4-alpine3.24`,
 `iac:1.1.0`) — which is everyone except this machine's local cache, today.
