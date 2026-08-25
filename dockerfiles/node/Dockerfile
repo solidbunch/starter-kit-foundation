@@ -1,5 +1,5 @@
 # Run from original node image
-FROM node:18-alpine3.20
+FROM node:18-alpine3.21
 
 RUN apk add --no-cache \
     bash

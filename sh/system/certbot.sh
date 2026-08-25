@@ -46,11 +46,36 @@ docker compose up -d nginx
 # 3. Request real certificates from Let's Encrypt
 echo -e "${CYAN}[Info]${RESET} Requesting Let's Encrypt certificate for ${APP_DOMAIN}..."
 
-# Check if APP_DOMAIN is a subdomain
-if [[ "$APP_DOMAIN" == *.*.* ]]; then
-  DOMAIN_ARGS="-d ${APP_DOMAIN}"
-else
+# Detect apex vs subdomain via the Public Suffix List (psl) — no dot-count/heuristic
+# fallback. Mirrors BASIS kit-modules/basis/sh/dns.sh's own PSL check (that script's
+# "PSL-based apex/www expansion" section): same rule (reg_domain == FQDN => apex =>
+# also update www.<fqdn>), duplicated here rather than shared because the two scripts
+# live in different repos and run in different container images (Debian iac vs Alpine
+# certbot) — see the dns-provider-update plan's Architecture notes §1/§2.
+#
+# The certbot entrypoint (dockerfiles/certbot/docker-entrypoint.sh) echoes a banner
+# line ("${DEFAULT_USER} user UID=... updated") to stdout before exec-ing the command,
+# so the raw capture below is filtered per-line rather than trusting the last line
+# blindly on faith alone — the banner contains spaces/"=" and can never match the
+# domain-shape regex, so it is naturally excluded.
+DOMAIN_REGEX='^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$'
+
+RAW_REG_DOMAIN="$(docker compose -f docker-compose.toolkit.yml run --rm certbot su -c "\
+    psl -b --print-reg-domain '${APP_DOMAIN}'" \
+  "${DEFAULT_USER}")"
+
+REG_DOMAIN="$(printf '%s\n' "$RAW_REG_DOMAIN" | tr -d '\r' | grep -E "$DOMAIN_REGEX" | tail -n 1 || true)"
+
+if [ -z "$REG_DOMAIN" ]; then
+  echo -e "${LIGHTRED}[Error]${RESET} psl lookup failed or returned no usable value for '${APP_DOMAIN}'." >&2
+  echo -e "${LIGHTRED}[Error]${RESET} Ensure the 'libpsl-utils' package is installed in the certbot image (dockerfiles/certbot/Dockerfile)." >&2
+  exit 1
+fi
+
+if [ "$REG_DOMAIN" = "$APP_DOMAIN" ]; then
   DOMAIN_ARGS="-d ${APP_DOMAIN} -d www.${APP_DOMAIN}"
+else
+  DOMAIN_ARGS="-d ${APP_DOMAIN}"
 fi
 
 # Delete dummy certificates before requesting real ones

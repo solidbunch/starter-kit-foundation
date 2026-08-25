@@ -1,19 +1,21 @@
 # Production-environment jobs — GitLab analog of .github/workflows/workflow-deploy-production.yml
 #
-# This file is only ever included when the pipeline's ref is `master` (see the `rules:` on its
+# This file is only ever included when the pipeline's ref is `main` (see the `rules:` on its
 # `include:` entry in .gitlab-ci.yml) — that gate is what makes the plain, unsuffixed job names
 # and the top-level `variables:` below safe. If this file and deploy-dev.gitlab-ci.yml were ever
 # included unconditionally at the same time, GitLab would deep-merge both `variables:` blocks
 # (last include wins) and both `build-composer`/`build-node` job pairs would collide — do not
 # remove the include-level `rules:` without re-checking .claude/rules/gitlab-ci.md.
 #
-# No `when: manual` here — the root `workflow:` rules already restrict `master` pipelines to
+# No `when: manual` here — the root `workflow:` rules already restrict `main` pipelines to
 # web-triggered "Run pipeline" runs, so once a pipeline exists, its jobs run automatically.
+#
+# The deploy target (SSH alias + destination path) is derived at deploy time from APP_DOMAIN in
+# config/environment/.env.type.$ENVIRONMENT_TYPE by the .deploy template — no CI/CD variable
+# needed. See .claude/rules/gitlab-ci.md.
 
 variables:
   ENVIRONMENT_TYPE: prod
-  DEPLOY_SSH_HOST: starter-kit.io
-  DEPLOY_PATH: /srv/starter-kit.io
 
 build-composer:
   extends: .build-composer
@@ -24,5 +26,4 @@ build-node:
 deploy-prod:
   extends: .deploy
   environment:
-    name: production
-    url: https://starter-kit.io
+    name: prod

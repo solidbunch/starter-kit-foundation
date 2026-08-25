@@ -52,6 +52,11 @@ logs/**/*.out
 /config/ssl/**
 !/config/ssl/readme.md
 
+# act (local CI/CD emulation harness) — real values only, never committed;
+# sh/local-ci/act-secrets.example is the committed placeholder-only template.
+.secrets.act
+.vars.act
+
 #=============================#
 #          Terraform          #
 #=============================#
@@ -62,6 +67,7 @@ crash.log
 crash.*.log
 *.tfvars
 *.tfvars.json
+/tfplans/
 override.tf
 override.tf.json
 *_override.tf
@@ -124,11 +130,13 @@ tmp/**
 # ===================================#
 # Keep shared AI instructions tracked (root CLAUDE.md, .claude/rules/);
 # ignore machine-local runtime artifacts.
-.claude/worktrees/
-.claude/plans/
-.claude/backlog/
-.claude/notes/
-.claude/settings.local.json
-CLAUDE.local.md
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/rules/
+!.claude/commands/
+!.claude/output-styles/
+!.claude/workflows/
+!.claude/settings.json
 .playwright-mcp/
 

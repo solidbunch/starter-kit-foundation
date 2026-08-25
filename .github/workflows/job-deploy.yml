@@ -10,12 +10,6 @@ on:
       COMPOSER_AUTH:
         required: true
     inputs:
-      SSH_HOST_ALIAS:
-        required: true
-        type: string
-      DEPLOY_PATH_DESTINATION:
-        required: true
-        type: string
       DEPLOYMENT_NAME:
         required: true
         type: string
@@ -23,13 +17,16 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Prepare .env
         run: |
@@ -39,31 +36,13 @@ jobs:
           fi
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 
-      - name: Switch Theme Version for Dev Environment
-        if: inputs.ENVIRONMENT_TYPE == 'dev'
+      - name: Theme switch + demo-mode Composer extras
         run: |
-          echo "Switching theme to dev-develop version for dev environment"
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           # Load environment variables from .env file
           source .env
-          docker compose -f docker-compose.toolkit.yml run --rm composer su -c "composer run switch-theme-dev" "${DEFAULT_USER}"
-
-      - name: Update Monitoring & Addon (only in demo)
-        env:
-          IS_DEMO: ${{ vars.IS_DEMO }}
-        run: |
-          if [ "$IS_DEMO" = "true" ]; then
-            echo "Detected demo mode — forcing Composer update from dist"
-            export CURRENT_UID=$(id -u)
-            export CURRENT_GID=$(id -g)
-            source .env
-            docker compose -f docker-compose.toolkit.yml run --rm composer su -c "
-              composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
-            " "${DEFAULT_USER}"
-          else
-            echo "Skipping composer update — not in demo mode"
-          fi
+          docker compose -f docker-compose.toolkit.yml run --rm composer su -c "sh ./sh/ci/composer-extras.sh '${{ inputs.ENVIRONMENT_TYPE }}' '${{ vars.IS_DEMO }}'" "${DEFAULT_USER}"
 
       - name: Install Composer and Node Dependencies
         run: |
@@ -72,8 +51,12 @@ jobs:
           source .env
           bash ./sh/system/install.sh yes
 
+      # Rationale for why this is safe: see sh/ci/scrub-secrets.sh header.
+      - name: Scrub secrets before caching
+        run: sh ./sh/ci/scrub-secrets.sh
+
       - name: Save Built job
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .
           key: build-job-${{ github.run_number }}
@@ -81,59 +64,40 @@ jobs:
   deploy:
     runs-on: ubuntu-22.04
 
+    # Scopes vars/secrets to the GitHub Environment named after the target env
+    # (dev/stage/prod) — lets APP_MULTI_INSTANCE differ per environment.
+    environment: ${{ inputs.ENVIRONMENT_TYPE }}
+
+    # Mirrors job-provision.yml's concurrency pattern (job-level, keyed by the reusable job's
+    # own inputs.ENVIRONMENT_TYPE — this is a workflow_call job, so there is no top-level
+    # `on.workflow_dispatch`/`on.push` input to key off instead). Grouped per environment so a
+    # dev deploy and a prod deploy never block each other, but two overlapping deploys to the
+    # SAME environment queue instead of racing `rsync --delete-after` / `make recreate` /
+    # `make core-install` against the same host and Docker project.
+    # cancel-in-progress: false, same as job-provision.yml — canceling mid-rsync/mid-recreate
+    # would leave the target host in a half-deployed state, which is worse than waiting.
+    concurrency:
+      group: deploy-${{ inputs.ENVIRONMENT_TYPE }}
+      cancel-in-progress: false
+
     needs: [ build ]
 
     steps:
       - name: Use Built job
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: .
           key: build-job-${{ github.run_number }}
 
       - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
-          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+        run: sh ./sh/ci/setup-ssh.sh
+        env:
+          SSH_INPUT_MODE: literal
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
 
       - name: Deploy via SSH
-        run: |
-          echo "Deploying to ${{ inputs.DEPLOY_PATH_DESTINATION }}"
-          ssh ${{ inputs.SSH_HOST_ALIAS }} mkdir -p ${{ inputs.DEPLOY_PATH_DESTINATION }}
-          rsync -og \
-            --chmod=Dug=rwx,Fug=rw \
-            --checksum \
-            --recursive \
-            --verbose \
-            --compress \
-            --links \
-            --delete-after \
-            --exclude ".git*" \
-            --exclude "*/node_modules/" \
-            --exclude "backups/" \
-            --exclude "**/db-*/" \
-            --exclude="**/tail-db/" \
-            --exclude "logs/" \
-            --exclude ".env" \
-            --exclude ".env.*override" \
-            --exclude ".env.*runtime" \
-            --exclude ".env.*secret" \
-            --exclude "config/ssl/" \
-            --exclude "web/wp-content/languages" \
-            --exclude "web/wp-content/uploads" \
-            --include "web/wp-content/cache" \
-            ./ ${{ inputs.SSH_HOST_ALIAS }}:${{ inputs.DEPLOY_PATH_DESTINATION }}
-          ssh ${{ inputs.SSH_HOST_ALIAS }} "
-            set -e -o pipefail;
-            cd ${{ inputs.DEPLOY_PATH_DESTINATION }};
-            make secret;
-            make APP_MULTI_INSTANCE='${{ vars.APP_MULTI_INSTANCE }}' proxy deploy '${{ inputs.ENVIRONMENT_TYPE }}';
-            bash ./sh/env/init.sh '${{ inputs.ENVIRONMENT_TYPE }}';
-            make ssl;
-            make recreate '${{ inputs.ENVIRONMENT_TYPE }}';
-            make monitoring off;
-            make monitoring on;
-            bash ./sh/database/check.sh;
-            make core-install"
+        run: sh ./sh/ci/deploy.sh '${{ inputs.ENVIRONMENT_TYPE }}'
+        env:
+          APP_MULTI_INSTANCE: ${{ vars.APP_MULTI_INSTANCE }}
 

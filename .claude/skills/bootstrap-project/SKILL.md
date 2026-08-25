@@ -49,17 +49,21 @@ regenerated, see root `CLAUDE.md`):
   it resolves to a `github.com` remote, parse `<org>`/`<repo>` out of it and set both. If no origin
   is set (or it isn't a GitHub URL), leave these two untouched and flag it in Step 9's report — they
   still hold StarterKit's own values (`solidbunch`/`starter-kit-foundation`) and must be set by hand
-  before this project's CI/CD role/Terraform state work. `ROLE_NAME` and the Terraform state vars
-  (`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table`) stay out of scope regardless — a real,
-  globally-unique S3 bucket/DynamoDB table the user controls can't be invented automatically; flag
-  those in Step 9 too.
-- `.github/workflows/workflow-deploy-develop.yml` / `workflow-deploy-production.yml`: the
-  `SSH_HOST_ALIAS:` value on each (shipped as `develop.starter-kit.io` / `starter-kit.io`) — these
-  are just SSH-config aliases, not live URLs, but must stop reading as the template's own domain.
-  If the user gave dev/prod domains in Step 0, set `SSH_HOST_ALIAS: develop.<devDomain>` /
-  `SSH_HOST_ALIAS: <prodDomain>`; if they skipped those, fall back to
-  `SSH_HOST_ALIAS: develop.<slug>` / `SSH_HOST_ALIAS: <slug>`. Keep the `develop.`-prefix-on-dev,
-  bare-on-prod shape — only the domain/slug part changes.
+  before this project's CI/CD role/Terraform state work. `ROLE_NAME` stays out of scope regardless
+  — a real IAM role the user controls can't be invented automatically; flag it in Step 9 too.
+  `TF_VAR_tf_backend_bucket` is already handled — it
+  derives from `${APP_NAME}` via `.env.main`'s existing default, same as `TF_VAR_sk_vpc_name`/
+  `TF_VAR_sk_ssh_key_name`.
+- The deploy target (SSH destination / destination path) needs **no configuration at all**, on
+  either platform — there is no deploy-target CI/CD variable to set. Both pipelines derive it at
+  runtime from the `APP_DOMAIN` value just edited above in this same step
+  (`config/environment/.env.type.dev`/`.stage`/`.prod`), computing the deploy path as
+  `/srv/$APP_DOMAIN` and using `$APP_DOMAIN` itself as the SSH destination alias. The only thing
+  that must be true is that each environment's `SSH_CONFIG` secret/variable has a `Host` block
+  named after that environment's `APP_DOMAIN` (e.g. `Host develop.<devDomain>`,
+  `Host <prodDomain>`) — full contract: `.claude/rules/ci.md` (GitHub) and
+  `.claude/rules/gitlab-ci.md` (GitLab). Step 7's generated README walks the user through setting
+  up `SSH_CONFIG` with the correct `Host` names.
 
 `kit-modules/basis` Terraform/Ansible internals and the rest of CI/CD wiring beyond the above are a
 separate task the user can ask for by name later; `infrastructure.md`/`ci.md` cover that ground when
@@ -251,7 +255,13 @@ Admin credentials print at install time and are saved to `config/environment/.en
 
 One-time setup in GitHub, then two workflows to run by hand for infra/prod:
 
-**1. Add repo secrets**: GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
+**1. Create the deployment environments**: GitHub repo → **Settings** → **Environments** →
+**New environment**, one per environment type: `dev`, `stage`, `prod`. The names must match
+exactly — both pipelines pin themselves to the environment named after the run's
+`ENVIRONMENT_TYPE`, and an environment that doesn't exist carries no variables. Protection rules
+(required reviewers, wait timer) are optional; add them to `prod` if you want prod runs gated.
+
+**2. Add repo secrets**: GitHub repo → **Settings** → **Secrets and variables** → **Actions** →
 **Secrets** tab → **New repository secret**, one at a time:
 
 - `SSH_KEY`: the raw private key, e.g.:
@@ -269,26 +279,34 @@ One-time setup in GitHub, then two workflows to run by hand for infra/prod:
   ####################################
   Host *
       IdentitiesOnly yes
-      StrictHostKeyChecking no
+      StrictHostKeyChecking accept-new
+  # accept-new: accepts an unknown host key automatically on first connection (same
+  # zero-friction behavior as before) but REFUSES to connect if a previously-known host's
+  # key later changes — the MITM/key-swap scenario the disabled setting used to silently allow.
+  # Do not "fix" this back to a disabled/permissive setting.
 
-  Host <dev SSH_HOST_ALIAS>
+  Host <dev APP_DOMAIN>
     HostName <dev server IP or hostname>
     User admin
     Port 22
     IdentityFile ~/.ssh/id_rsa
 
-  Host <stage SSH_HOST_ALIAS>
+  Host <stage APP_DOMAIN>
     HostName <stage server IP or hostname>
     User admin
     Port 22
     IdentityFile ~/.ssh/id_rsa
 
-  Host <prod SSH_HOST_ALIAS>
+  Host <prod APP_DOMAIN>
     HostName <prod server IP or hostname>
     User admin
     Port 22
     IdentityFile ~/.ssh/id_rsa
   \`\`\`
+
+  The `Host` name in each block **must** equal that environment's `APP_DOMAIN` exactly — both
+  pipelines use `APP_DOMAIN` directly as the SSH destination alias, so a mismatch fails the deploy
+  with `Could not resolve hostname`, not a silent misdeploy.
 
 - `COMPOSER_AUTH`: a GitHub personal access token in Composer's `github-oauth` JSON shape, quotes
   escaped (see `sh/env/.env.secret.template` and the
@@ -302,24 +320,72 @@ One-time setup in GitHub, then two workflows to run by hand for infra/prod:
   {\"github-oauth\":{\"github.com\":\"<GITHUB_PERSONAL_ACCESS_TOKEN>\"},\"http-basic\":{\"licensing.starter-kit.io\":{\"username\":\"<your email>\",\"password\":\"<your license password>\"}}}
   \`\`\`
 
-**2. Add a repo variable**: same page, **Variables** tab → **New repository variable**:
+- `TFPLAN_PASSPHRASE` (optional): any strong passphrase. Enables the provisioning pipeline's
+  plan-then-apply flow — the Terraform plan is GPG-encrypted into a run artifact so an `apply`
+  can replay a reviewed plan instead of re-planning. Without it those steps skip themselves and
+  the run summary says so.
 
-| Name | Value |
-|---|---|
-| `AWS_ROLE_TO_ASSUME` | ARN of the IAM role GitHub OIDC assumes for Terraform/Ansible, see step 3 |
+**3. Add variables**: same page, **Variables** tab.
 
-**3. Create the AWS IAM role** (one-time, needed before any provisioning run). Runs on your host,
-not in a container, needs the AWS CLI installed locally with credentials that can read IAM:
+Repository level (**New repository variable**):
+
+| Name | Required | Value |
+|---|---|---|
+| `AWS_ROLE_TO_ASSUME` | for provisioning | ARN of the everyday IAM role GitHub OIDC assumes for Terraform/Ansible, see step 4 |
+| `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | for state-backend bootstrap (step 5) only | ARN of the narrower, one-time bootstrap role — the only one with `s3:CreateBucket` — see step 4 |
+| `IS_DEMO` | no | `true` only for SolidBunch demo/showcase stands — forces licensed modules to update from `dist` |
+
+Environment level (**Settings** → **Environments** → pick one → **Add variable**):
+
+| Name | Required | Value |
+|---|---|---|
+| `APP_MULTI_INSTANCE` | no | `1` on an environment whose server co-hosts several instances behind the Traefik proxy. Leave unset everywhere else — an unset variable means "off". Set it per environment, not repo-wide, or it applies to prod too |
+
+There is no deploy-target variable to add here — nothing else to set at this level. The deploy
+target is derived automatically from `APP_DOMAIN` (already set in
+`config/environment/.env.type.dev`/`.stage`/`.prod` back in Step 1); the only requirement is the
+`SSH_CONFIG` secret's `Host` block naming, shown above.
+
+For the GitLab pipeline, the CI/CD setup is even smaller: just `SSH_KEY`, `SSH_CONFIG`, and
+`COMPOSER_AUTH` as CI/CD variables (**Settings** → **CI/CD** → **Variables**), all scope `All` by
+default — same `SSH_CONFIG` `Host`-name contract as above. Only add a `dev`- or `prod`-scoped
+override for `SSH_KEY`/`SSH_CONFIG` if that environment needs a different key/config than the
+other. No further variable is needed for the deploy target or path; both are derived the same way
+from `APP_DOMAIN`, and there is no "View deployment" URL to configure.
+
+Do **not** add an `AWS_REGION` variable — the region comes from `TF_VAR_aws_region` in
+`config/environment/.env.main`, which the pipeline reads directly. The same reasoning applies to
+the deploy target itself: it comes from `APP_DOMAIN` in tracked config, not a platform variable.
+
+**4. Create the AWS IAM roles** (one-time, needed before any provisioning or state-backend
+bootstrap run). Runs on your host, not in a container, needs the AWS CLI installed locally with
+credentials that can read IAM:
 
 \`\`\`bash
-bash ./kit-modules/basis/sh/oidc.sh -m gen -e dev
+bash ./kit-modules/basis/sh/aws/oidc.sh -m gen -e dev
 \`\`\`
 
-This prints the exact AWS Console clicks (IAM → Identity providers → Add provider → OpenID
-Connect; IAM → Roles → Create role → Web identity) plus a ready-to-paste IAM policy JSON. Follow
-it verbatim, then copy the created role's ARN into `AWS_ROLE_TO_ASSUME` from step 2.
+A single run prints the exact AWS Console clicks (IAM → Identity providers → Add provider →
+OpenID Connect; IAM → Roles → Create role → Web identity) plus ready-to-paste IAM policy JSON for
+**both** roles: the everyday provisioning role (`AWS_ROLE_TO_ASSUME`) and the narrower, one-time
+bootstrap role (`AWS_BOOTSTRAP_ROLE_TO_ASSUME`) — only the bootstrap role gets
+`s3:CreateBucket`, the everyday role never does. Follow it verbatim, then
+copy both created roles' ARNs into the matching repo variables from step 3.
 
-**4. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
+**5. Bootstrap the Terraform state backend** (one-time, before the first provisioning run). CI
+does not create this backend automatically — skipping this step means the first *Provision
+Infrastructure* dispatch fails with "bucket does not exist". This is done by dispatching a
+workflow, never by running Terraform locally:
+
+- Repo → **Actions** tab → *Bootstrap Terraform State Backend* in the left sidebar → **Run
+  workflow** button.
+- Its only input, `CONFIRM`, must exactly match the AWS region read from `TF_VAR_aws_region` in
+  `config/environment/.env.main` — the workflow fails closed before touching AWS credentials if
+  it doesn't match.
+- Requires `AWS_BOOTSTRAP_ROLE_TO_ASSUME` (step 3/step 4 above) to already be set as a repo-level
+  variable — the workflow assumes that role via OIDC to create the S3 bucket.
+
+**6. Run provisioning** (creates/updates AWS infrastructure via Terraform + Ansible): repo →
 **Actions** tab → *Provision Infrastructure* in the left sidebar → **Run workflow** button (top
 right of the run list) → set:
 - `ENVIRONMENT_TYPE`: `dev`, `stage`, or `prod`
@@ -329,10 +395,10 @@ right of the run list) → set:
 
 then click **Run workflow** again to confirm.
 
-**5. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
+**7. Deploy to dev**: automatic, every push to `develop` deploys. To force a re-deploy without a
 new commit: Actions → *Deploy to Develop* → **Run workflow**.
 
-**6. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
+**8. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
 is the only way anything reaches prod.
 
 Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`
@@ -351,17 +417,15 @@ describe StarterKit itself, not this project, and must not appear as if they wer
 own data). Fill in the placeholders above the divider from what earlier steps already collected
 (`APP_TITLE`/`APP_NAME` from Step 1, `APP_DOMAIN` from Step 1, the repo URL from
 `git remote get-url origin` if set, else omit that line rather than guessing). Fill in
-`<dev SSH_HOST_ALIAS>`/`<prod SSH_HOST_ALIAS>` by reading the actual `SSH_HOST_ALIAS` values
-straight out of `.github/workflows/workflow-deploy-develop.yml` /
-`workflow-deploy-production.yml` in this repo and writing them as plain literal text — never write
-the placeholder brackets or any commentary about whether/why they were renamed into the generated
-`README.md`.
+`<dev APP_DOMAIN>`/`<prod APP_DOMAIN>` from the actual `APP_DOMAIN` values Step 1 wrote into
+`config/environment/.env.type.dev`/`.prod` (these are the exact `Host` names both pipelines
+require — not a free-form alias). Write these as plain literal text — never write the placeholder
+brackets or any commentary about whether/why they were renamed into the generated `README.md`.
 
 If the project has a stage environment (user provided a stage domain in Step 0), include the
-`Host <stage SSH_HOST_ALIAS>` block in the SSH_CONFIG and fill `<stage SSH_HOST_ALIAS>` from the
-stage deploy workflow's `SSH_HOST_ALIAS` value — or `stage.<slug>`, matching the Step 1 convention
-if no separate stage workflow exists. If stage was skipped, **omit the stage Host block entirely**
-from the generated SSH_CONFIG.
+`Host <stage APP_DOMAIN>` block in the SSH_CONFIG and fill `<stage APP_DOMAIN>` from the
+`APP_DOMAIN` Step 1 wrote into `config/environment/.env.type.stage`. If stage was skipped, **omit
+the stage Host block entirely** from the generated SSH_CONFIG.
 
 If Step 0 skipped
 the description, use the fallback line defined there. If the user chose to rename the theme
@@ -385,14 +449,15 @@ reflected so future sessions don't describe the old template identity.
 
 List every changed file with its full path. Separate clearly:
 
-- **Done automatically**: env rename, regenerated `.env`, install, `SSH_HOST_ALIAS` rename in both
-  deploy workflow files, `GITHUB_ORG`/`GITHUB_REPO` rename (if `git remote get-url origin` resolved
+- **Done automatically**: env rename, regenerated `.env`, install,
+  `GITHUB_ORG`/`GITHUB_REPO` rename (if `git remote get-url origin` resolved
   to a GitHub URL), theme repository mode change (if Step 6 ran — `.gitignore`/`composer.json`
   edits, detached `.git`), theme rename (if it ran), project README rewrite, guideline refresh
-- **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in `config/environment/.env.main`
+- **Left for the user**: `/etc/hosts` edit; `GITHUB_ORG`/`GITHUB_REPO` in
+  `config/environment/.env.main`
   **only if** no GitHub origin was set for Step 1 to read (still StarterKit's own template values in
-  that case); `ROLE_NAME`/`TF_VAR_tf_backend_bucket`/`TF_VAR_tf_lock_table` in the same file (always
-  left for the user — a real S3 bucket/DynamoDB table can't be invented automatically), followed by
+  that case); `ROLE_NAME` in the same file (always left for the user — a real IAM role can't be
+  invented automatically), followed by
   `make env local` after any of the above are edited; GitHub repo/CI secrets setup; `kit-modules`
   licensing (see `infrastructure.md`); the orphaned old theme folder + `composer.json` entry (if
   Step 5 ran); the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its

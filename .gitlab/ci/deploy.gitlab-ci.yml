@@ -6,17 +6,16 @@
 # templates live in deploy-dev.gitlab-ci.yml / deploy-prod.gitlab-ci.yml, each included only for
 # its own branch — see .claude/rules/gitlab-ci.md for the full design.
 #
-# Full parity with job-deploy.yml's GitHub Actions steps:
-#   - "Switch Theme Version for Dev Environment" (composer run switch-theme-dev) — runs only when
-#     ENVIRONMENT_TYPE == dev, same as the GH Actions side. If a project detaches its theme from
-#     the Composer VCS package (see bootstrap-project's monorepo option), this step becomes a
-#     harmless no-op — composer run switch-theme-dev simply won't find that script anymore, so
-#     drop it here explicitly rather than leaving a silently-failing step.
-#   - "Update Monitoring & Addon (only in demo)" (IS_DEMO) — guarded exactly like the GH Actions
-#     side; skipped unless the GitLab CI/CD variable IS_DEMO is "true".
+# The shared build/deploy logic (conditional Composer steps, SSH setup, deploy-target resolution,
+# rsync + remote make chain) lives in sh/ci/*.sh — shared verbatim with the GitHub Actions side
+# (job-deploy.yml, see .claude/rules/ci.md). See sh/ci/composer-extras.sh, sh/ci/setup-ssh.sh, and
+# sh/ci/deploy.sh (which sources sh/ci/resolve-deploy-target.sh) for the exact behavior and CLI/env
+# contracts of each step below.
 
 .build-composer:
   stage: build
+  rules:
+    - if: '$PIPELINE_KIND == "deploy"'
   image:
     name: "$APP_COMPOSER_IMAGE"
     entrypoint: [""]
@@ -29,18 +28,7 @@
     - composer install-${APP_BUILD_MODE}
     - cd "web/wp-content/themes/${WP_DEFAULT_THEME}" && composer install-${APP_BUILD_MODE}
     - cd "$CI_PROJECT_DIR"
-    - |
-      if [ "$ENVIRONMENT_TYPE" = "dev" ]; then
-        echo "Switching theme to dev-develop version for dev environment"
-        composer run switch-theme-dev
-      fi
-    - |
-      if [ "$IS_DEMO" = "true" ]; then
-        echo "Detected demo mode — forcing Composer update from dist"
-        composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
-      else
-        echo "Skipping composer update — not in demo mode"
-      fi
+    - sh ./sh/ci/composer-extras.sh "$ENVIRONMENT_TYPE" "$IS_DEMO"
   artifacts:
     expire_in: 1 hour
     paths:
@@ -48,14 +36,20 @@
       - web/wp-core/
       - web/wp-content/plugins/
       - web/wp-content/mu-plugins/
-      - web/wp-content/themes/${WP_DEFAULT_THEME}/vendor/
+      - web/wp-content/themes/${WP_DEFAULT_THEME}/
       - kit-modules/
+    exclude:
+      - web/wp-content/themes/${WP_DEFAULT_THEME}/.git/**
 
 .build-node:
   stage: build
+  rules:
+    - if: '$PIPELINE_KIND == "deploy"'
   image:
     name: "$APP_NODE_IMAGE"
     entrypoint: [""]
+  needs:
+    - build-composer
   script:
     - (cd config/environment && sh "$CI_PROJECT_DIR/sh/env/pass_gen.sh")
     - bash ./sh/env/init.sh "$ENVIRONMENT_TYPE"
@@ -72,6 +66,8 @@
 
 .deploy:
   stage: deploy
+  rules:
+    - if: '$PIPELINE_KIND == "deploy"'
   image: alpine:3.20
   resource_group: $ENVIRONMENT_TYPE
   needs:
@@ -79,51 +75,8 @@
     - build-node
   before_script:
     - apk add --no-cache openssh-client rsync
-    - mkdir -p ~/.ssh
-    - cp "$SSH_KEY" ~/.ssh/id_rsa
-    - chmod 400 ~/.ssh/id_rsa
-    - cp "$SSH_CONFIG" ~/.ssh/config
-    - chmod 600 ~/.ssh/config
-    - if [ -n "$SSH_KNOWN_HOSTS" ]; then cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts; fi
+    - SSH_INPUT_MODE=file sh ./sh/ci/setup-ssh.sh
   script:
-    - echo "Deploying to ${DEPLOY_PATH}"
-    - ssh "$DEPLOY_SSH_HOST" mkdir -p "$DEPLOY_PATH"
-    - |
-      rsync -og \
-        --chmod=Dug=rwx,Fug=rw \
-        --checksum \
-        --recursive \
-        --verbose \
-        --compress \
-        --links \
-        --delete-after \
-        --exclude ".git*" \
-        --exclude "*/node_modules/" \
-        --exclude "backups/" \
-        --exclude "**/db-*/" \
-        --exclude="**/tail-db/" \
-        --exclude "logs/" \
-        --exclude ".env" \
-        --exclude ".env.*override" \
-        --exclude ".env.*runtime" \
-        --exclude ".env.*secret" \
-        --exclude "config/ssl/" \
-        --exclude "web/wp-content/languages" \
-        --exclude "web/wp-content/uploads" \
-        --include "web/wp-content/cache" \
-        ./ "$DEPLOY_SSH_HOST:$DEPLOY_PATH"
-    - |
-      ssh "$DEPLOY_SSH_HOST" "
-        set -e -o pipefail;
-        cd $DEPLOY_PATH;
-        make secret;
-        make APP_MULTI_INSTANCE='$APP_MULTI_INSTANCE' proxy deploy '$ENVIRONMENT_TYPE';
-        bash ./sh/env/init.sh '$ENVIRONMENT_TYPE';
-        make ssl;
-        make recreate '$ENVIRONMENT_TYPE';
-        make monitoring off;
-        make monitoring on;
-        bash ./sh/database/check.sh;
-        make core-install"
+    - sh ./sh/ci/deploy.sh "$ENVIRONMENT_TYPE"
   after_script:
-    - rm -f ~/.ssh/id_rsa ~/.ssh/config ~/.ssh/known_hosts
+    - rm -f ~/.ssh/id_rsa ~/.ssh/config

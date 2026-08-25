@@ -1,0 +1,120 @@
+name: Bootstrap Terraform State Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      CONFIRM:
+        description: 'Type the AWS region (e.g. eu-west-1) to confirm'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  bootstrap-state:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Extract AWS region from .env.main
+        id: region
+        run: |
+          REGION="$(sh ./sh/ci/extract-aws-region.sh)" || exit 1
+          echo "region=$REGION" >> $GITHUB_OUTPUT
+
+      - name: Confirm bootstrap
+        # Must run before any AWS/credential step so a missing/mismatched confirmation never
+        # gets far enough to touch cloud state. The operator must type the exact region value
+        # extracted above to confirm intent.
+        run: |
+          sh ./sh/ci/confirm-match.sh "${{ steps.region.outputs.region }}" "${{ inputs.CONFIRM }}" "CONFIRM" || {
+            echo "::error::CONFIRM must exactly equal the extracted AWS region ('${{ steps.region.outputs.region }}') to proceed with bootstrapping the Terraform state backend. Got: '${{ inputs.CONFIRM }}'."
+            exit 1
+          }
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.AWS_BOOTSTRAP_ROLE_TO_ASSUME }}
+          aws-region: ${{ steps.region.outputs.region }}
+
+      - name: Prepare .env
+        # No ENVIRONMENT_TYPE input on this workflow — the 'state' layer is not
+        # environment-scoped (kit-modules/basis/sh/terraform.sh special-cases it to
+        # terraform/state), so init.sh runs with no argument and falls back to its own
+        # APP_DEFAULT_ENV_TYPE default. Otherwise identical to job-provision.yml/job-deploy.yml's
+        # 'Prepare .env' step.
+        run: |
+          bash ./sh/env/secret-gen.sh
+          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
+            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          fi
+          bash ./sh/env/init.sh
+
+      - name: Install Composer and Node Dependencies
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash ./sh/system/install.sh yes
+
+      - name: Verify Basis module is installed
+        id: verify_basis
+        run: |
+          # Three-state classifier: composer.lock's recorded package `type` (licensed
+          # `kit-module` vs unlicensed `metapackage` stub) is cross-checked against whether
+          # kit-modules/basis actually landed on disk. Directory presence alone is not
+          # trustworthy — see .claude/plans/architect-plan-pipeline-audit-fixes.md item 4.
+          # Classification itself lives in sh/ci/verify-basis.sh (shared with GitLab CI); this
+          # step is a thin wrapper that translates its stdout into $GITHUB_OUTPUT and re-attaches
+          # the GitHub ::error::/::warning:: annotation prefixes the shared script cannot emit.
+          # Note: the shared script's unlicensed/absent message wording says "Skipping
+          # provisioning" (preserved verbatim from job-provision.yml) rather than this workflow's
+          # former "Skipping bootstrap" — cosmetic only, same has_basis=false outcome.
+          set +e
+          BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
+          BASIS_RC=$?
+          set -e
+          BASIS_MSG="$(cat verify-basis.stderr)"
+          rm -f verify-basis.stderr
+
+          if [ $BASIS_RC -ne 0 ]; then
+            echo "::error::${BASIS_MSG}"
+            exit 1
+          fi
+
+          case "$BASIS_MSG" in
+            *ambiguous*) echo "::warning::${BASIS_MSG}" ;;
+            *) echo "$BASIS_MSG" ;;
+          esac
+
+          echo "$BASIS_OUTPUT" >> $GITHUB_OUTPUT
+
+      - name: Short-circuit when Basis is missing
+        if: steps.verify_basis.outputs.has_basis == 'false'
+        run: |
+          echo "No license/module — skipping Terraform state backend bootstrap."
+
+      - name: Bootstrap Terraform state backend
+        if: steps.verify_basis.outputs.has_basis == 'true'
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          bash kit-modules/basis/sh/bootstrap-state.sh -y
+
+      - name: Generate bootstrap summary
+        if: always()
+        run: |
+          echo "## Terraform State Backend Bootstrap Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ steps.region.outputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.verify_basis.outputs.has_basis }}" = "true" ]; then
+            echo "Basis module was present — \`bootstrap-state.sh -y\` ran (see the step above for its own idempotency/outcome message)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Basis module was not licensed/present — bootstrap was skipped." >> $GITHUB_STEP_SUMMARY
+          fi

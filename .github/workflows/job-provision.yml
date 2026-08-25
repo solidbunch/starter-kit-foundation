@@ -25,127 +25,139 @@ on:
         required: false
         type: boolean
         default: false
+      PLAN_RUN_ID:
+        description: 'Run ID of a reviewed "plan" run to apply (leave empty for plan-then-apply)'
+        required: false
+        type: string
+        default: ''
+      CONFIRM_DESTROY:
+        description: 'Required only when ACTION_TYPE is destroy — type the exact ENVIRONMENT_TYPE value to confirm'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
   id-token: write
+  actions: read
+
+# Workflow-level (not job-level) so the group covers the ENTIRE run — provision + ansible + dns —
+# from start to finish. This is required, not stylistic: a second dispatch must not be able to
+# start Terraform against this environment while a first dispatch's Ansible/DNS work is still in
+# flight against the instance the first dispatch just created. Per-job-kind groups were considered
+# and rejected — see the plan's Architecture notes §8 ("CI split — preserving whole-chain mutual
+# exclusion") for the full reasoning. This workflow is workflow_dispatch-only (not workflow_call),
+# so workflow-level concurrency is available here — contrast job-deploy.yml, which is workflow_call
+# and therefore must keep its group at job level.
+concurrency:
+  group: provision-${{ inputs.ENVIRONMENT_TYPE }}
+  cancel-in-progress: false
 
 jobs:
   provision:
     runs-on: ubuntu-24.04
+    # Reviewer requirement (required reviewers, wait timer, etc.) is configured in
+    # GitHub repo settings → Environments — not here. One dynamic expression covers dev/stage/prod.
+    environment: ${{ inputs.ENVIRONMENT_TYPE }}
+    outputs:
+      has_basis: ${{ steps.setup.outputs.has_basis }}
+      # Real value or empty string — never the "N/A"/"ERROR" sentinel (see tf_outputs step).
+      # Consumed by ansible/dns for actual DNS/SSH work.
+      ipv4: ${{ steps.tf_outputs.outputs.ipv4 }}
+      ipv6: ${{ steps.tf_outputs.outputs.ipv6 }}
+      # Raw sentinel preserved ("N/A"/"ERROR"/real value) — display-only, consumed by the
+      # summary job's human-readable report. Never fed into dns.sh as a -4/-6 override.
+      ipv4_display: ${{ steps.tf_outputs.outputs.ipv4_display }}
+      ipv6_display: ${{ steps.tf_outputs.outputs.ipv6_display }}
     env:
       EFFECTIVE_ENV_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
       TF_ENV_DIR: kit-modules/basis/terraform/envs/${{ inputs.ENVIRONMENT_TYPE }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Extract AWS region from .env.main
-        id: region
+      - name: Validate ENVIRONMENT_TYPE has a Terraform environment
+        # Fail fast on 'stage' (Terraform config exists, but ansible/inventory.yml has no stage
+        # host yet — see kit-modules/basis/CLAUDE.md, "stage is Terraform-only") before wasting
+        # any AWS/SSH/composer setup time. The per-directory `[ ! -d "$TF_ENV_DIR" ]` guard later
+        # in this job still runs as defense-in-depth for dev/prod.
         run: |
-          REGION=$(grep '^TF_VAR_aws_region=' ./config/environment/.env.main | cut -d '=' -f2)
-          echo "region=$REGION" >> $GITHUB_OUTPUT
+          case "${{ inputs.ENVIRONMENT_TYPE }}" in
+            dev|prod) ;;
+            *)
+              echo "::error::ENVIRONMENT_TYPE '${{ inputs.ENVIRONMENT_TYPE }}' is not supported by this workflow yet — 'stage' has a Terraform environment (kit-modules/basis/terraform/envs/stage) but no Ansible host wired up (ansible/inventory.yml), so provisioning would create an EC2 instance Ansible cannot then configure. Only 'dev' and 'prod' are currently supported."
+              exit 1
+              ;;
+          esac
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ steps.region.outputs.region }}
-
-      - name: Verify AWS credentials
+      - name: Confirm destroy
+        # Only applies when ACTION_TYPE == destroy — no-op for plan/apply. Must run before any
+        # AWS/credential step so a missing/mismatched confirmation never gets far enough to touch
+        # cloud state. The operator must type the exact ENVIRONMENT_TYPE value to confirm intent.
+        if: inputs.ACTION_TYPE == 'destroy'
         run: |
-          echo "AWS credentials configured via OIDC"
-          echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo "yes" || echo "no")"
-          echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo "yes" || echo "no")"
-
-      - name: Set up SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
-
-      - name: Set up SSH config
-        run: |
-          if [ -z "${{ secrets.SSH_CONFIG }}" ]; then
-            echo "Error: SSH_CONFIG secret is not available"
+          sh ./sh/ci/confirm-match.sh "${{ inputs.ENVIRONMENT_TYPE }}" "${{ inputs.CONFIRM_DESTROY }}" "CONFIRM_DESTROY" || {
+            echo "::error::CONFIRM_DESTROY must exactly equal ENVIRONMENT_TYPE ('${{ inputs.ENVIRONMENT_TYPE }}') to proceed with a destroy. Got: '${{ inputs.CONFIRM_DESTROY }}'."
             exit 1
-          fi
-          mkdir -p ~/.ssh/
-          echo '${{ secrets.SSH_CONFIG }}' > ~/.ssh/config
+          }
 
-      - name: Prepare .env
-        run: |
-          bash ./sh/env/secret-gen.sh
-          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
-            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
-          fi
-          # Inject AWS credentials from OIDC into IaC container
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> ./config/environment/.env.secret
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> ./config/environment/.env.secret
-          echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> ./config/environment/.env.secret
-          echo "AWS_DEFAULT_REGION=$AWS_REGION" >> ./config/environment/.env.secret
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> ./config/environment/.env.secret
-          bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
+      - name: Provisioning setup
+        id: setup
+        uses: ./.github/actions/provision-setup
+        with:
+          environment_type: ${{ inputs.ENVIRONMENT_TYPE }}
+          aws_role: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws_region: eu-west-1
+          ssh_key: ${{ secrets.SSH_KEY }}
+          ssh_config: ${{ secrets.SSH_CONFIG }}
+          composer_auth: ${{ secrets.COMPOSER_AUTH }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          is_demo: ${{ vars.IS_DEMO }}
 
-      - name: Update Basis (only in demo)
+      - name: Check TFPLAN_PASSPHRASE availability
+        # `secrets` is not a permitted context in step `if:` expressions — resolve it into
+        # a step output here so later steps can branch on it without referencing `secrets` directly.
+        id: tfplan_secret
         env:
-          IS_DEMO: ${{ vars.IS_DEMO }}
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
         run: |
-          if [ "$IS_DEMO" = "true" ]; then
-            echo "Detected demo mode — forcing Composer update from dist"
-            export CURRENT_UID=$(id -u)
-            export CURRENT_GID=$(id -g)
-            source .env
-            docker compose -f docker-compose.toolkit.yml run --rm composer su -c "
-              composer update solidbunch/basis --no-interaction --with-all-dependencies
-            " "${DEFAULT_USER}"
+          if [ -n "$TFPLAN_PASSPHRASE" ]; then
+            echo "set=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Skipping composer update — not in demo mode"
-          fi
-
-      - name: Install Composer and Node Dependencies
-        run: |
-          export CURRENT_UID=$(id -u)
-          export CURRENT_GID=$(id -g)
-          source .env
-          bash ./sh/system/install.sh yes
-
-      - name: Verify Basis module is installed
-        id: verify_basis
-        run: |
-          if [ ! -d "kit-modules/basis" ]; then
-            echo "Basis module is not installed. Skipping provisioning."
-            echo "has_basis=false" >> $GITHUB_OUTPUT
-          else
-            echo "Basis module found."
-            echo "has_basis=true" >> $GITHUB_OUTPUT
+            echo "set=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Extract SSH public key for Terraform
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: steps.setup.outputs.has_basis == 'true'
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
+          # Guarantee cleanup of SSH key even if script fails.
+          # This also deletes ~/.ssh/config written by the provisioning-setup action,
+          # not just the private key — any later step that still needs SSH config must run
+          # BEFORE this step, or it will find the config gone.
+          trap "rm -f ~/.ssh/id_rsa ~/.ssh/config" EXIT
+
           # Load environment variables
           source .env
 
           # Write private key to file
-          echo '${{ secrets.SSH_KEY }}' > ~/.ssh/id_rsa
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
           # Extract public key from private key using ssh-keygen -y
           ssh-keygen -y -f ~/.ssh/id_rsa > kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
 
-          # Clean up temporary file
-          rm ~/.ssh/id_rsa
-
           echo "SSH public key extracted for Terraform:"
           cat kit-modules/basis/terraform/public_keys/${TF_VAR_sk_ssh_key_name}.pub
 
       - name: Short-circuit when Basis is missing
-        if: steps.verify_basis.outputs.has_basis == 'false'
+        if: steps.setup.outputs.has_basis == 'false'
         run: |
           echo "No license/module — skipping Terraform and Ansible."
 
       - name: Show provisioning plan and validate environment
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: steps.setup.outputs.has_basis == 'true'
         run: |
           echo "EFFECTIVE_ENV_TYPE=${EFFECTIVE_ENV_TYPE}"
           echo "TF_ENV_DIR=${TF_ENV_DIR}"
@@ -155,73 +167,405 @@ jobs:
 
           # Verify AWS credentials are available in container
           echo "Verifying AWS credentials in container..."
-          docker compose -f docker-compose.toolkit.yml run --rm iac bash -c "
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+            iac bash -c "
             echo 'AWS_ACCESS_KEY_ID is set: \$([ -n \"\$AWS_ACCESS_KEY_ID\" ] && echo \"yes\" || echo \"no\")'
             echo 'AWS_SESSION_TOKEN is set: \$([ -n \"\$AWS_SESSION_TOKEN\" ] && echo \"yes\" || echo \"no\")'
-            aws sts get-caller-identity || echo 'AWS credentials test failed'
+            aws sts get-caller-identity
           "
 
-      - name: Terraform — state backend
-        if: steps.verify_basis.outputs.has_basis == 'true'
-        run: |
-          export CURRENT_UID=$(id -u)
-          export CURRENT_GID=$(id -g)
-          source .env
-          bash kit-modules/basis/sh/terraform.sh -e state -c init
-          bash kit-modules/basis/sh/terraform.sh -e state -c ${{ inputs.ACTION_TYPE }}
+      - name: Download reviewed plan artifact
+        id: download_plan
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.PLAN_RUN_ID != '' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: tfplan-${{ inputs.ENVIRONMENT_TYPE }}
+          run-id: ${{ inputs.PLAN_RUN_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./tfplan-download
 
+      - name: Decrypt and unpack reviewed plan
+        id: decrypt_plan
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.PLAN_RUN_ID != '' &&
+          steps.tfplan_secret.outputs.set == 'true' &&
+          steps.download_plan.outcome == 'success'
+        continue-on-error: true
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --decrypt --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfplans.tar.gz ./tfplan-download/tfplans.tar.gz.gpg
+          tar xzf tfplans.tar.gz
+          rm -f tfplans.tar.gz
+          {
+            echo "**Plan source:** pinned plan from run \`${{ inputs.PLAN_RUN_ID }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # An explicit PLAN_RUN_ID means the operator wants a specific, already-reviewed plan
+      # applied — never a silent substitute. If the artifact download or the decrypt/unpack
+      # failed for a pinned run, this must stop the run loudly rather than falling through to
+      # "Record plan-then-apply fallback" below, which would silently apply a fresh, unreviewed
+      # plan under the same generic summary note used for "no plan was ever requested".
+      - name: Fail on pinned plan retrieval failure
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          inputs.PLAN_RUN_ID != '' &&
+          steps.tfplan_secret.outputs.set == 'true' &&
+          (steps.download_plan.outcome == 'failure' || steps.decrypt_plan.outcome == 'failure')
+        run: |
+          echo "::error::Pinned Terraform plan for run '${{ inputs.PLAN_RUN_ID }}' could not be retrieved (artifact download or decrypt/unpack failed). An explicit PLAN_RUN_ID was provided, so this run is stopping instead of silently falling back to an unreviewed same-run plan-then-apply. Verify the run ID, that its 'tfplan-${{ inputs.ENVIRONMENT_TYPE }}' artifact still exists, and that TFPLAN_PASSPHRASE matches the one used to encrypt it, then re-dispatch."
+          exit 1
+
+      - name: Record plan-then-apply fallback
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'apply' &&
+          (inputs.PLAN_RUN_ID == '' || steps.tfplan_secret.outputs.set != 'true' || steps.download_plan.outcome != 'success')
+        run: |
+          {
+            echo "**Plan source:** same-run plan-then-apply (no pinned plan used)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify Terraform state backend exists
+        # The S3 bucket backing Terraform state is bootstrapped once, via the dedicated
+        # "Bootstrap Terraform State Backend" workflow (job-bootstrap-state.yml), and is never
+        # created by this workflow (see .claude/rules/ci.md, "State backend — bootstrapped via a
+        # dedicated workflow, never inline in provisioning"). If a project skips that one-time
+        # bootstrap, the 'shared' Terraform run below fails deep inside the S3 backend init with
+        # a raw NoSuchBucket/AccessDenied error that reads like a permissions problem. Check for
+        # the bucket explicitly here so the failure names the actual cause and points at the fix.
+        if: steps.setup.outputs.has_basis == 'true'
+        run: |
+          source .env
+          if ! aws s3api head-bucket --bucket "$TF_VAR_tf_backend_bucket" --region "$AWS_DEFAULT_REGION" 2>/dev/null; then
+            echo "::error::Terraform state backend bucket '${TF_VAR_tf_backend_bucket}' does not exist or is not accessible. This is not an AWS permissions problem — the CI role deliberately has no s3:CreateBucket permission. The state backend must be bootstrapped once before provisioning can run. Dispatch the 'Bootstrap Terraform State Backend' workflow (job-bootstrap-state.yml) against this AWS account, then re-run this workflow."
+            exit 1
+          fi
+
+      # 'shared' is the only cross-environment bulkhead CI still runs automatically — it must
+      # never be destroyed as a side effect of tearing down one environment's EC2 instance. The
+      # 'state' layer (backend bootstrap) is not run by this workflow at all: it is bootstrapped
+      # once, via the dedicated "Bootstrap Terraform State Backend" workflow
+      # (job-bootstrap-state.yml) — see .claude/rules/ci.md for the full procedure. Only
+      # 'plan'/'apply' run 'shared'; 'destroy' skips it entirely and is scoped to the
+      # 'Terraform — environment' step below. ENVIRONMENT_TYPE is a restricted choice input
+      # (dev/stage/prod only — see workflow_dispatch.inputs above), so this workflow has no way to
+      # target 'shared' directly. There is no dedicated destroy path for 'shared'; destroying or
+      # recovering it requires a deliberate out-of-band action (e.g. `make tf shared destroy`
+      # locally), not a dispatch of this workflow.
       - name: Terraform — shared network
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: steps.setup.outputs.has_basis == 'true' && inputs.ACTION_TYPE != 'destroy'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           source .env
           bash kit-modules/basis/sh/terraform.sh -e shared -c init
-          bash kit-modules/basis/sh/terraform.sh -e shared -c ${{ inputs.ACTION_TYPE }}
+          if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
+            bash kit-modules/basis/sh/terraform.sh -e shared -c plan -f tfplans/shared.tfplan
+          else
+            if [ -f tfplans/shared.tfplan ]; then
+              echo "- **shared:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
+              if ! bash kit-modules/basis/sh/terraform.sh -e shared -c apply -f tfplans/shared.tfplan; then
+                echo "::error::Pinned Terraform plan for layer 'shared' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
+                exit 1
+              fi
+            else
+              echo "- **shared:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
+              bash kit-modules/basis/sh/terraform.sh -e shared -c apply
+            fi
+          fi
+
+      - name: Terraform — shared skipped (destroy is scoped to the environment layer)
+        if: steps.setup.outputs.has_basis == 'true' && inputs.ACTION_TYPE == 'destroy'
+        run: |
+          echo "- **shared:** skipped — destroy only tears down the '${EFFECTIVE_ENV_TYPE}' environment layer, never the shared network" >> "$GITHUB_STEP_SUMMARY"
+
+      # Snapshot the target layer's remote state before it is torn down. Runs only on the
+      # destroy path, before the 'Terraform — environment' step below actually calls
+      # `terraform destroy` — this is the only point-in-time recovery artifact a destroy run
+      # leaves behind, so it must exist before the state it describes is gone.
+      - name: Backup Terraform state before destroy
+        if: steps.setup.outputs.has_basis == 'true' && inputs.ACTION_TYPE == 'destroy'
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+
+          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c state-pull > tfstate-backup.json
+
+          if [ ! -s tfstate-backup.json ]; then
+            echo "::error::terraform state pull returned no output for layer '${EFFECTIVE_ENV_TYPE}' — aborting destroy without a state backup."
+            exit 1
+          fi
+
+      # Same TFPLAN_PASSPHRASE gating already used for the pinned-plan artifact above
+      # (steps.tfplan_secret): encrypt-and-upload when the secret is set, loud summary warning
+      # (never a silent skip) when it is not.
+      - name: Encrypt and upload Terraform state backup
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'destroy' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfstate-backup.json.gpg tfstate-backup.json
+          rm -f tfstate-backup.json
+
+      - name: Upload encrypted Terraform state backup artifact
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'destroy' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tfstate-backup-${{ inputs.ENVIRONMENT_TYPE }}
+          path: tfstate-backup.json.gpg
+          retention-days: 90
+
+      - name: Warn when Terraform state backup is skipped
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'destroy' &&
+          steps.tfplan_secret.outputs.set != 'true'
+        run: |
+          rm -f tfstate-backup.json
+          {
+            echo "**Warning:** \`TFPLAN_PASSPHRASE\` secret is not configured — a pre-destroy Terraform"
+            echo "state snapshot for layer \`${EFFECTIVE_ENV_TYPE}\` was captured but NOT uploaded as an"
+            echo "artifact (plaintext state is never uploaded). No \`tfstate-backup-${EFFECTIVE_ENV_TYPE}\`"
+            echo "artifact exists for this run — if this destroy needs to be reverted, there is no CI-side"
+            echo "recovery snapshot; re-provisioning from scratch is the only path."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Terraform — environment
-        if: steps.verify_basis.outputs.has_basis == 'true'
+        if: steps.setup.outputs.has_basis == 'true'
         run: |
           export CURRENT_UID=$(id -u)
           export CURRENT_GID=$(id -g)
           source .env
           bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c init
-          bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }}
+          if [ "${{ inputs.ACTION_TYPE }}" = "plan" ]; then
+            bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c plan -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
+          elif [ "${{ inputs.ACTION_TYPE }}" = "apply" ]; then
+            if [ -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan" ]; then
+              echo "- **${EFFECTIVE_ENV_TYPE}:** applying pinned plan" >> "$GITHUB_STEP_SUMMARY"
+              if ! bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply -f "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"; then
+                echo "::error::Pinned Terraform plan for layer '${EFFECTIVE_ENV_TYPE}' was rejected (likely stale vs current remote state). Re-run 'plan', review the new plan, and re-apply with the new PLAN_RUN_ID. No auto-retry was performed."
+                exit 1
+              fi
+            else
+              echo "- **${EFFECTIVE_ENV_TYPE}:** plan-then-apply (no pinned plan)" >> "$GITHUB_STEP_SUMMARY"
+              bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c apply
+            fi
+          else
+            # Only 'destroy' reaches this branch — see the comment above the 'shared' step.
+            bash kit-modules/basis/sh/terraform.sh -e "${EFFECTIVE_ENV_TYPE}" -c ${{ inputs.ACTION_TYPE }} -y
+          fi
+
+      - name: Package and encrypt Terraform plan
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'plan' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        env:
+          TFPLAN_PASSPHRASE: ${{ secrets.TFPLAN_PASSPHRASE }}
+        run: |
+          tar czf tfplans.tar.gz tfplans/shared.tfplan "tfplans/${EFFECTIVE_ENV_TYPE}.tfplan"
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase "$TFPLAN_PASSPHRASE" \
+            --output tfplans.tar.gz.gpg tfplans.tar.gz
+          rm -f tfplans.tar.gz
+
+      - name: Upload encrypted Terraform plan artifact
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'plan' &&
+          steps.tfplan_secret.outputs.set == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tfplan-${{ inputs.ENVIRONMENT_TYPE }}
+          path: tfplans.tar.gz.gpg
+          retention-days: 7
+
+      - name: Warn when plan artifact upload is skipped
+        if: |
+          steps.setup.outputs.has_basis == 'true' &&
+          inputs.ACTION_TYPE == 'plan' &&
+          steps.tfplan_secret.outputs.set != 'true'
+        run: |
+          {
+            echo "**Warning:** \`TFPLAN_PASSPHRASE\` secret is not configured — the reviewed Terraform"
+            echo "plan was NOT uploaded as an artifact (plaintext plans are never uploaded)."
+            echo "\`apply\` will fall back to today's same-run plan-then-apply behaviour."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The single Terragrunt read in the whole workflow. Only 'apply' populates the outputs
+      # ansible/dns/summary consume below — 'destroy' has no downstream consumer of an instance
+      # IP (there's nothing left to Ansible-provision or point DNS at), so this step is gated to
+      # 'apply' only rather than running a Terragrunt read that nothing reads. 'plan' is already
+      # excluded because no infrastructure exists yet to read outputs from.
+      - name: Get Terraform outputs
+        id: tf_outputs
+        if: steps.setup.outputs.has_basis == 'true' && inputs.ACTION_TYPE == 'apply'
+        run: |
+          # Distinguish "output not set yet" (N/A) from "terraform command actually errored" (ERROR)
+          get_tf_output() {
+            local name="$1" out rc errfile
+            errfile=$(mktemp)
+            out=$(docker compose -f docker-compose.toolkit.yml run --rm \
+              -w "/srv/$TF_ENV_DIR" \
+              iac bash -lc "terragrunt output -raw $name" 2>"$errfile")
+            rc=$?
+            if [ $rc -eq 0 ]; then
+              echo "$out"
+            elif grep -q "not found" "$errfile"; then
+              echo "N/A"
+            else
+              echo "ERROR"
+            fi
+            rm -f "$errfile"
+          }
+
+          # get_tf_output returns one of three shapes: a real IP, or the literal sentinel
+          # "N/A" (output not found — a legitimate state, e.g. an IPv4-only environment with
+          # no instance_ipv6 output) / "ERROR" (the terragrunt command itself failed). Both
+          # sentinels are non-empty strings, so if they reached dns.sh's -4/-6 flags verbatim,
+          # dns.sh would treat them as an explicit (invalid) override and hard-fail its strict
+          # IP-shape validation — aborting the ENTIRE dns job before writing ANY record, even
+          # the still-valid other-family one. Normalize sentinels to an actually-empty string
+          # here, before they ever become a job output, so ipv4/ipv6 are always "real value or
+          # empty" — never a sentinel. dns.sh's own empty-override branch then correctly treats
+          # a missing family as "nothing to write for this record type" instead of "invalid
+          # explicit override".
+          normalize() {
+            case "$1" in
+              N/A|ERROR) echo "" ;;
+              *) echo "$1" ;;
+            esac
+          }
+
+          IPV4_RAW=$(get_tf_output instance_public_ip)
+          IPV6_RAW=$(get_tf_output instance_ipv6)
+
+          IPV4=$(normalize "$IPV4_RAW")
+          IPV6=$(normalize "$IPV6_RAW")
+
+          echo "ipv4=$IPV4" >> "$GITHUB_OUTPUT"
+          echo "ipv6=$IPV6" >> "$GITHUB_OUTPUT"
+
+          # Display-only variants (raw sentinel preserved) — consumed solely by the summary
+          # job's human-readable report, which still wants to say "N/A"/"ERROR" instead of
+          # showing a blank. Never fed into dns.sh.
+          echo "ipv4_display=$IPV4_RAW" >> "$GITHUB_OUTPUT"
+          echo "ipv6_display=$IPV6_RAW" >> "$GITHUB_OUTPUT"
+
+  ansible:
+    needs: provision
+    if: |
+      needs.provision.outputs.has_basis == 'true' &&
+      inputs.ACTION_TYPE == 'apply' &&
+      inputs.SKIP_ANSIBLE == 'false'
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.ENVIRONMENT_TYPE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Provisioning setup
+        uses: ./.github/actions/provision-setup
+        with:
+          environment_type: ${{ inputs.ENVIRONMENT_TYPE }}
+          aws_role: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws_region: eu-west-1
+          ssh_key: ${{ secrets.SSH_KEY }}
+          ssh_config: ${{ secrets.SSH_CONFIG }}
+          composer_auth: ${{ secrets.COMPOSER_AUTH }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          is_demo: ${{ vars.IS_DEMO }}
 
       - name: Generate Ansible inventory
-        if: |
-          steps.verify_basis.outputs.has_basis == 'true' &&
-          inputs.ACTION_TYPE == 'apply' &&
-          inputs.SKIP_ANSIBLE == 'false'
         run: |
           bash kit-modules/basis/sh/ansible.sh -e "${{ inputs.ENVIRONMENT_TYPE }}" -a inventory
 
       - name: Run Ansible playbook
-        if: |
-          steps.verify_basis.outputs.has_basis == 'true' &&
-          inputs.ACTION_TYPE == 'apply' &&
-          inputs.SKIP_ANSIBLE == 'false'
         run: |
           bash kit-modules/basis/sh/ansible.sh -e "${{ inputs.ENVIRONMENT_TYPE }}" -a playbook
 
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f kit-modules/basis/ansible/generated.inventory.yml || true
+
+  dns:
+    needs: provision
+    if: |
+      needs.provision.outputs.has_basis == 'true' &&
+      inputs.ACTION_TYPE == 'apply'
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.ENVIRONMENT_TYPE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Provisioning setup
+        uses: ./.github/actions/provision-setup
+        with:
+          environment_type: ${{ inputs.ENVIRONMENT_TYPE }}
+          aws_role: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws_region: eu-west-1
+          ssh_key: ${{ secrets.SSH_KEY }}
+          ssh_config: ${{ secrets.SSH_CONFIG }}
+          composer_auth: ${{ secrets.COMPOSER_AUTH }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          is_demo: ${{ vars.IS_DEMO }}
+
+      - name: Update DNS records
+        env:
+          ENVIRONMENT_TYPE: ${{ inputs.ENVIRONMENT_TYPE }}
+          IPV4: ${{ needs.provision.outputs.ipv4 }}
+          IPV6: ${{ needs.provision.outputs.ipv6 }}
+        run: |
+          echo "### DNS records" >> "$GITHUB_STEP_SUMMARY"
+          bash kit-modules/basis/sh/dns.sh -e "$ENVIRONMENT_TYPE" -4 "$IPV4" -6 "$IPV6" -y | tee -a "$GITHUB_STEP_SUMMARY"
+
+  summary:
+    needs: [provision, ansible, dns]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
       - name: Generate Infrastructure Summary
         if: |
-          steps.verify_basis.outputs.has_basis == 'true' &&
+          needs.provision.outputs.has_basis == 'true' &&
           inputs.ACTION_TYPE == 'apply'
+        env:
+          # Display variants: "N/A"/"ERROR" preserved for a human-readable report — the plain
+          # ipv4/ipv6 outputs are normalized-empty for the missing/errored case (see tf_outputs
+          # in the provision job) and would render this section blank instead of explanatory.
+          IPV4: ${{ needs.provision.outputs.ipv4_display }}
+          IPV6: ${{ needs.provision.outputs.ipv6_display }}
+          ANSIBLE_RESULT: ${{ needs.ansible.result }}
+          DNS_RESULT: ${{ needs.dns.result }}
         run: |
           echo "## Infrastructure Provisioning Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Action:** ${{ inputs.ACTION_TYPE }}" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ inputs.ENVIRONMENT_TYPE }}" >> $GITHUB_STEP_SUMMARY
           echo "**Timestamp:** $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Get instance details
-          IPV4=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_public_ip || echo 'N/A'" 2>/dev/null || echo "N/A")
-          IPV6=$(docker compose -f docker-compose.toolkit.yml run --rm \
-            -w "/workspace/$TF_ENV_DIR" \
-            iac bash -lc "terraform output -raw instance_ipv6 || echo 'N/A'" 2>/dev/null || echo "N/A")
 
           if [ "$IPV4" != "N/A" ] || [ "$IPV6" != "N/A" ]; then
             echo "### Instance Details" >> $GITHUB_STEP_SUMMARY
@@ -233,11 +577,5 @@ jobs:
 
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "1. Verify instance connectivity: \`ssh admin@${IPV6:-$IPV4}\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Run deployment workflow to deploy application" >> $GITHUB_STEP_SUMMARY
-          echo "3. Configure DNS records if needed" >> $GITHUB_STEP_SUMMARY
-
-      - name: Cleanup
-        if: always()
-        run: |
-          rm -f kit-modules/basis/ansible/generated.inventory.yml || true
-
+          echo "2. Ansible provisioning: **${ANSIBLE_RESULT}** — see the \`ansible\` job for details" >> $GITHUB_STEP_SUMMARY
+          echo "3. DNS records: **${DNS_RESULT}** — see the \`dns\` job for the records written" >> $GITHUB_STEP_SUMMARY

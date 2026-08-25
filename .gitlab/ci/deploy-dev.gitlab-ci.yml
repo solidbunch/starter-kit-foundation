@@ -6,11 +6,13 @@
 # included unconditionally at the same time, GitLab would deep-merge both `variables:` blocks
 # (last include wins) and both `build-composer`/`build-node` job pairs would collide — do not
 # remove the include-level `rules:` without re-checking .claude/rules/gitlab-ci.md.
+#
+# The deploy target (SSH alias + destination path) is derived at deploy time from APP_DOMAIN in
+# config/environment/.env.type.$ENVIRONMENT_TYPE by the .deploy template — no CI/CD variable
+# needed. See .claude/rules/gitlab-ci.md.
 
 variables:
   ENVIRONMENT_TYPE: dev
-  DEPLOY_SSH_HOST: develop.starter-kit.io
-  DEPLOY_PATH: /srv/develop.starter-kit.io
 
 build-composer:
   extends: .build-composer
@@ -22,4 +24,3 @@ deploy-dev:
   extends: .deploy
   environment:
     name: dev
-    url: http://develop.starter-kit.io

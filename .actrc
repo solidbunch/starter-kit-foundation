@@ -1,0 +1,17 @@
+# act configuration for the local CI/CD provisioning emulation harness (Stage 5).
+# Consumed by every `act` invocation `bash ./sh/local-ci/act-run.sh` makes (act reads .actrc from
+# the current working directory automatically; act-run.sh cd's into the repo root before running
+# act, so this file always applies).
+#
+# Pinned runner image mapping — confirmed working in Stage 0's DinD probe
+# (sh/local-ci/EVIDENCE.md, task 0.1): job-provision.yml's `runs-on: ubuntu-24.04` needs an explicit
+# -P mapping or act falls back to its much larger default full image.
+-P ubuntu-24.04=catthehacker/ubuntu:act-latest
+
+# Intentionally NOT set here: --bind and --container-daemon-socket. sh/local-ci/act-run.sh already
+# adds both itself (task 0.1's proven-working combination) and its own override-detection only
+# inspects the extra CLI args passed to act-run.sh after `--` — flags supplied via .actrc are read
+# by the `act` binary directly and never pass through act-run.sh's arg-parsing at all, so they
+# would NOT be seen by that detection and NOT prevent act-run.sh's own defaults from being added
+# too. Duplicating a boolean flag like --bind is harmless to act, but keeping this file free of
+# both avoids any ambiguity about which layer is responsible for them: act-run.sh always is.

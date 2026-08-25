@@ -1,0 +1,185 @@
+name: 'Provisioning setup'
+description: >-
+  Shared GitHub-provisioning preamble: AWS credentials (OIDC + act/LocalStack emulation), SSH
+  agent/config, .env preparation (incl. COMPOSER_AUTH and CLOUDFLARE_API_TOKEN secret plumbing),
+  Composer/Node dependency install, and Basis-module verification. Used by the `provision`,
+  `ansible` and `dns` jobs in job-provision.yml so the security-critical guard logic (destroy
+  confirmation upstream, has_basis downstream) is defined once, not copy-pasted per job. Composite
+  actions cannot read the `secrets` context directly, so every secret is threaded in via `inputs:`
+  from the calling job.
+
+inputs:
+  environment_type:
+    description: 'ENVIRONMENT_TYPE (dev|stage|prod) — used for .env generation'
+    required: true
+  aws_role:
+    description: 'AWS role ARN to assume via OIDC (vars.AWS_ROLE_TO_ASSUME in the caller)'
+    required: true
+  aws_region:
+    description: 'AWS region used for the act/LocalStack credential emulation branch'
+    required: true
+  ssh_key:
+    description: 'SSH private key (secrets.SSH_KEY in the caller)'
+    required: true
+  ssh_config:
+    description: 'SSH client config contents (secrets.SSH_CONFIG in the caller)'
+    required: true
+  composer_auth:
+    description: 'Composer auth JSON (secrets.COMPOSER_AUTH in the caller) — optional'
+    required: false
+    default: ''
+  cloudflare_api_token:
+    description: 'Cloudflare API token (secrets.CLOUDFLARE_API_TOKEN in the caller) — optional'
+    required: false
+    default: ''
+  is_demo:
+    description: 'Demo-mode flag (vars.IS_DEMO in the caller) — forces Basis update from dist'
+    required: false
+    default: 'false'
+
+outputs:
+  has_basis:
+    description: 'Whether kit-modules/basis resolved to real, licensed code (true/false)'
+    value: ${{ steps.verify_basis.outputs.has_basis }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Extract AWS region from .env.main
+      id: region
+      shell: bash
+      run: |
+        REGION="$(sh ./sh/ci/extract-aws-region.sh)" || exit 1
+        echo "region=$REGION" >> $GITHUB_OUTPUT
+
+    - name: Configure AWS credentials
+      if: ${{ !env.ACT }}
+      uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+      with:
+        role-to-assume: ${{ inputs.aws_role }}
+        aws-region: ${{ steps.region.outputs.region }}
+
+    - name: Configure AWS credentials (act / LocalStack)
+      # Local emulation only — act auto-injects ACT=true into the job env (confirmed empirically,
+      # see sh/local-ci/EVIDENCE.md). GitHub OIDC (aws-actions/configure-aws-credentials
+      # above) cannot be emulated by act, so this sibling step exports the static LocalStack
+      # community-tier dummy credentials instead. Inert on real GitHub runs, where ACT is unset.
+      if: ${{ env.ACT }}
+      shell: bash
+      run: |
+        echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
+        echo "AWS_DEFAULT_REGION=${{ inputs.aws_region }}" >> $GITHUB_ENV
+
+    - name: Verify AWS credentials
+      shell: bash
+      run: |
+        echo "AWS credentials configured via OIDC"
+        echo "AWS_ACCESS_KEY_ID is set: $([ -n "$AWS_ACCESS_KEY_ID" ] && echo "yes" || echo "no")"
+        echo "AWS_SESSION_TOKEN is set: $([ -n "$AWS_SESSION_TOKEN" ] && echo "yes" || echo "no")"
+
+    - name: Set up SSH agent
+      uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+      with:
+        ssh-private-key: ${{ inputs.ssh_key }}
+
+    - name: Set up SSH config
+      shell: bash
+      env:
+        SSH_CONFIG: ${{ inputs.ssh_config }}
+      run: |
+        if [ -z "$SSH_CONFIG" ]; then
+          echo "Error: SSH_CONFIG secret is not available"
+          exit 1
+        fi
+        mkdir -p ~/.ssh/
+        printf '%s\n' "$SSH_CONFIG" > ~/.ssh/config
+
+    - name: Prepare .env
+      shell: bash
+      env:
+        COMPOSER_AUTH_INPUT: ${{ inputs.composer_auth }}
+        CLOUDFLARE_API_TOKEN_INPUT: ${{ inputs.cloudflare_api_token }}
+      run: |
+        bash ./sh/env/secret-gen.sh
+        if [ -n "$COMPOSER_AUTH_INPUT" ]; then
+          echo "COMPOSER_AUTH=${COMPOSER_AUTH_INPUT}" >> ./config/environment/.env.secret
+        fi
+        if [ -n "$CLOUDFLARE_API_TOKEN_INPUT" ]; then
+          echo "CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN_INPUT}" >> ./config/environment/.env.secret
+        fi
+        bash ./sh/env/init.sh ${{ inputs.environment_type }}
+
+    - name: Store OIDC credentials for IaC
+      shell: bash
+      run: |
+        # These are short-lived OIDC session credentials written only to the runner-local
+        # job environment file ($GITHUB_ENV) — never persisted to the repo, the deploy
+        # artifact, or the build cache. GitHub's own log masking (configured by
+        # configure-aws-credentials via ::add-mask::) prevents them from leaking into logs
+        # regardless of where they are read from during this job.
+        echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
+        echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN" >> $GITHUB_ENV
+        echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+
+    - name: Update Basis (only in demo)
+      shell: bash
+      env:
+        IS_DEMO: ${{ inputs.is_demo }}
+      run: |
+        if [ "$IS_DEMO" = "true" ]; then
+          echo "Detected demo mode — forcing Composer update from dist"
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          docker compose -f docker-compose.toolkit.yml run --rm \
+            -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+            -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+            -e AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" \
+            -e AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION" \
+            -e SSH_AUTH_SOCK="$SSH_AUTH_SOCK" \
+            composer su -c "
+            composer update solidbunch/basis --no-interaction --with-all-dependencies
+          " "${DEFAULT_USER}"
+        else
+          echo "Skipping composer update — not in demo mode"
+        fi
+
+    - name: Install Composer and Node Dependencies
+      shell: bash
+      run: |
+        export CURRENT_UID=$(id -u)
+        export CURRENT_GID=$(id -g)
+        source .env
+        bash ./sh/system/install.sh yes
+
+    - name: Verify Basis module is installed
+      id: verify_basis
+      shell: bash
+      run: |
+        # Three-state classifier: composer.lock's recorded package `type` (licensed
+        # `kit-module` vs unlicensed `metapackage` stub) is cross-checked against whether
+        # kit-modules/basis actually landed on disk. Directory presence alone is not
+        # trustworthy — see .claude/plans/architect-plan-pipeline-audit-fixes.md item 4.
+        # Classification itself lives in sh/ci/verify-basis.sh (shared with GitLab CI); this
+        # step is a thin wrapper that translates its stdout into $GITHUB_OUTPUT and re-attaches
+        # the GitHub ::error::/::warning:: annotation prefixes the shared script cannot emit.
+        set +e
+        BASIS_OUTPUT="$(sh ./sh/ci/verify-basis.sh 2>verify-basis.stderr)"
+        BASIS_RC=$?
+        set -e
+        BASIS_MSG="$(cat verify-basis.stderr)"
+        rm -f verify-basis.stderr
+
+        if [ $BASIS_RC -ne 0 ]; then
+          echo "::error::${BASIS_MSG}"
+          exit 1
+        fi
+
+        case "$BASIS_MSG" in
+          *ambiguous*) echo "::warning::${BASIS_MSG}" ;;
+          *) echo "$BASIS_MSG" ;;
+        esac
+
+        echo "$BASIS_OUTPUT" >> $GITHUB_OUTPUT

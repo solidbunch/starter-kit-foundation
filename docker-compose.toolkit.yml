@@ -94,6 +94,8 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
       AWS_DEFAULT_REGION: ${TF_VAR_aws_region}
+      # Cloudflare API token for the DNS-record update mechanism (kit-modules/basis sh/dns.sh)
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
     working_dir: /srv
     volumes:
       - ./:/srv
