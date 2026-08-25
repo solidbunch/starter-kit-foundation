@@ -1,7 +1,7 @@
 FROM php:8.4-fpm-alpine3.24
 
 ENV XDEBUG_VERSION=3.4.7
-ENV IMAGICK_VERSION=3.8.0
+ENV IMAGICK_VERSION=3.8.1
 
 ##################################
 #         Adding WP-CLI          #
@@ -39,6 +39,7 @@ RUN set -ex; \
       freetype-dev \
       icu-dev \
       imagemagick-dev \
+      libheif-dev \
       libjpeg-turbo-dev \
       libpng-dev \
       libwebp-dev \

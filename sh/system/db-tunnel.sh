@@ -26,11 +26,15 @@ if [ ! -f "$ENV_RUNTIME" ]; then
   exit 1
 fi
 
-# Source only APP_NAME (safe, no secrets leaked).
-APP_NAME="$(sed -n 's/^[[:space:]]*APP_NAME=//p' "$ENV_RUNTIME" | tail -n1)"
+source "$ENV_RUNTIME"
 
-if [ -z "$APP_NAME" ]; then
+if [ -z "${APP_NAME:-}" ]; then
   echo -e "${RED}[Error]${RESET} APP_NAME is not set in $ENV_RUNTIME." >&2
+  exit 1
+fi
+
+if [ -z "${APP_DB_TUNNEL_IMAGE:-}" ]; then
+  echo -e "${RED}[Error]${RESET} APP_DB_TUNNEL_IMAGE is not set in $ENV_RUNTIME." >&2
   exit 1
 fi
 
@@ -59,7 +63,7 @@ cmd_start() {
     --name "$TUNNEL_CONTAINER" \
     -p "127.0.0.1:${TUNNEL_PORT}:3306" \
     --network "$NETWORK_NAME" \
-    alpine/socat "TCP-LISTEN:3306,fork,reuseaddr" "TCP:${CONTAINER_NAME}:3306"
+    "$APP_DB_TUNNEL_IMAGE" "TCP-LISTEN:3306,fork,reuseaddr" "TCP:${CONTAINER_NAME}:3306"
 
   echo -e "${GREEN}[db-tunnel]${RESET} Local tunnel ready: 127.0.0.1:${TUNNEL_PORT} → ${CONTAINER_NAME}:3306"
   echo "[db-tunnel] Connect DBeaver/HeidiSQL to 127.0.0.1:${TUNNEL_PORT}"
