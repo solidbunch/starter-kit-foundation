@@ -6,6 +6,9 @@ set -e
 # Colors
 source ./sh/utils/colors.sh
 
+# We have no root .env yet at this stage — connect main env directly (same as sh/env/init.sh)
+source ./config/environment/.env.main
+
 echo -e "------------------------------"
 echo -e "Generate .env.secret"
 echo -e "------------------------------"
@@ -24,7 +27,7 @@ if [ ! -f "$SECRET_FILE" ]; then
     # creating Alpine container, running pass gen, removing container.
     echo -e "${CYAN}[Info]${RESET} Generating Secrets..."
 
-    docker run --name pass-gen-container -v "./sh:/shell:ro" alpine:latest sh /shell/env/pass_gen.sh
+    docker run --name pass-gen-container -v "./sh:/shell:ro" "$APP_PASS_GEN_IMAGE" sh /shell/env/pass_gen.sh
     docker cp pass-gen-container:/.env.secret "$SECRET_FILE"
     docker rm -f pass-gen-container > /dev/null 2>&1
 
@@ -72,7 +75,7 @@ mkdir -p "$tmp_dir/env"
 cp ./sh/env/pass_gen.sh "$tmp_dir/env/pass_gen.sh"
 printf '%s\n' "${missing_lines[@]}" > "$tmp_dir/env/.env.secret.template"
 
-docker run --name pass-gen-container -v "$tmp_dir:/shell:ro" alpine:latest sh /shell/env/pass_gen.sh
+docker run --name pass-gen-container -v "$tmp_dir:/shell:ro" "$APP_PASS_GEN_IMAGE" sh /shell/env/pass_gen.sh
 docker cp pass-gen-container:/.env.secret "$tmp_dir/generated.env.secret"
 docker rm -f pass-gen-container > /dev/null 2>&1
 

@@ -109,10 +109,10 @@ parity — `sh ./sh/ci/composer-extras.sh "$ENVIRONMENT_TYPE" "$IS_DEMO"`, after
 installs — which runs `composer run switch-theme-dev` when `ENVIRONMENT_TYPE == dev` (switches the
 theme to its `dev-develop` Composer VCS branch — see `ci.md` and root `CLAUDE.md`'s "Intentional
 Quirks"; becomes a harmless no-op if a project has detached its theme from that Composer package,
-e.g. via `bootstrap-project`'s monorepo option), and the `IS_DEMO`-guarded
-`solidbunch/monitoring-client`/`solidbunch/starter-kit-addon` dist update (skipped unless the
-GitLab CI/CD variable `IS_DEMO` is `"true"`). See `ci.md`'s "Shared deploy scripts (`sh/ci/`)" for
-the full script inventory — this file does not repeat it.
+e.g. via `bootstrap-project`'s monorepo option), and the `IS_DEMO`-guarded dist update of a fixed
+set of demo-only packages (skipped unless the GitLab CI/CD variable `IS_DEMO` is `"true"`). See
+`ci.md`'s "Shared deploy scripts (`sh/ci/`)" for which packages and the full script inventory —
+this file does not repeat it.
 
 **`artifacts: paths:` on `.build-composer` is an explicit whitelist, not a whole-directory
 carry-over — keep it in sync with what `composer install-*` actually produces.** GitHub Actions'
