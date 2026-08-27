@@ -5,19 +5,18 @@ paths:
   - "web/wp-content/themes/**/parts/**"
   - "web/wp-content/themes/**/patterns/**"
   - "web/wp-content/themes/**/assets/src/styles/**"
-  - "web/wp-content/plugins/starter-kit-addon/blocks/**"
-  - "web/wp-content/plugins/starter-kit-addon/assets/**"
   - "**/*.scss"
 ---
 
 # Design verification — a layout fix is confirmed by numbers, never by a screenshot
 
-This rule exists because a run of checkout-funnel layout bugs on this project were each "verified"
-from a screenshot and each shipped broken. The browser tooling to measure them was available the
-whole time; the gap was process, not tooling. What the layout system actually *is* — Bootstrap
-5.3.2, the 1280px container cap, the grid blocks, `wp:post-content` having no container, the
-self-containing addon blocks — is documented in the theme's
-`.claude/rules/layout.md` and the addon's `CLAUDE.md`. This file is the **procedure**.
+This rule exists because layout bugs on this project have shipped after being "verified" from a
+screenshot alone. The browser tooling to measure them was available the whole time; the gap was
+process, not tooling. What a layout system actually *is* — grid mechanics, container widths,
+which blocks wrap their own container — is documented per-codebase: the theme's own mechanics are
+in the theme's `.claude/rules/layout.md`; a plugin's own mechanics belong in that plugin's own
+`CLAUDE.md`, not here. This file is only the **procedure** — it applies the same way regardless of
+which codebase the markup you're checking lives in.
 
 ## The rule
 
@@ -34,29 +33,29 @@ getComputedStyle(document.querySelector('<ancestor>')).maxWidth
   .filter(el => el.getBoundingClientRect().left <= 0)
 ```
 
-Report the measured value against the expected one — `272px (expected ~568)` — not "looks right".
-A screenshot is supporting evidence attached to a number, never the verdict on its own: a box at
-half its intended width looks entirely plausible in a screenshot. That is exactly how the 272px
-checkout card passed review.
+Report the measured value against the expected one — e.g. `272px (expected ~568)` — not "looks
+right". A screenshot is supporting evidence attached to a number, never the verdict on its own: a
+box at half its intended width looks entirely plausible in a screenshot.
 
 ## Measure at three viewports
 
-1440 (desktop) / 768 (tablet) / 375 (mobile). Measure at each — `.container` is capped at 1280px
-from `xl` up (see `layout.md`), so desktop numbers tell you nothing about the other two.
+1440 (desktop) / 768 (tablet) / 375 (mobile). A container capped below the full viewport width
+(check the relevant codebase's own layout docs for its actual cap) means desktop numbers alone
+tell you nothing about the other two.
 
 ## The checklist for a UI change on this project
 
-- **Width squeeze** — is a `col-*` inside an ancestor that already has a `max-width` in SCSS, or
-  inside a second container? Measure the innermost box. Live constraining classes here:
-  `.checkout-block` (600px), `.pricing_section` (1440px).
-- **Self-containing blocks** — `starter-kit/checkout`, `starter-kit/pricing-table`,
-  `starter-kit/purchase-result` each render their own `.container`. Never wrap them in another
-  one, in page content *or* inside a block's own PHP view. Fixing one of the two sites and not the
-  other is how the checkout bug survived its first fix.
-- **Missing container** — no template gives `wp:post-content` a container or padding. Removing a
-  page's outermost `starter-kit/container` drops its content flush against the viewport edge.
-- **Duplicated title** — `page.html` / `page-with-hero.html` render the post title as `<h1>`. A
-  second `<h1>` in the content stacks two titles; use `page-without-title.html` instead.
+- **Width squeeze** — is a `col-*` (or equivalent grid unit) inside an ancestor that already has a
+  `max-width` in SCSS, or inside a second container? Measure the innermost box — don't trust the
+  block names in the editor; check the actual codebase's layout docs for which classes constrain
+  width there.
+- **Self-containing blocks** — some blocks render their own container as part of their markup.
+  Never wrap one of those in another container, in page content *or* inside the block's own
+  PHP view — fixing only one of the two sites is a known way for this class of bug to resurface.
+- **Missing container** — check whether the template actually wraps its content in a container;
+  removing the wrong outer block can drop content flush against the viewport edge with no padding.
+- **Duplicated title** — if the template already renders the post title as an `<h1>`, a second
+  `<h1>` typed into the content stacks two titles.
 - **Duplicated numbering** — a list numbered by CSS (`counter-increment` + `::before`) whose item
   text also arrives pre-numbered from an API or a field renders `1. 1. …`. Assert the rendered
   text, not just that the list exists.

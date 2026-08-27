@@ -11,10 +11,7 @@ paths:
 in the foundation root. Never run `terraform` / `ansible` directly — always go through `make`.
 
 Four modules: `basis` (IaC), `monitoring-client`, `monitoring-server`, `proxy` (multi-instance
-reverse proxy, see below) — all installed and licensed the same way. A fifth licensed package,
-`starter-kit-addon`, follows the same licensing mechanism but is a demo-only plugin, not part of
-normal project work — see the one-line note at the end of this file instead of treating it as a
-sixth kit-module.
+reverse proxy, see below) — all installed and licensed the same way.
 
 ## How kit-modules are installed — licensing gates real code, not just presence
 
@@ -144,8 +141,8 @@ make basis                                # interactive shell in the IaC (`iac`)
   `docker-compose.yml`, `config/` (grafana, loki, nginx, ssl, certbot), its own `iac/`
   (Terraform + Ansible) and `Makefile`. A standalone deployable — not part of the app environment.
 - `monitoring-client` is only force-updated from `dist` in CI when the `IS_DEMO` repo variable is
-  `true` (`job-deploy.yml` step "Update Monitoring & Addon" — see the trailing note below for why
-  that step's name mentions an addon); normal deploys keep the locked version.
+  `true` (see `ci.md`'s "Shared deploy scripts" for the actual step and script); normal deploys
+  keep the locked version.
 
 ## proxy — multi-instance reverse proxy (opt-in by activation, not by install)
 
@@ -179,10 +176,3 @@ a valid license, real code with one. Nothing manual to install; the opt-in is en
 - When `APP_MULTI_INSTANCE=1`, `sh/system/certbot.sh` and the cron SSL-renewal job both skip
   themselves — Traefik owns TLS in multi-instance mode.
 - Full step-by-step workflows: `kit-modules/proxy/README.md`.
-
-## `starter-kit-addon` — not relevant to normal project work
-
-A fifth licensed package, installed as a plugin (`web/wp-content/plugins/starter-kit-addon/`) via
-the same licensing mechanism as the kit-modules above. It exists purely for SolidBunch's own demo/
-showcase deployments — it is not something end clients use, so don't spend attention on it unless
-a task specifically touches demo/showcase deploys or `IS_DEMO`-gated CI steps.

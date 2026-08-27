@@ -22,9 +22,9 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
 - `job-deploy.yml` (`workflow_call`) — build phase runs on `ubuntu-24.04`, prepares `.env` via
   `sh/env/secret-gen.sh` + `sh/env/init.sh` (this part stays inline, see "Shared deploy scripts"
   below), then runs `sh/ci/composer-extras.sh` inside the toolkit `composer` container — it
-  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and force-updates
-  `monitoring-client` (+ a demo-only addon plugin, not relevant outside showcase deploys — see
-  `infrastructure.md`) from `dist` only when the `IS_DEMO` repo variable is `true` — then
+  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and force-updates a
+  fixed set of demo-only packages from `dist` (see "Shared deploy scripts" below for which ones)
+  only when the `IS_DEMO` repo variable is `true` — then
   `sh/system/install.sh yes` (composer + npm), then `sh/ci/scrub-secrets.sh` removes the generated
   `.env`/`.env.runtime`/`.env.secret` before the whole workspace is cached (`Save Built job`).
   Deploy phase runs on `ubuntu-22.04`, pinned to the run's GitHub Environment
@@ -62,10 +62,11 @@ not repeated there.
   then runs the `ssh mkdir` + `rsync` + remote `make` chain against the target server. Called by
   GitHub's `Deploy via SSH` step and GitLab's `.deploy` `script:`.
 - **`sh/ci/composer-extras.sh`** — executed as `sh ./sh/ci/composer-extras.sh '<env>' '<is_demo>'`.
-  The theme-switch-to-`dev-develop` + demo-mode `monitoring-client`/addon dist update, both gated
-  by its two positional args. Called from inside the toolkit `composer` container on GitHub (via
-  `su -c`, hence positional args rather than an env var — `su`'s environment preservation isn't
-  reliable) and natively from GitLab's `.build-composer`.
+  The theme-switch-to-`dev-develop` + demo-mode dist update of a fixed set of packages (see the
+  script itself for the current list), both gated by its two positional args. Called from inside
+  the toolkit `composer` container on GitHub (via `su -c`, hence positional args rather than an
+  env var — `su`'s environment preservation isn't reliable) and natively from GitLab's
+  `.build-composer`.
 - **`sh/ci/setup-ssh.sh`** — executed as `sh ./sh/ci/setup-ssh.sh`, requires `SSH_INPUT_MODE`
   (`file` or `literal`) plus `SSH_KEY`/`SSH_CONFIG`. Writes `~/.ssh/id_rsa` (mode `400`) and
   `~/.ssh/config` (mode `600`). GitHub passes `SSH_INPUT_MODE: literal` (secrets are the key
