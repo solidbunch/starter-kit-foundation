@@ -162,7 +162,8 @@ jobs:
           echo "EFFECTIVE_ENV_TYPE=${EFFECTIVE_ENV_TYPE}"
           echo "TF_ENV_DIR=${TF_ENV_DIR}"
           if [ ! -d "$TF_ENV_DIR" ]; then
-            echo "Terraform environment directory '$TF_ENV_DIR' not found" >&2; exit 1;
+            echo "::error::Terraform environment directory '$TF_ENV_DIR' not found for ENVIRONMENT_TYPE '${EFFECTIVE_ENV_TYPE}'. Expected kit-modules/basis/terraform/envs/${EFFECTIVE_ENV_TYPE} to exist — check kit-modules/basis actually resolved (has_basis) and that this environment type has a Terraform env directory."
+            exit 1
           fi
 
           # Verify AWS credentials are available in container
