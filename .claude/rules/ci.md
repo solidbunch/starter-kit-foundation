@@ -22,9 +22,12 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
 - `job-deploy.yml` (`workflow_call`) — build phase runs on `ubuntu-24.04`, prepares `.env` via
   `sh/env/secret-gen.sh` + `sh/env/init.sh` (this part stays inline, see "Shared deploy scripts"
   below), then runs `sh/ci/composer-extras.sh` inside the toolkit `composer` container — it
-  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and force-updates a
-  fixed set of demo-only packages from `dist` (see "Shared deploy scripts" below for which ones)
-  only when the `IS_DEMO` repo variable is `true` — then
+  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and — only when the
+  `IS_DEMO` repo variable is `true` — force-updates a fixed set of demo-only packages from `dist`,
+  **and for one of them adds a Composer requirement that isn't in the committed `composer.json`
+  at all** (a real `composer require --no-update` runs during the build, not just an update of an
+  already-required package — see "Shared deploy scripts" below; this deliberately makes the
+  demo build's `composer.json`/`composer.lock` diverge from what's checked into git) — then
   `sh/system/install.sh yes` (composer + npm), then `sh/ci/scrub-secrets.sh` removes the generated
   `.env`/`.env.runtime`/`.env.secret` before the whole workspace is cached (`Save Built job`).
   Deploy phase runs on `ubuntu-22.04`, pinned to the run's GitHub Environment
@@ -62,8 +65,9 @@ not repeated there.
   then runs the `ssh mkdir` + `rsync` + remote `make` chain against the target server. Called by
   GitHub's `Deploy via SSH` step and GitLab's `.deploy` `script:`.
 - **`sh/ci/composer-extras.sh`** — executed as `sh ./sh/ci/composer-extras.sh '<env>' '<is_demo>'`.
-  The theme-switch-to-`dev-develop` + demo-mode dist update of a fixed set of packages (see the
-  script itself for the current list), both gated by its two positional args. Called from inside
+  The theme-switch-to-`dev-develop` + demo-mode dist update, both gated by its two positional
+  args. The list of packages this force-updates (and, for one of them, newly `require`s) is
+  intentionally not duplicated here — read the script itself, it's short. Called from inside
   the toolkit `composer` container on GitHub (via `su -c`, hence positional args rather than an
   env var — `su`'s environment preservation isn't reliable) and natively from GitLab's
   `.build-composer`.
@@ -139,9 +143,14 @@ section. It is not a line-for-line port; three deliberate structural deltas:
   `PLAN_RUN_ID`" section for the full reasoning.
 
 - `job-provision.yml` — **manual only** (`workflow_dispatch`), inputs: `ENVIRONMENT_TYPE`
-  (dev/stage/prod), `ACTION_TYPE` (plan/apply/destroy), `SKIP_ANSIBLE` (bool). Auths to AWS via
-  **GitHub OIDC** (`aws-actions/configure-aws-credentials`, `permissions: id-token: write`) — no
-  static AWS keys in secrets.
+  (dev/stage/prod), `ACTION_TYPE` (plan/apply/destroy), `SKIP_ANSIBLE` (bool). `stage` is listed as
+  an option but rejected fail-fast at runtime — a Terraform env exists
+  (`kit-modules/basis/terraform/envs/stage`) but `ansible/inventory.yml` has no `stage` host wired
+  up, same gap and same guard shape as the GitLab pipeline (see `gitlab-ci.md`'s `ENVIRONMENT_TYPE`
+  row and `kit-modules/basis/CLAUDE.md`'s documented `stage` gap for the authoritative
+  description). Auths to AWS via **GitHub OIDC**
+  (`aws-actions/configure-aws-credentials`, `permissions: id-token: write`) — no static AWS keys
+  in secrets.
 - **Four jobs, not one.** `provision` (Terraform `shared`→`<env>`), `ansible` and `dns` (both
   `needs: provision`, both gated on `needs.provision.outputs.has_basis == 'true' &&
   inputs.ACTION_TYPE == 'apply'` — `ansible` additionally on `SKIP_ANSIBLE == 'false'`), and

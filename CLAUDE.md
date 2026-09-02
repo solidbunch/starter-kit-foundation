@@ -1,7 +1,7 @@
 # StarterKit Foundation
 
 Enterprise WordPress boilerplate: Docker + Terraform + Ansible + CI/CD.
-PHP ≥8.4, WordPress core `wordpress-core-no-content` ^6.8.1, MariaDB, Nginx.
+PHP ≥8.4, WordPress core `wordpress-core-no-content` ^7.1, MariaDB, Nginx.
 Four environments: local, dev, stage, prod.
 
 Three layers:
@@ -86,7 +86,9 @@ above for why; read and follow these directly by path, not by name):
 
 ```bash
 make install [local|dev|stage|prod]      # First-time setup: secrets → .env → composer → npm → docker → WP
+make i                                   # Alias for `make install`
 make up [local|dev|stage|prod]           # Start containers (rebuilds .env first)
+make upd [local|dev|stage|prod]          # Like `make up`, but foreground (no -d) — see container output live
 make down                                # Stop and remove containers + network; all data persists (every volume is a host bind mount)
 make restart [local|dev|stage|prod]      # Restart running containers in place (no recreate, no data change)
 make recreate [local|dev|stage|prod]     # Rebuild .env then `docker compose up -d --force-recreate`
@@ -113,6 +115,7 @@ make monitoring [on|off]                 # Run monitoring-client scenario (alias
 make proxy [start|stop|logs|deploy env]  # Reverse proxy (Traefik) for multi-instance hosts (kit-modules/proxy)
 make db-tunnel [start|stop|status] [port] # Local TCP tunnel to an instance's MariaDB (sh/system/db-tunnel.sh)
 make validate-nginx                      # nginx config syntax check (`nginx -t`) in a throwaway container, no stack needed
+make localci [up|down|...]               # Local CI harness (act + LocalStack) — the only sanctioned entry point, never call `act` directly, see ci.md
 make docker [build|push|clean] [service] # Build/push/clean Foundation Docker images
 make docker-login                        # Registry auth only (ghcr.io) — no build/push
 ```
@@ -144,7 +147,8 @@ kit-modules/                    # Composer-installed sub-projects (each its own 
 config/                          # Docker, nginx, php, ssl, cron, environment configs — see config.md
 dockerfiles/                     # 8 service images (mariadb, php, nginx, cron, composer, node, certbot, iac) — see docker.md
 sh/                              # Shell scripts (never call directly — use make)
-.github/workflows/               # CI/CD: job-deploy + job-provision, called by 3 trigger workflows — see ci.md
+.github/workflows/               # CI/CD: 3 job files (job-deploy, job-provision, job-bootstrap-state)
+                                  # called by 2 trigger workflows (workflow-deploy-develop, workflow-deploy-production) — see ci.md
 ```
 
 Package sources (`composer.json` `repositories`): wpackagist.org (community plugins),
@@ -182,8 +186,10 @@ NEVER:
 - `WP_DISABLE_WP_CRON=1` — cron runs via dedicated cron container, not on HTTP requests
 - `AUTOMATIC_UPDATER_DISABLED=1` / `DISALLOW_FILE_EDIT=1` / `DISALLOW_FILE_MODS=1` — all updates
   via Composer; intentional
-- Theme uses `dev-develop` branch in the dev environment via `composer run switch-theme-dev`
-  (CI-only script), not a stable tag — this is correct
+- Theme tracks a **branch**, not a stable tag, in every environment — `composer.json`'s base
+  constraint is `dev-master`; `dev` additionally switches to `dev-develop` via
+  `composer run switch-theme-dev` (CI-only script). This is intentional, but it means prod/stage
+  also move with a branch, not a pinned release — don't assume only `dev` is affected
 - `kit-modules/` is git-ignored in root — `basis`, `monitoring-client`, `monitoring-server`,
   `proxy` are all required packages that resolve to real code whenever a valid license is
   configured; `proxy` additionally needs `APP_MULTI_INSTANCE=1` to actually activate once

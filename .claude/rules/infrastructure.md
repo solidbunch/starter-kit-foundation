@@ -24,12 +24,10 @@ valid license) is separate from being *active*: `proxy` only does anything once
 present. Composer's `installer-paths` (`composer.json` → `extra.installer-paths`) map packages of
 `type:kit-module` into `kit-modules/{$name}/`.
 
-`solidbunch/proxy`'s `composer.json` constraint is currently `dev-main`, not a tagged `^x.y.z`
-range like the other three — the licensing repo's catalog for this package only exposes
-`dev-main` today, even though the module's own repo already carries a real `1.0.0` tag (confirmed
-2026-08-07: `composer show solidbunch/proxy --all` lists only `versions: dev-main`). Switch the
-constraint to `^1.0.0` once the licensing server picks up the tagged release — check with
-`composer show solidbunch/proxy --all` before changing it.
+`solidbunch/proxy`'s `composer.json` constraint is now `^1.0.2`, a tagged range like the other
+three — the licensing repo's catalog picked up the tagged release (this used to be pinned to
+`dev-main` only; if this note is ever stale again, `composer show solidbunch/proxy --all` shows
+the real available versions).
 
 **With a valid SolidBunch license/auth token, `composer install`/`update` always resolves the
 real module code** — the three required modules are not optional once licensed; they're a normal
@@ -155,9 +153,13 @@ a valid license, real code with one. Nothing manual to install; the opt-in is en
 - Default setup (one instance per server) needs none of this active — nginx binds 80/443 directly,
   and the module sits unused even once installed.
 - With the module installed, each instance opts in via `APP_MULTI_INSTANCE=1` in `.env.main`;
-  the foundation kit then merges the module's `docker-compose.instance.yml` into the instance
+  the foundation kit then merges one of the module's **four** instance-override files (selected by
+  `bin/compose-flags.sh` from `APP_DOMAIN` apex-vs-subdomain and `APP_PROTOCOL` http-vs-https —
+  `docker-compose.instance.yml` / `.nowww.yml` / `.http.yml` / `.nowww.http.yml`) into the instance
   stack (drops nginx's host port bindings, joins the shared `proxy` Docker network, adds Traefik
-  labels for autodiscovery + ACME).
+  labels for autodiscovery + ACME). See `kit-modules/proxy/CLAUDE.md`'s "Four instance override
+  files" for why it's four files and not a shared overlay — any router-label change must be
+  applied to all four, or they drift.
 - Traefik itself runs as its own Compose project (`-p proxy`, `kit-modules/proxy/docker-compose.yml`),
   independent of any single instance's lifecycle — `make down` on one instance doesn't touch it
   or other instances.

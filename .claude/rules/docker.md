@@ -82,7 +82,7 @@ Tag convention: `php`/`nginx`/`mariadb` tags are `<upstream-version>-alpine<vers
 content-only change (Dockerfile/entrypoint edit, no base bump), append a revision suffix:
 `8.4-fpm-alpine3.22-r1`, then `-r2`, etc. — bump the trailing `-rN` on every subsequent
 content-only change, reset it (drop the suffix) whenever the base version changes. `cron` follows
-an adjacent scheme: its own independent version ahead of the alpine tag (`1.5-alpine3.20`), bumped
+an adjacent scheme: its own independent version ahead of the alpine tag (`1.5-alpine3.24`), bumped
 whenever cron's own scripts change. Match whichever scheme the service already uses; don't invent
 a new one for a single service without discussing it first.
 

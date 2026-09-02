@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "19c28cef7722437a5333fbd9cd7c1457",
+    "content-hash": "e0e6908bf421a27a2fa4b2bcc784b98c",
     "packages": [
         {
             "name": "brick/varexporter",
@@ -982,12 +982,6 @@
         {
             "name": "solidbunch/proxy",
             "version": "1.0.2",
-            "type": "metapackage",
-            "description": "Unavailable without a valid license. Module is skipped."
-        },
-        {
-            "name": "solidbunch/starter-kit-addon",
-            "version": "1.3.2",
             "type": "metapackage",
             "description": "Unavailable without a valid license. Module is skipped."
         },
