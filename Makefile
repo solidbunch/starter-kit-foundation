@@ -201,6 +201,14 @@ ifeq ($(LOCALCI_GOAL),)
 	bash ./kit-modules/basis/sh/ansible.sh -e $(PARAM1) -a $(PARAM2) $(if $(filter static,$(PARAM3)),-s)
 endif
 
+# AWS OIDC setup/verification for CI (kit-modules/basis).
+# Usage examples:
+# make oidc dev gen           -> bash ... -e dev -m gen    (print AWS Console setup, no AWS CLI/credentials needed)
+# make oidc dev test          -> bash ... -e dev -m test   (verify a real setup — needs AWS CLI + credentials)
+# make oidc dev gen gitlab    -> bash ... -e dev -m gen -p gitlab
+oidc:
+	bash ./kit-modules/basis/sh/aws/oidc.sh -e $(PARAM1) -m $(PARAM2) $(if $(filter gitlab,$(PARAM3)),-p gitlab)
+
 # docker build|docker push|docker clean|docker login
 docker:
 	bash ./sh/system/docker.sh $(PARAMS)

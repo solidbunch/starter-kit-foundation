@@ -313,10 +313,30 @@ Variables (**Variables** tab, or per environment):
 
 | Variable | Level | Required | Meaning |
 |---|---|---|---|
-| `AWS_ROLE_TO_ASSUME` | environment | for provisioning | Everyday provisioning role's ARN, assumed via OIDC. Same shared role's ARN is stored per environment (`dev`/`stage`/`prod`) rather than at repo level — see `infrastructure.md` / `kit-modules/basis/CLAUDE.md` for why the role itself is deliberately not split per environment |
+| `AWS_ROLE_TO_ASSUME` | repo by default; environment only to override | for provisioning | Everyday provisioning role's ARN, assumed via OIDC. Same role is shared across `dev`/`stage`/`prod` *by default* — see below |
 | `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | repo | for the *Bootstrap Terraform State Backend* workflow only | State-backend bootstrap role's ARN, assumed via OIDC. Deliberately a different, narrower role from `AWS_ROLE_TO_ASSUME` — it can create the S3 bucket the everyday role cannot |
 | `IS_DEMO` | repo | no | demo/showcase mode, see below |
 | `APP_MULTI_INSTANCE` | **environment** | no | `1` enables the multi-instance (Traefik) deploy on that environment's server; see `infrastructure.md`. Repo-level would apply it to prod too |
+
+**`AWS_ROLE_TO_ASSUME` placement — default vs override.** The role itself is deliberately not
+split per environment (see `infrastructure.md` / `kit-modules/basis/CLAUDE.md` for why) — but
+where its ARN *variable* lives is a separate, purely operational question, driven by whether
+`dev`/`stage`/`prod` share one AWS account:
+
+- **Default — one shared AWS account** (the common case): set `AWS_ROLE_TO_ASSUME` once, as a
+  **repo-level** Variable. Every environment-pinned job (`job-provision.yml`'s
+  `environment: ${{ inputs.ENVIRONMENT_TYPE }}`) reads `vars.AWS_ROLE_TO_ASSUME` and resolves it
+  from the repo level when no environment-level override exists — GitHub's variable precedence is
+  environment > repository > organization, and this project relies on the fallback rather than
+  duplicating the identical value into all three Environments.
+- **Override — a separate AWS account for one environment** (e.g. prod isolated from
+  dev/stage): that environment's role lives under a *different* AWS account ID, so its ARN
+  literally differs. Set `AWS_ROLE_TO_ASSUME` as an **environment-level** Variable on that
+  environment only — it overrides the repo-level value for jobs pinned to that environment,
+  leaving the others on the shared repo-level value.
+
+`sh/aws/oidc.sh -m gen` prints both cases at STEP 1d, since it can't know which one applies —
+it doesn't inspect GitHub/GitLab settings.
 
 There is **no deploy-target variable** in this table — no `SSH_HOST_ALIAS`, no
 `DEPLOY_PATH_DESTINATION`, on either the repo or environment level. The deploy target is derived

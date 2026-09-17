@@ -111,6 +111,7 @@ make local-cert [force]                  # Locally-trusted (mkcert) HTTPS cert f
 make tf [env] [init|plan|apply|destroy]  # Terraform: manage AWS infrastructure (kit-modules/basis)
 make ansible [env] [inventory|playbook]  # Ansible: provision servers (kit-modules/basis)
 make basis                               # Interactive shell in the IaC container
+make oidc [env] [gen|test] [gitlab]      # AWS OIDC setup (gen: no AWS CLI needed) / verify (test: needs it)
 make monitoring [on|off]                 # Run monitoring-client scenario (alias: make mon)
 make proxy [start|stop|logs|deploy env]  # Reverse proxy (Traefik) for multi-instance hosts (kit-modules/proxy)
 make db-tunnel [start|stop|status] [port] # Local TCP tunnel to an instance's MariaDB (sh/system/db-tunnel.sh)

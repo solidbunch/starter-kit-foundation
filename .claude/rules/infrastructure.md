@@ -120,6 +120,8 @@ config/sshd/    sshd_config.j2 template
 make tf [env] [init|plan|apply|destroy]   # terraform.sh — e.g. make tf dev plan
 make ansible [env] [inventory|playbook]   # ansible.sh
 make basis                                # interactive shell in the IaC (`iac`) container
+make oidc [env] [gen|test] [gitlab]       # oidc.sh — gen: print AWS Console setup, no AWS CLI/credentials
+                                           # needed; test: verify a real setup, needs both
 ```
 
 - Always `make tf [env] plan` and review the diff before `make tf [env] apply`.
