@@ -309,6 +309,8 @@ Secrets (**Settings → Secrets and variables → Actions → Secrets**):
 | `CLOUDFLARE_API_TOKEN` | no | provision only, required when `DNS_PROVIDER=cloudflare` — needs both `Zone:DNS:Edit` and `Zone:Zone:Read` (Zone Resources: "All zones") for the token to pass zone discovery *and* write the record; `Zone:DNS:Edit` alone is only sufficient when `CLOUDFLARE_ZONE_ID` is also set (skips discovery). Can be repo- or environment-scoped — all three jobs that read it (`provision`, `ansible`, `dns`) carry `environment:` |
 | `GITHUB_TOKEN` | — | auto-provided, nothing to configure |
 
+Dependabot secrets are a **separate store** from the above — see `## Dependabot` below.
+
 Variables (**Variables** tab, or per environment):
 
 | Variable | Level | Required | Meaning |
@@ -395,6 +397,53 @@ A GitHub Actions **repository variable**, not a secret. When `true`, both pipeli
 job before installing — used for the public demo/showcase deployment so it always runs the
 latest licensed module code. Normal client deployments leave this unset/`false` and rely on
 `composer.lock`.
+
+## Dependabot (`.github/dependabot.yml`)
+
+Two ecosystems, both targeting `develop`: `github-actions` (monthly) and `composer` (weekly,
+`directory: "/"`).
+
+The deploy/provision pipelines themselves don't run on `pull_request` — both trigger on
+`push`/`workflow_dispatch` only (see `## Deploy pipeline` above) — but
+`.github/workflows/validate-pr.yml` does: `pull_request` against `develop`/`main`, filtered to
+`composer.json`/`composer.lock` changes, running `composer validate` (schema + lock-in-sync check,
+no `--strict` — the project intentionally pins `wpackagist-plugin/cloudflare` to an exact version,
+which `--strict` would flag as an error). It's deliberately secret-free (default read-only
+`GITHUB_TOKEN`, no `COMPOSER_AUTH`) so it behaves the same for a human PR or a Dependabot PR —
+Dependabot can't see repo/environment Actions secrets anyway (see below). This only validates
+`composer.json`'s own consistency, not that the licensed modules actually resolve — it doesn't
+touch `licensing.starter-kit.io` or need a license to pass. Beyond that one check, a bad bump
+still only surfaces after merging into `develop` triggers the dev deploy — review the diff
+yourself before merging any Dependabot PR.
+
+The composer update is configured for the licensed `kit-modules` and ignores what Dependabot
+can't usefully touch:
+
+- **`registries: [solidbunch-licensing]`** — a `composer-repository` entry (`http-basic`) against
+  `https://licensing.starter-kit.io/wp-json/skl/v1/`, the same private repository `COMPOSER_AUTH`
+  unlocks for `composer install` (see `infrastructure.md`). Dependabot reads its own credentials
+  from a **separate secret store** — **Settings → Secrets and variables → Dependabot**, not
+  Actions — via `DEPENDABOT_LICENSE_USERNAME` / `DEPENDABOT_LICENSE_PASSWORD`. Set those once a
+  project is licensed (also documented in the docs repo's `ci-cd-deployments.md`, next to
+  `COMPOSER_AUTH`).
+  - Without those two secrets set, Dependabot's update job for `solidbunch/basis`,
+    `monitoring-client`, `monitoring-server`, `proxy` fails per-dependency with
+    `private_source_authentication_failure` (visible under **Insights → Dependency graph →
+    Dependabot → Recent update jobs**) — it does **not** silently open a PR that downgrades a
+    real resolved package to the unlicensed `metapackage` stub. Per `dependabot-core`'s
+    `error_handler.rb`, that error type isn't in `RUN_HALTING_ERRORS`, so it's isolated to those
+    4 dependencies and doesn't block updates for the rest of `composer.json`
+    (`wpackagist-plugin/*`, `solidbunch/wordpress-core-no-content`, …).
+  - The public, unauthenticated `packages.json` on that host still lists version numbers for
+    every module (verified: it 200s with no auth, just returns each version as an empty
+    `metapackage` stub) — so version *visibility* was never the gap; only resolving the real
+    `dist` requires the registry credentials.
+- **`ignore: solidbunch/starter-kit-theme`** — a `vcs`-type composer repository (direct git
+  checkout on the `dev-master` branch alias, not a tagged version). Long-standing unsupported case
+  in `dependabot-core` (private VCS composer dependencies aren't resolved reliably —
+  dependabot-core#2545, #3628), and there's no real version to bump anyway.
+- **`ignore: roave/security-advisories`** — `dev-latest` conflict-only marker package with no real
+  releases; excluded to avoid noise/failed runs.
 
 ## Local emulation
 

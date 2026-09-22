@@ -401,6 +401,18 @@ new commit: Actions → *Deploy to Develop* → **Run workflow**.
 **8. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
 is the only way anything reaches prod.
 
+**9. Dependabot**: `.github/dependabot.yml` opens PRs against `develop` for GitHub Actions
+(monthly) and root Composer dependencies (weekly) out of the box — this covers
+`wpackagist-plugin/*` and WordPress core. It's also pre-wired with a `registries:` entry for the
+licensed `kit-modules` (`solidbunch/basis`, `monitoring-client`, `monitoring-server`, `proxy`),
+but that entry only works once you add the credentials — **Settings → Secrets and variables →
+Dependabot** (a separate store from Actions), `DEPENDABOT_LICENSE_USERNAME` /
+`DEPENDABOT_LICENSE_PASSWORD`, once the project is licensed. Without them, those 4 modules just
+fail to update (logged under Insights → Dependency graph → Dependabot), everything else keeps
+working. The theme (`solidbunch/starter-kit-theme`) is explicitly `ignore:`-d — it's a `vcs`-type
+composer dependency on a branch alias, which Dependabot can't version-bump. See
+`.claude/rules/ci.md`'s "Dependabot" section for the full picture.
+
 Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`
 (Terraform/Ansible/licensing) in this repo.
 
@@ -463,6 +475,12 @@ List every changed file with its full path. Separate clearly:
   Step 5 ran); the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its
   caveat) — anything this skill couldn't do without an external-system action or a destructive
   decision
+
+Also mention: `.github/dependabot.yml` ships enabled for GitHub Actions + root Composer, with a
+`registries:` entry already wired up for the licensed `kit-modules` — but it needs
+`DEPENDABOT_LICENSE_USERNAME`/`DEPENDABOT_LICENSE_PASSWORD` set under Settings → Secrets and
+variables → **Dependabot** (not Actions) once the project is licensed, or those 4 modules just
+won't update. See `.claude/rules/ci.md`'s "Dependabot" section.
 
 Also mention: the theme ships as FSE (Full Site Editing) by default. If the user wants classic
 PHP templates instead (Gutenberg blocks retained, only the page-assembly mechanism changes), point

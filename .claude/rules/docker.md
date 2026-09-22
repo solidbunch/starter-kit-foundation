@@ -26,8 +26,8 @@ only for one-off inspection (`docker compose ps`, `docker compose logs -f <svc>`
 ## Images — `dockerfiles/<service>/`
 
 Eight images, each built from `dockerfiles/<service>/Dockerfile`, versioned in
-`config/environment/.env.main` as `APP_<SERVICE>_IMAGE` and published to
-`ghcr.io/solidbunch/starter-kit-<service>`:
+`config/environment/.env.main` as `APP_<SERVICE>_IMAGE` (mariadb is the one exception —
+its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/starter-kit-<service>`:
 
 | Service | Base | Notes |
 |---|---|---|
