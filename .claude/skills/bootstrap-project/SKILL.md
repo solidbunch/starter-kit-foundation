@@ -250,6 +250,9 @@ make install local
 
 Add `<APP_DOMAIN>` to `/etc/hosts` if it isn't a `.localhost` domain: `127.0.0.1 <APP_DOMAIN>`.
 Admin credentials print at install time and are saved to `config/environment/.env.secret`.
+To log an agent in for browser testing, use the `qa-login` skill (`~/.claude/skills/qa-login/`) instead of reading that
+file: `node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/qa-login/qa-login.mjs" --url http://<APP_DOMAIN> --success-path /wp-admin`
+logs in with those credentials itself and saves a Playwright session; load it with `browser_set_storage_state`.
 
 ## CI/CD setup
 
