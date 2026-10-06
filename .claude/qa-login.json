@@ -1,4 +1,4 @@
 {
-  "url": "http://starter-kit.loc",
+  "url": "http://starter-kit.loc/wp-login.php",
   "successPath": "/wp-admin"
 }

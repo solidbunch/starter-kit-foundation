@@ -45,6 +45,8 @@ regenerated, see root `CLAUDE.md`):
 - `config/environment/.env.main`: `APP_NAME=<slug>`, `APP_TITLE="<title>"`
 - `config/environment/.env.type.local`: `APP_DOMAIN=<domain>` (repeat for `.env.type.dev`/
   `.env.type.stage`/`.env.type.prod` for any environment the user gave a domain for in Step 0)
+- `.claude/qa-login.json`: `url` → `http://<local APP_DOMAIN>/wp-login.php` (the same domain as
+  `.env.type.local`; the `qa-login` skill reads this file, see "Local installation" in Step 7's README)
 - `config/environment/.env.main`: `GITHUB_ORG`/`GITHUB_REPO` — run `git remote get-url origin`; if
   it resolves to a `github.com` remote, parse `<org>`/`<repo>` out of it and set both. If no origin
   is set (or it isn't a GitHub URL), leave these two untouched and flag it in Step 9's report — they
@@ -251,8 +253,10 @@ make install local
 Add `<APP_DOMAIN>` to `/etc/hosts` if it isn't a `.localhost` domain: `127.0.0.1 <APP_DOMAIN>`.
 Admin credentials print at install time and are saved to `config/environment/.env.secret`.
 To log an agent in for browser testing, use the `qa-login` skill (`~/.claude/skills/qa-login/`) instead of reading that
-file: `node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/qa-login/qa-login.mjs" --url http://<APP_DOMAIN> --success-path /wp-admin`
-logs in with those credentials itself and saves a Playwright session; load it with `browser_set_storage_state`.
+file: `node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/qa-login/qa-login.mjs"` reads the address and the landing path
+from `.claude/qa-login.json` (`--url`/`--success-path` would override it, so leave them out), logs in with those
+credentials itself and saves a Playwright session; load it with `browser_set_storage_state`, which exists only when
+Playwright MCP runs with `--caps=storage`.
 
 ## CI/CD setup
 
