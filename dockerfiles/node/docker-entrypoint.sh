@@ -5,10 +5,12 @@ set -e
 
 # Recreate node user
 # Fix Permission denied error
-# Deleting default node user (with group)
-deluser node
-# Deleting default user group
-delgroup www-data
+if getent passwd node >/dev/null 2>&1; then
+  # Deleting default node user (with group)
+  deluser node
+  # Deleting default user group
+  delgroup www-data
+fi
 # 82 is the standard uid/gid for "www-data" in Alpine
 # https://git.alpinelinux.org/aports/tree/main/apache2/apache2.pre-install?h=3.14-stable
 # https://git.alpinelinux.org/aports/tree/main/lighttpd/lighttpd.pre-install?h=3.14-stable
@@ -21,7 +23,9 @@ delgroup www-data
 # the colliding entry's own name — same pattern used by dockerfiles/php and dockerfiles/iac.
 
 # --- Group: guarantee a group NAMED ${DEFAULT_USER} resolves to ${CURRENT_GID} ---
-if [ -z "$(getent group "${CURRENT_GID}" || true)" ]; then
+if getent group "${DEFAULT_USER}" >/dev/null 2>&1; then
+  :
+elif [ -z "$(getent group "${CURRENT_GID}" || true)" ]; then
   addgroup -g "${CURRENT_GID}" "${DEFAULT_USER}"
 else
   echo "${DEFAULT_USER}:x:${CURRENT_GID}:" >> /etc/group
@@ -31,7 +35,7 @@ fi
 EXISTING_USER="$(getent passwd "${CURRENT_UID}" | cut -d: -f1 || true)"
 if [ -z "${EXISTING_USER}" ]; then
   adduser -u "${CURRENT_UID}" -D -G "${DEFAULT_USER}" "${DEFAULT_USER}"
-elif [ "${EXISTING_USER}" != "${DEFAULT_USER}" ]; then
+elif [ "${EXISTING_USER}" != "${DEFAULT_USER}" ] && ! getent passwd "${DEFAULT_USER}" >/dev/null 2>&1; then
   echo "${DEFAULT_USER}:x:${CURRENT_UID}:${CURRENT_GID}::/home/${DEFAULT_USER}:/bin/sh" >> /etc/passwd
 fi
 
