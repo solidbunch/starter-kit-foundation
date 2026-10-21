@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs the two conditional Composer steps shared by both pipelines:
 #   - dev-only theme switch to the dev-develop branch
-#   - IS_DEMO-gated forced update of monitoring-client/starter-kit-addon from dist
+#   - IS_DEMO-gated: install starter-kit-addon (demo-only, not a normal dependency — see its own
+#     CLAUDE.md) and force-update monitoring-client from dist
 #
 # Inputs:
 #   $1 = environment type (required)
@@ -19,7 +20,8 @@ if [ "$1" = "dev" ]; then
 fi
 
 if [ "$2" = "true" ]; then
-  echo "Detected demo mode — forcing Composer update from dist"
+  echo "Detected demo mode — installing starter-kit-addon and forcing Composer update from dist"
+  composer require solidbunch/starter-kit-addon --no-update
   composer update solidbunch/monitoring-client solidbunch/starter-kit-addon --no-interaction --with-all-dependencies
 else
   echo "Skipping composer update — not in demo mode"

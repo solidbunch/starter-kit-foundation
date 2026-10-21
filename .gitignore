@@ -138,5 +138,6 @@ tmp/**
 !.claude/output-styles/
 !.claude/workflows/
 !.claude/settings.json
+!.claude/qa-login.json
 .playwright-mcp/
 

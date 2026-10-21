@@ -109,16 +109,17 @@ parity — `sh ./sh/ci/composer-extras.sh "$ENVIRONMENT_TYPE" "$IS_DEMO"`, after
 installs — which runs `composer run switch-theme-dev` when `ENVIRONMENT_TYPE == dev` (switches the
 theme to its `dev-develop` Composer VCS branch — see `ci.md` and root `CLAUDE.md`'s "Intentional
 Quirks"; becomes a harmless no-op if a project has detached its theme from that Composer package,
-e.g. via `bootstrap-project`'s monorepo option), and the `IS_DEMO`-guarded dist update of a fixed
-set of demo-only packages (skipped unless the GitLab CI/CD variable `IS_DEMO` is `"true"`). See
-`ci.md`'s "Shared deploy scripts (`sh/ci/`)" for which packages and the full script inventory —
-this file does not repeat it.
+e.g. via `bootstrap-project`'s monorepo option), and the `IS_DEMO`-guarded dist update (skipped
+unless the GitLab CI/CD variable `IS_DEMO` is `"true"`) — for one demo-only package this step also
+adds a Composer `require` that isn't in the committed `composer.json` at all, so the demo build's
+manifest genuinely diverges from git. The package list and this detail are intentionally not
+duplicated here — read `sh/ci/composer-extras.sh` itself, it's short.
 
 **`artifacts: paths:` on `.build-composer` is an explicit whitelist, not a whole-directory
 carry-over — keep it in sync with what `composer install-*` actually produces.** GitHub Actions'
 `job-deploy.yml` sidesteps this entirely by caching the whole working directory (`actions/cache/save`,
 `path: .`), so anything Composer creates there — including `kit-modules/` (installer-path for
-`solidbunch/basis`/`monitoring-client`/`monitoring-server`, see `infrastructure.md`) — rides along
+`solidbunch/basis`/`monitoring-client`/`monitoring-server`/`proxy`, see `infrastructure.md`) — rides along
 automatically. GitLab's `artifacts:` has no equivalent here (deliberately not using
 `paths: ['.']`, which would also carry `.git`, caches, and other build noise into the deploy
 job) — the list must be maintained by hand: `vendor/`, `web/wp-core/`, `web/wp-content/plugins/`,
@@ -294,7 +295,8 @@ the environment's domain), so no server-side change is needed.
 - `COMPOSER_AUTH` (Variable, protected, scope `All`) — Composer auth JSON, needed to unlock
   licensed packages (see `infrastructure.md`).
 - `IS_DEMO` (Variable, optional, scope `All`) — demo/showcase mode — forces a `composer update` of
-  demo-only packages from `dist`; normal deployments leave this unset.
+  demo-only packages from `dist`, and for one of them adds a Composer `require` that isn't in the
+  committed manifest at all (see `sh/ci/composer-extras.sh`); normal deployments leave this unset.
 - `APP_MULTI_INSTANCE` (Variable, optional, default absent, per-environment) — `1` enables the
   multi-instance (Traefik) deploy; see `infrastructure.md`.
 
@@ -493,16 +495,16 @@ group.
 
 ### `spec:inputs` — the 7 pipeline inputs
 
-Declared in the root `.gitlab-ci.yml`'s `spec:` document (`.gitlab-ci.yml:1-31`), the only place
+Declared in the root `.gitlab-ci.yml`'s `spec:` document (`.gitlab-ci.yml:1-29`), the only place
 GitLab allows pipeline inputs to be declared — "Inputs for pipelines must be defined in the
 `spec:inputs` header of the main `.gitlab-ci.yml` file"
 (https://docs.gitlab.com/ci/inputs/#define-input-parameters-with-specinputs). The `spec:` block is
-its own YAML document, separated from the rest of the file by `---` (`.gitlab-ci.yml:1,31`).
+its own YAML document, separated from the rest of the file by `---` (`.gitlab-ci.yml:1,30`).
 
 | Input | Type | Default | Options / notes |
 |---|---|---|---|
 | `PIPELINE_KIND` | string | `deploy` | `options: [deploy, provision, bootstrap-state]` — see "`PIPELINE_KIND` gating" below |
-| `ENVIRONMENT_TYPE` | string | `dev` | `options: [dev, stage, prod]` — provisioning only; `stage` is rejected by both `validate-provision-inputs` and `provision`'s own guard (`.gitlab/ci/provision.gitlab-ci.yml:59-66,152-159`) since no `kit-modules/basis/terraform/envs/stage/` exists (`kit-modules/basis/CLAUDE.md`'s documented `stage` gap) |
+| `ENVIRONMENT_TYPE` | string | `dev` | `options: [dev, stage, prod]` — provisioning only; `stage` is rejected by both `validate-provision-inputs` and `provision`'s own guard (`.gitlab/ci/provision.gitlab-ci.yml:93-100,196-203`) — **not** because `kit-modules/basis/terraform/envs/stage/` is missing (it exists); the real gap is `ansible/inventory.yml` having no `stage` host wired up, so provisioning would create an EC2 instance Ansible can't then configure (`kit-modules/basis/CLAUDE.md`'s documented `stage` gap — read that file, not this line, for the authoritative description) |
 | `ACTION_TYPE` | string | `plan` | `options: [plan, apply, destroy]` |
 | `SKIP_ANSIBLE` | boolean | `false` | |
 | `PLAN_JOB_ID` | string | `''` | a GitLab **job** ID — see "`PLAN_JOB_ID` vs GitHub's `PLAN_RUN_ID`" below |

@@ -45,6 +45,8 @@ regenerated, see root `CLAUDE.md`):
 - `config/environment/.env.main`: `APP_NAME=<slug>`, `APP_TITLE="<title>"`
 - `config/environment/.env.type.local`: `APP_DOMAIN=<domain>` (repeat for `.env.type.dev`/
   `.env.type.stage`/`.env.type.prod` for any environment the user gave a domain for in Step 0)
+- `.claude/qa-login.json`: `url` → `http://<local APP_DOMAIN>/wp-login.php` (the same domain as
+  `.env.type.local`; the `qa-login` skill reads this file, see "Local installation" in Step 7's README)
 - `config/environment/.env.main`: `GITHUB_ORG`/`GITHUB_REPO` — run `git remote get-url origin`; if
   it resolves to a `github.com` remote, parse `<org>`/`<repo>` out of it and set both. If no origin
   is set (or it isn't a GitHub URL), leave these two untouched and flag it in Step 9's report — they
@@ -250,6 +252,11 @@ make install local
 
 Add `<APP_DOMAIN>` to `/etc/hosts` if it isn't a `.localhost` domain: `127.0.0.1 <APP_DOMAIN>`.
 Admin credentials print at install time and are saved to `config/environment/.env.secret`.
+To log an agent in for browser testing, use the `qa-login` skill (`~/.claude/skills/qa-login/`) instead of reading that
+file: `node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/qa-login/qa-login.mjs"` reads the address and the landing path
+from `.claude/qa-login.json` (`--url`/`--success-path` would override it, so leave them out), logs in with those
+credentials itself and saves a Playwright session; load it with `browser_set_storage_state`, which exists only when
+Playwright MCP runs with `--caps=storage`.
 
 ## CI/CD setup
 
@@ -401,6 +408,18 @@ new commit: Actions → *Deploy to Develop* → **Run workflow**.
 **8. Deploy to production**: never automatic. Actions → *Deploy to Production* → **Run workflow**
 is the only way anything reaches prod.
 
+**9. Dependabot**: `.github/dependabot.yml` opens PRs against `develop` for GitHub Actions
+(monthly) and root Composer dependencies (weekly) out of the box — this covers
+`wpackagist-plugin/*` and WordPress core. It's also pre-wired with a `registries:` entry for the
+licensed `kit-modules` (`solidbunch/basis`, `monitoring-client`, `monitoring-server`, `proxy`),
+but that entry only works once you add the credentials — **Settings → Secrets and variables →
+Dependabot** (a separate store from Actions), `DEPENDABOT_LICENSE_USERNAME` /
+`DEPENDABOT_LICENSE_PASSWORD`, once the project is licensed. Without them, those 4 modules just
+fail to update (logged under Insights → Dependency graph → Dependabot), everything else keeps
+working. The theme (`solidbunch/starter-kit-theme`) is explicitly `ignore:`-d — it's a `vcs`-type
+composer dependency on a branch alias, which Dependabot can't version-bump. See
+`.claude/rules/ci.md`'s "Dependabot" section for the full picture.
+
 Full reference: `.claude/rules/ci.md` (workflow internals) and `.claude/rules/infrastructure.md`
 (Terraform/Ansible/licensing) in this repo.
 
@@ -463,6 +482,12 @@ List every changed file with its full path. Separate clearly:
   Step 5 ran); the dev-deploy `switch-theme-dev` CI gap (if Step 6 ran monorepo mode — see its
   caveat) — anything this skill couldn't do without an external-system action or a destructive
   decision
+
+Also mention: `.github/dependabot.yml` ships enabled for GitHub Actions + root Composer, with a
+`registries:` entry already wired up for the licensed `kit-modules` — but it needs
+`DEPENDABOT_LICENSE_USERNAME`/`DEPENDABOT_LICENSE_PASSWORD` set under Settings → Secrets and
+variables → **Dependabot** (not Actions) once the project is licensed, or those 4 modules just
+won't update. See `.claude/rules/ci.md`'s "Dependabot" section.
 
 Also mention: the theme ships as FSE (Full Site Editing) by default. If the user wants classic
 PHP templates instead (Gutenberg blocks retained, only the page-assembly mechanism changes), point

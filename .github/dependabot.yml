@@ -1,7 +1,34 @@
 version: 2
+
+# The licensing.starter-kit.io credentials below are Dependabot-specific secrets — set them at
+# Settings > Secrets and variables > Dependabot, NOT Actions. They're a separate store even
+# though the ${{secrets.*}} syntax looks the same; Dependabot never sees repo/environment
+# Actions secrets (e.g. the COMPOSER_AUTH used by the deploy workflows).
+registries:
+  solidbunch-licensing:
+    type: composer-repository
+    url: https://licensing.starter-kit.io/wp-json/skl/v1/
+    username: ${{secrets.DEPENDABOT_LICENSE_USERNAME}}
+    password: ${{secrets.DEPENDABOT_LICENSE_PASSWORD}}
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     target-branch: "develop"
+
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "develop"
+    registries:
+      - solidbunch-licensing
+    ignore:
+      # VCS-type composer repository (git checkout, not a Packagist-style registry) on a
+      # dev-master branch alias — Dependabot's composer updater doesn't resolve this kind of
+      # dependency (dependabot-core#2545, #3628) and there's no version to bump anyway.
+      - dependency-name: "solidbunch/starter-kit-theme"
+      # Conflict-only marker package with no real releases (`dev-latest`); nothing to update.
+      - dependency-name: "roave/security-advisories"

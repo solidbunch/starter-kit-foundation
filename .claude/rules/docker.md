@@ -26,8 +26,8 @@ only for one-off inspection (`docker compose ps`, `docker compose logs -f <svc>`
 ## Images — `dockerfiles/<service>/`
 
 Eight images, each built from `dockerfiles/<service>/Dockerfile`, versioned in
-`config/environment/.env.main` as `APP_<SERVICE>_IMAGE` and published to
-`ghcr.io/solidbunch/starter-kit-<service>`:
+`config/environment/.env.main` as `APP_<SERVICE>_IMAGE` (mariadb is the one exception —
+its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/starter-kit-<service>`:
 
 | Service | Base | Notes |
 |---|---|---|
@@ -37,7 +37,7 @@ Eight images, each built from `dockerfiles/<service>/Dockerfile`, versioned in
 | `cron` | `alpine:3.24` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
 | `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.10 binary, git/svn/hg/unzip tooling |
 | `node` | `node:18-alpine3.21` | theme asset builds — 3.21 is the newest Alpine variant upstream ever published for Node 18 (Node 18 itself reached EOL 2025-04-30; a major-version bump is a separate, larger task) |
-| `certbot` | `alpine:3.24` | + `certbot`, `openssl`, `libpsl-utils` (`psl` CLI, apex/subdomain detection for `sh/system/certbot.sh` — see that script and `kit-modules/basis/CLAUDE.md`'s DNS-provider notes for the rule) — current tag `2.11-alpine3.24-r1` |
+| `certbot` | `alpine:3.24` | + `certbot`, `openssl`, `libpsl-utils` (`psl` CLI, apex/subdomain detection for `sh/system/certbot.sh` — see that script and `kit-modules/basis/CLAUDE.md`'s DNS-provider notes for the rule) — current tag `2.11-alpine3.24-r2` |
 | `iac` | `debian:12-slim` | Terraform, Terragrunt, Ansible, AWS CLI, gcloud, pinned versions via build ARGs, + `psl` (Debian package providing the same `psl` CLI as `certbot`'s `libpsl-utils`, used by `kit-modules/basis/sh/dns.sh`) — current tag `1.1.2` (this service pins its own version scheme, not an alpine/upstream tag) |
 
 All images share the same **entrypoint pattern**: a `docker-entrypoint.sh` that runs numbered
@@ -82,7 +82,7 @@ Tag convention: `php`/`nginx`/`mariadb` tags are `<upstream-version>-alpine<vers
 content-only change (Dockerfile/entrypoint edit, no base bump), append a revision suffix:
 `8.4-fpm-alpine3.22-r1`, then `-r2`, etc. — bump the trailing `-rN` on every subsequent
 content-only change, reset it (drop the suffix) whenever the base version changes. `cron` follows
-an adjacent scheme: its own independent version ahead of the alpine tag (`1.5-alpine3.20`), bumped
+an adjacent scheme: its own independent version ahead of the alpine tag (`1.5-alpine3.24`), bumped
 whenever cron's own scripts change. Match whichever scheme the service already uses; don't invent
 a new one for a single service without discussing it first.
 

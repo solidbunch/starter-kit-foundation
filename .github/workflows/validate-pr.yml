@@ -1,0 +1,40 @@
+name: Validate PR
+
+# Runs on every PR that touches composer.json/composer.lock, including Dependabot's — deliberately
+# secret-free (default read-only GITHUB_TOKEN, no COMPOSER_AUTH) so it behaves identically for a
+# human PR, a Dependabot PR (which can't see repo/environment Actions secrets — only its own
+# separate "Dependabot secrets" store, see .claude/rules/ci.md's "Dependabot" section), or a fork
+# PR. `composer validate` only checks composer.json's schema and that composer.lock is in sync
+# with it (content-hash comparison) — it doesn't need to resolve or download any package, so the
+# private licensing.starter-kit.io repository and the VCS-sourced theme are never touched here.
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+    paths:
+      - "composer.json"
+      - "composer.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  composer-validate:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Prepare .env
+        run: |
+          bash ./sh/env/secret-gen.sh
+          bash ./sh/env/init.sh
+
+      - name: composer validate
+        run: |
+          export CURRENT_UID=$(id -u)
+          export CURRENT_GID=$(id -g)
+          source .env
+          docker compose -f docker-compose.toolkit.yml run --rm -T composer su -c "composer validate --no-check-publish --no-interaction" "${DEFAULT_USER}"

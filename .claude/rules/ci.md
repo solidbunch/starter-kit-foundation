@@ -22,9 +22,12 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
 - `job-deploy.yml` (`workflow_call`) — build phase runs on `ubuntu-24.04`, prepares `.env` via
   `sh/env/secret-gen.sh` + `sh/env/init.sh` (this part stays inline, see "Shared deploy scripts"
   below), then runs `sh/ci/composer-extras.sh` inside the toolkit `composer` container — it
-  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and force-updates a
-  fixed set of demo-only packages from `dist` (see "Shared deploy scripts" below for which ones)
-  only when the `IS_DEMO` repo variable is `true` — then
+  switches the theme to `dev-develop` only when `ENVIRONMENT_TYPE == dev`, and — only when the
+  `IS_DEMO` repo variable is `true` — force-updates a fixed set of demo-only packages from `dist`,
+  **and for one of them adds a Composer requirement that isn't in the committed `composer.json`
+  at all** (a real `composer require --no-update` runs during the build, not just an update of an
+  already-required package — see "Shared deploy scripts" below; this deliberately makes the
+  demo build's `composer.json`/`composer.lock` diverge from what's checked into git) — then
   `sh/system/install.sh yes` (composer + npm), then `sh/ci/scrub-secrets.sh` removes the generated
   `.env`/`.env.runtime`/`.env.secret` before the whole workspace is cached (`Save Built job`).
   Deploy phase runs on `ubuntu-22.04`, pinned to the run's GitHub Environment
@@ -62,8 +65,9 @@ not repeated there.
   then runs the `ssh mkdir` + `rsync` + remote `make` chain against the target server. Called by
   GitHub's `Deploy via SSH` step and GitLab's `.deploy` `script:`.
 - **`sh/ci/composer-extras.sh`** — executed as `sh ./sh/ci/composer-extras.sh '<env>' '<is_demo>'`.
-  The theme-switch-to-`dev-develop` + demo-mode dist update of a fixed set of packages (see the
-  script itself for the current list), both gated by its two positional args. Called from inside
+  The theme-switch-to-`dev-develop` + demo-mode dist update, both gated by its two positional
+  args. The list of packages this force-updates (and, for one of them, newly `require`s) is
+  intentionally not duplicated here — read the script itself, it's short. Called from inside
   the toolkit `composer` container on GitHub (via `su -c`, hence positional args rather than an
   env var — `su`'s environment preservation isn't reliable) and natively from GitLab's
   `.build-composer`.
@@ -139,9 +143,14 @@ section. It is not a line-for-line port; three deliberate structural deltas:
   `PLAN_RUN_ID`" section for the full reasoning.
 
 - `job-provision.yml` — **manual only** (`workflow_dispatch`), inputs: `ENVIRONMENT_TYPE`
-  (dev/stage/prod), `ACTION_TYPE` (plan/apply/destroy), `SKIP_ANSIBLE` (bool). Auths to AWS via
-  **GitHub OIDC** (`aws-actions/configure-aws-credentials`, `permissions: id-token: write`) — no
-  static AWS keys in secrets.
+  (dev/stage/prod), `ACTION_TYPE` (plan/apply/destroy), `SKIP_ANSIBLE` (bool). `stage` is listed as
+  an option but rejected fail-fast at runtime — a Terraform env exists
+  (`kit-modules/basis/terraform/envs/stage`) but `ansible/inventory.yml` has no `stage` host wired
+  up, same gap and same guard shape as the GitLab pipeline (see `gitlab-ci.md`'s `ENVIRONMENT_TYPE`
+  row and `kit-modules/basis/CLAUDE.md`'s documented `stage` gap for the authoritative
+  description). Auths to AWS via **GitHub OIDC**
+  (`aws-actions/configure-aws-credentials`, `permissions: id-token: write`) — no static AWS keys
+  in secrets.
 - **Four jobs, not one.** `provision` (Terraform `shared`→`<env>`), `ansible` and `dns` (both
   `needs: provision`, both gated on `needs.provision.outputs.has_basis == 'true' &&
   inputs.ACTION_TYPE == 'apply'` — `ansible` additionally on `SKIP_ANSIBLE == 'false'`), and
@@ -300,14 +309,36 @@ Secrets (**Settings → Secrets and variables → Actions → Secrets**):
 | `CLOUDFLARE_API_TOKEN` | no | provision only, required when `DNS_PROVIDER=cloudflare` — needs both `Zone:DNS:Edit` and `Zone:Zone:Read` (Zone Resources: "All zones") for the token to pass zone discovery *and* write the record; `Zone:DNS:Edit` alone is only sufficient when `CLOUDFLARE_ZONE_ID` is also set (skips discovery). Can be repo- or environment-scoped — all three jobs that read it (`provision`, `ansible`, `dns`) carry `environment:` |
 | `GITHUB_TOKEN` | — | auto-provided, nothing to configure |
 
+Dependabot secrets are a **separate store** from the above — see `## Dependabot` below.
+
 Variables (**Variables** tab, or per environment):
 
 | Variable | Level | Required | Meaning |
 |---|---|---|---|
-| `AWS_ROLE_TO_ASSUME` | environment | for provisioning | Everyday provisioning role's ARN, assumed via OIDC. Same shared role's ARN is stored per environment (`dev`/`stage`/`prod`) rather than at repo level — see `infrastructure.md` / `kit-modules/basis/CLAUDE.md` for why the role itself is deliberately not split per environment |
+| `AWS_ROLE_TO_ASSUME` | repo by default; environment only to override | for provisioning | Everyday provisioning role's ARN, assumed via OIDC. Same role is shared across `dev`/`stage`/`prod` *by default* — see below |
 | `AWS_BOOTSTRAP_ROLE_TO_ASSUME` | repo | for the *Bootstrap Terraform State Backend* workflow only | State-backend bootstrap role's ARN, assumed via OIDC. Deliberately a different, narrower role from `AWS_ROLE_TO_ASSUME` — it can create the S3 bucket the everyday role cannot |
 | `IS_DEMO` | repo | no | demo/showcase mode, see below |
 | `APP_MULTI_INSTANCE` | **environment** | no | `1` enables the multi-instance (Traefik) deploy on that environment's server; see `infrastructure.md`. Repo-level would apply it to prod too |
+
+**`AWS_ROLE_TO_ASSUME` placement — default vs override.** The role itself is deliberately not
+split per environment (see `infrastructure.md` / `kit-modules/basis/CLAUDE.md` for why) — but
+where its ARN *variable* lives is a separate, purely operational question, driven by whether
+`dev`/`stage`/`prod` share one AWS account:
+
+- **Default — one shared AWS account** (the common case): set `AWS_ROLE_TO_ASSUME` once, as a
+  **repo-level** Variable. Every environment-pinned job (`job-provision.yml`'s
+  `environment: ${{ inputs.ENVIRONMENT_TYPE }}`) reads `vars.AWS_ROLE_TO_ASSUME` and resolves it
+  from the repo level when no environment-level override exists — GitHub's variable precedence is
+  environment > repository > organization, and this project relies on the fallback rather than
+  duplicating the identical value into all three Environments.
+- **Override — a separate AWS account for one environment** (e.g. prod isolated from
+  dev/stage): that environment's role lives under a *different* AWS account ID, so its ARN
+  literally differs. Set `AWS_ROLE_TO_ASSUME` as an **environment-level** Variable on that
+  environment only — it overrides the repo-level value for jobs pinned to that environment,
+  leaving the others on the shared repo-level value.
+
+`sh/aws/oidc.sh -m gen` prints both cases at STEP 1d, since it can't know which one applies —
+it doesn't inspect GitHub/GitLab settings.
 
 There is **no deploy-target variable** in this table — no `SSH_HOST_ALIAS`, no
 `DEPLOY_PATH_DESTINATION`, on either the repo or environment level. The deploy target is derived
@@ -366,6 +397,53 @@ A GitHub Actions **repository variable**, not a secret. When `true`, both pipeli
 job before installing — used for the public demo/showcase deployment so it always runs the
 latest licensed module code. Normal client deployments leave this unset/`false` and rely on
 `composer.lock`.
+
+## Dependabot (`.github/dependabot.yml`)
+
+Two ecosystems, both targeting `develop`: `github-actions` (monthly) and `composer` (weekly,
+`directory: "/"`).
+
+The deploy/provision pipelines themselves don't run on `pull_request` — both trigger on
+`push`/`workflow_dispatch` only (see `## Deploy pipeline` above) — but
+`.github/workflows/validate-pr.yml` does: `pull_request` against `develop`/`main`, filtered to
+`composer.json`/`composer.lock` changes, running `composer validate` (schema + lock-in-sync check,
+no `--strict` — the project intentionally pins `wpackagist-plugin/cloudflare` to an exact version,
+which `--strict` would flag as an error). It's deliberately secret-free (default read-only
+`GITHUB_TOKEN`, no `COMPOSER_AUTH`) so it behaves the same for a human PR or a Dependabot PR —
+Dependabot can't see repo/environment Actions secrets anyway (see below). This only validates
+`composer.json`'s own consistency, not that the licensed modules actually resolve — it doesn't
+touch `licensing.starter-kit.io` or need a license to pass. Beyond that one check, a bad bump
+still only surfaces after merging into `develop` triggers the dev deploy — review the diff
+yourself before merging any Dependabot PR.
+
+The composer update is configured for the licensed `kit-modules` and ignores what Dependabot
+can't usefully touch:
+
+- **`registries: [solidbunch-licensing]`** — a `composer-repository` entry (`http-basic`) against
+  `https://licensing.starter-kit.io/wp-json/skl/v1/`, the same private repository `COMPOSER_AUTH`
+  unlocks for `composer install` (see `infrastructure.md`). Dependabot reads its own credentials
+  from a **separate secret store** — **Settings → Secrets and variables → Dependabot**, not
+  Actions — via `DEPENDABOT_LICENSE_USERNAME` / `DEPENDABOT_LICENSE_PASSWORD`. Set those once a
+  project is licensed (also documented in the docs repo's `ci-cd-deployments.md`, next to
+  `COMPOSER_AUTH`).
+  - Without those two secrets set, Dependabot's update job for `solidbunch/basis`,
+    `monitoring-client`, `monitoring-server`, `proxy` fails per-dependency with
+    `private_source_authentication_failure` (visible under **Insights → Dependency graph →
+    Dependabot → Recent update jobs**) — it does **not** silently open a PR that downgrades a
+    real resolved package to the unlicensed `metapackage` stub. Per `dependabot-core`'s
+    `error_handler.rb`, that error type isn't in `RUN_HALTING_ERRORS`, so it's isolated to those
+    4 dependencies and doesn't block updates for the rest of `composer.json`
+    (`wpackagist-plugin/*`, `solidbunch/wordpress-core-no-content`, …).
+  - The public, unauthenticated `packages.json` on that host still lists version numbers for
+    every module (verified: it 200s with no auth, just returns each version as an empty
+    `metapackage` stub) — so version *visibility* was never the gap; only resolving the real
+    `dist` requires the registry credentials.
+- **`ignore: solidbunch/starter-kit-theme`** — a `vcs`-type composer repository (direct git
+  checkout on the `dev-master` branch alias, not a tagged version). Long-standing unsupported case
+  in `dependabot-core` (private VCS composer dependencies aren't resolved reliably —
+  dependabot-core#2545, #3628), and there's no real version to bump anyway.
+- **`ignore: roave/security-advisories`** — `dev-latest` conflict-only marker package with no real
+  releases; excluded to avoid noise/failed runs.
 
 ## Local emulation
 
