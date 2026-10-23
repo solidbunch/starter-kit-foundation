@@ -32,7 +32,7 @@ its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/start
 | Service | Base | Notes |
 |---|---|---|
 | `mariadb` | `mariadb:11.5.2-noble` | + `pv` for dump progress |
-| `php` | `php:8.4.27-fpm-alpine3.24` | + WP-CLI 2.12.0| + WP-CLI (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
+| `php` | `php:8.4.27-fpm-alpine3.24` | + WP-CLI 2.12.0 (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
 | `nginx` | `nginx:1.29.8-alpine3.23` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — 3.23 is the newest Alpine variant published for nginx 1.29 |
 | `cron` | `alpine:3.24.3` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
 | `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.10.3 binary, git/svn/hg/unzip tooling |
