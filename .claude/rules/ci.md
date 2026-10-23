@@ -98,7 +98,7 @@ directory) — see "Provisioning pipeline" and "State backend" below for the cal
   `provision`/`bootstrap-state` jobs both call it the same way.
 
 All eight are `#!/bin/sh`, POSIX-only (no `bash`isms, no `echo -e`) — the GitLab deploy job runs in
-bare `alpine:3.20`, which has no bash and never installs one, so every script that could run there
+bare `alpine:3.24.3`, which has no bash and never installs one, so every script that could run there
 has to work under busybox `ash`. GitHub's runner `/bin/sh` (dash) is POSIX too, so the same scripts
 work unmodified on both platforms.
 

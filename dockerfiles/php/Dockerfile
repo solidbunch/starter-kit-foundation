@@ -1,4 +1,4 @@
-FROM php:8.4-fpm-alpine3.24
+FROM php:8.4.27-fpm-alpine3.24
 
 ENV XDEBUG_VERSION=3.4.7
 ENV IMAGICK_VERSION=3.8.1
@@ -7,7 +7,7 @@ ENV IMAGICK_VERSION=3.8.1
 #         Adding WP-CLI          #
 ##################################
 # https://hub.docker.com/_/wordpress
-COPY --from=wordpress:cli-2.12-php8.4 /usr/local/bin/wp /usr/local/bin/wp
+COPY --from=wordpress:cli-2.12.0-php8.4 /usr/local/bin/wp /usr/local/bin/wp
 
 ##################################
 #     Persistent dependencies    #

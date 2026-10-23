@@ -68,7 +68,7 @@
   stage: deploy
   rules:
     - if: '$PIPELINE_KIND == "deploy"'
-  image: alpine:3.20
+  image: alpine:3.24.3
   resource_group: $ENVIRONMENT_TYPE
   needs:
     - build-composer

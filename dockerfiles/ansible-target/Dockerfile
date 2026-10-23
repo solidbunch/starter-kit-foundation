@@ -18,7 +18,7 @@
 ##   build-time COPY would force a rebuild every time) and matches this repo's existing
 ##   docker-entrypoint.sh convention (see .claude/rules/docker.md).
 
-FROM debian:12
+FROM debian:12.15
 
 ARG DEBIAN_FRONTEND=noninteractive
 
