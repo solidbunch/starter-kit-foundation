@@ -78,7 +78,7 @@
 
 validate-provision-inputs:
   stage: validate
-  image: alpine:3.20
+  image: alpine:3.24.3
   rules:
     - if: '$PIPELINE_KIND == "provision"'
   variables:

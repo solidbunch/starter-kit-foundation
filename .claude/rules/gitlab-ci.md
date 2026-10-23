@@ -74,7 +74,7 @@ build-composer  (image: $APP_COMPOSER_IMAGE, entrypoint:[""])
 build-node      (image: $APP_NODE_IMAGE,     entrypoint:[""])
       │
       ▼  artifacts
-deploy-dev / deploy-prod  (image: alpine:3.20 + rsync/openssh)  needs:[build-composer, build-node]
+deploy-dev / deploy-prod  (image: alpine:3.24.3 + rsync/openssh)  needs:[build-composer, build-node]
 ```
 
 Each build job runs **natively inside the toolkit image itself** (set as the job's `image:`)
@@ -226,7 +226,7 @@ hard requirement to edit in place.
 
 ## Deploy job image
 
-`alpine:3.20` + `apk add --no-cache openssh-client rsync` in `before_script` — no toolkit image
+`alpine:3.24.3` + `apk add --no-cache openssh-client rsync` in `before_script` — no toolkit image
 bundles both cleanly, and the deploy job only needs `rsync`/`ssh`, not the full source tree logic
 (the heavy `make` work runs on the remote server). `git` is intentionally **not** installed —
 GitLab's Docker executor performs the clone and artifact extraction in its helper image, not the

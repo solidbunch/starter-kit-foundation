@@ -6,7 +6,7 @@ FROM ${APP_PHP_IMAGE}
 #    Installing PHP Composer     #
 ##################################
 # https://hub.docker.com/_/composer
-COPY --from=composer:2.10 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.3 /usr/bin/composer /usr/bin/composer
 
 ##################################
 #      Composer dependencies     #

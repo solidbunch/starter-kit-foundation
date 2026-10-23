@@ -10,11 +10,23 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Off by default. See database-management.md "Upgrading MariaDB major version".
+      MARIADB_AUTO_UPGRADE: ${MARIADB_AUTO_UPGRADE:-}
     # Official MariaDB image healthcheck script. Credentials come from the dedicated healthcheck
     # user the image entrypoint provisions in $datadir/.my-healthcheck.cnf — nothing to configure
     # here, and no password on the command line.
+    #
+    # Extra check on top: fails if the server's version doesn't match mariadb_upgrade_info, so a
+    # skipped major-version upgrade shows as unhealthy instead of silently staying healthy.
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test:
+        [
+          "CMD-SHELL",
+          "healthcheck.sh --connect --innodb_initialized && \
+           CUR=$$(mariadbd --version | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' | head -1) && \
+           OLD=$$(grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' /var/lib/mysql/mariadb_upgrade_info 2>/dev/null || echo \"$$CUR\") && \
+           [ \"$$CUR\" = \"$$OLD\" ]",
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
