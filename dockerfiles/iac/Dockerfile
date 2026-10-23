@@ -8,10 +8,10 @@
 ##   Integrity is checked against the publishers' SHA256SUMS instead of a `--version` smoke test.
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG IMAGE_VERSION=1.1.3
-ARG TF_VERSION=1.13.5
-ARG TG_VERSION=0.87.7
-ARG AWSCLI_VERSION=2.23.15
+ARG IMAGE_VERSION=1.1.4
+ARG TF_VERSION=1.17.0
+ARG TG_VERSION=1.2.0
+ARG AWSCLI_VERSION=2.38.5
 ARG ANSIBLE_PIP_VERSION=12.3.0
 
 # Fetch stage — always runs on the builder's own architecture, no emulation.

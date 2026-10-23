@@ -31,14 +31,14 @@ its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/start
 
 | Service | Base | Notes |
 |---|---|---|
-| `mariadb` | `mariadb:11.5.2-noble` | + `pv` for dump progress |
+| `mariadb` | `mariadb:11.8.9-noble` | + `pv` for dump progress — 11.8 is the current LTS |
 | `php` | `php:8.4.27-fpm-alpine3.24` | + WP-CLI 2.12.0 (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
 | `nginx` | `nginx:1.29.8-alpine3.23` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — 3.23 is the newest Alpine variant published for nginx 1.29 |
 | `cron` | `alpine:3.24.3` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
 | `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.10.3 binary, git/svn/hg/unzip tooling |
 | `node` | `node:18.20.8-alpine3.21` | theme asset builds — 3.21 is the newest Alpine variant upstream ever published for Node 18 (Node 18 itself reached EOL 2025-04-30; a major-version bump is a separate, larger task) |
 | `certbot` | `alpine:3.24.3` | + `certbot`, `openssl`, `libpsl-utils` (`psl` CLI, apex/subdomain detection for `sh/system/certbot.sh` — see that script and `kit-modules/basis/CLAUDE.md`'s DNS-provider notes for the rule) — current tag `5.6.0-alpine3.24.3` (certbot version from apk — update the tag when it changes) |
-| `iac` | `debian:12.15-slim` | Terraform, Terragrunt, Ansible, AWS CLI, gcloud, pinned versions via build ARGs, + `psl` (Debian package providing the same `psl` CLI as `certbot`'s `libpsl-utils`, used by `kit-modules/basis/sh/dns.sh`) — current tag `1.1.3` (this service pins its own version scheme, not an alpine/upstream tag) |
+| `iac` | `debian:12.15-slim` | Terraform 1.17.0, Terragrunt 1.2.0, Ansible 12.3.0, AWS CLI 2.38.5, gcloud, pinned versions via build ARGs, + `psl` (Debian package providing the same `psl` CLI as `certbot`'s `libpsl-utils`, used by `kit-modules/basis/sh/dns.sh`) — current tag `1.1.4` (this service pins its own version scheme, not an alpine/upstream tag) |
 
 All images share the same **entrypoint pattern**: a `docker-entrypoint.sh` that runs numbered
 scripts from `docker-entrypoint.d/*.sh` (alphabetical) before `exec`-ing the real command — e.g.
