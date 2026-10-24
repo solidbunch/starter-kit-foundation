@@ -20,6 +20,9 @@ RUN set -eux; \
       ghostscript \
 # Alpine package for "imagemagick" contains ~120 .so files, see: https://github.com/docker-library/wordpress/pull/497
       imagemagick \
+# Alpine packages ImageMagick's coders separately; without this Imagick reports no AVIF
+# support and WordPress silently falls back to GD, which discards ICC profiles
+      imagemagick-heic \
 # Envsubst for operate with env variables in config files
       gettext \
 # Install wp-cli dependencies
