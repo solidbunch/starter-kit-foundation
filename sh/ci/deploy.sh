@@ -63,7 +63,7 @@ ssh "$APP_DOMAIN" "
   make APP_MULTI_INSTANCE='$APP_MULTI_INSTANCE' proxy deploy '$ENVIRONMENT_TYPE';
   bash ./sh/env/init.sh '$ENVIRONMENT_TYPE';
   make ssl;
-  make recreate '$ENVIRONMENT_TYPE';
+  make recreate '$ENVIRONMENT_TYPE' || { echo '--- recreate failed, container status and last log lines:'; docker compose ps -a; docker compose logs --tail 20; exit 1; };
   make monitoring off;
   make monitoring on;
   bash ./sh/database/check.sh;

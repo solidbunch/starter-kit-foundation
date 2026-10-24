@@ -31,7 +31,7 @@ its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/start
 
 | Service | Base | Notes |
 |---|---|---|
-| `mariadb` | `mariadb:11.8.9-noble` | + `pv` for dump progress — 11.8 is the current LTS |
+| `mariadb` | `mariadb:11.8.9-noble` | + `pv` for dump progress, + entrypoint wrapper with a version guard (see below) — 11.8 is the current LTS |
 | `php` | `php:8.4.27-fpm-alpine3.24` | + WP-CLI 2.12.0 (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
 | `nginx` | `nginx:1.29.8-alpine3.23` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — 3.23 is the newest Alpine variant published for nginx 1.29 |
 | `cron` | `alpine:3.24.3` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
@@ -46,6 +46,22 @@ PHP's entrypoint remaps `www-data` to `CURRENT_UID`/`CURRENT_GID` so bind-mounte
 ownership; Composer's `30-composer-config.sh` wires up `COMPOSER_AUTH`. Add a new provisioning
 step by dropping a new numbered script into the relevant `docker-entrypoint.d/`, not by editing
 the shared `docker-entrypoint.sh`.
+
+### MariaDB version guard (`dockerfiles/mariadb/docker-entrypoint.d/10-version-guard.sh`)
+
+`mariadb`'s wrapper entrypoint runs the numbered scripts, then `exec`s the official image's
+`docker-entrypoint.sh`. Its first script refuses to start the server when the image's MariaDB
+version (`mariadbd --version`) differs from the one in `db-data/mariadb_upgrade_info` — the
+official entrypoint would only log "upgrade required, skipped" and start the new version on old
+data. The comparison is the full `x.y.z`, so a patch bump (`11.8.9` → `11.8.10`) stops too. A
+refusal exits 1 with an `[version-guard] ERROR` block in the container log (`make log mariadb`;
+`sh/ci/deploy.sh` also prints the last lines when `make recreate` fails) and, with
+`restart: unless-stopped`, the container restarts in a loop until resolved.
+
+To upgrade deliberately: back up `db-data` (`make export` + a copy of the directory — downgrading
+is not supported), start once with `MARIADB_AUTO_UPGRADE=1` (`config/environment/.env.secret`),
+confirm healthy, then remove the variable. Empty and `0` mean off, same as the official image. A
+fresh (empty) `db-data` is never blocked.
 
 ## Building/publishing images (`make docker`, `sh/system/docker.sh`)
 
