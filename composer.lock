@@ -994,12 +994,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/solidbunch/starter-kit-theme.git",
-                "reference": "15adf1d16321626d51747f889e864341024c4a6e"
+                "reference": "085e0c07ae7bfa1e951cb73307b1cec3d6df0d0a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/solidbunch/starter-kit-theme/zipball/15adf1d16321626d51747f889e864341024c4a6e",
-                "reference": "15adf1d16321626d51747f889e864341024c4a6e",
+                "url": "https://api.github.com/repos/solidbunch/starter-kit-theme/zipball/085e0c07ae7bfa1e951cb73307b1cec3d6df0d0a",
+                "reference": "085e0c07ae7bfa1e951cb73307b1cec3d6df0d0a",
                 "shasum": ""
             },
             "require": {
@@ -1099,7 +1099,7 @@
             "support": {
                 "issues": "https://github.com/solidbunch/starter-kit-theme/issues"
             },
-            "time": "2026-08-15T15:44:48+00:00"
+            "time": "2026-10-24T17:21:36+00:00"
         },
         {
             "name": "solidbunch/wordpress-core-no-content",
@@ -1337,12 +1337,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Roave/SecurityAdvisories.git",
-                "reference": "02ec6ff16e002cc53135c7b1549df9625019f6ff"
+                "reference": "e8f028bf983890e7ac18437f9b6f481e82233c4d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/02ec6ff16e002cc53135c7b1549df9625019f6ff",
-                "reference": "02ec6ff16e002cc53135c7b1549df9625019f6ff",
+                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/e8f028bf983890e7ac18437f9b6f481e82233c4d",
+                "reference": "e8f028bf983890e7ac18437f9b6f481e82233c4d",
                 "shasum": ""
             },
             "conflict": {
@@ -1841,7 +1841,7 @@
                 "litesaml/lightsaml": ">=6,<6.0.1",
                 "livehelperchat/livehelperchat": "<=3.91",
                 "livewire-filemanager/filemanager": "<=1.0.4",
-                "livewire/livewire": "<2.12.7|>=3.0.0.0-beta1,<=3.8.2|>=4.0.0.0-beta1,<=4.3.3",
+                "livewire/livewire": "<2.12.7|>=3.0.0.0-beta1,<=3.8.2|>=4.0.0.0-beta1,<4.4.8",
                 "livewire/volt": "<1.7",
                 "lms/routes": "<2.1.1",
                 "localizationteam/l10nmgr": "<7.4|>=8,<8.7|>=9,<9.2",
@@ -2497,7 +2497,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-10-21T18:24:49+00:00"
+            "time": "2026-10-23T21:03:08+00:00"
         },
         {
             "name": "wpackagist-plugin/query-monitor",
