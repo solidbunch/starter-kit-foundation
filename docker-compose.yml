@@ -10,17 +10,12 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      # Off by default. See https://github.com/solidbunch/starter-kit-docs/blob/main/database-management.md ("Upgrading MariaDB major version").
-      # While empty, the image's version guard (dockerfiles/mariadb/docker-entrypoint.d/10-version-guard.sh)
-      # refuses to start the server if the image version differs from the one that last upgraded
-      # the data directory (reason goes to the container log).
+      # Off by default. Set to 1 for ONE start to upgrade MariaDB, see
+      # https://github.com/solidbunch/starter-kit-docs/blob/main/database-management.md
       MARIADB_AUTO_UPGRADE: ${MARIADB_AUTO_UPGRADE:-}
     # Official MariaDB image healthcheck script. Credentials come from the dedicated healthcheck
     # user the image entrypoint provisions in $datadir/.my-healthcheck.cnf — nothing to configure
     # here, and no password on the command line.
-    #
-    # A version mismatch between the image and the data directory never reaches this check: the
-    # image's version guard (see MARIADB_AUTO_UPGRADE above) refuses to start the server at all.
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 30s
