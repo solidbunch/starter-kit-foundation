@@ -51,8 +51,10 @@ the shared `docker-entrypoint.sh`.
 
 `mariadb`'s wrapper entrypoint runs the numbered scripts, then `exec`s the official image's
 `docker-entrypoint.sh`. The first script exits 1 — the server does not start — when
-`mariadbd --version` (`x.y.z`) differs from `db-data/mariadb_upgrade_info`, unless
-`MARIADB_AUTO_UPGRADE` is set (empty and `0` mean off). The reason is in the container log; with
+`mariadbd --version` and `db-data/mariadb_upgrade_info` differ in release series (`major.minor`,
+the same comparison the official entrypoint uses), unless `MARIADB_AUTO_UPGRADE` is set (empty and
+`0` mean off). Patch bumps within a series start normally: they need no `mariadb-upgrade`, which
+is the only writer of that file, so an `x.y.z` comparison would block every start after one. The reason is in the container log; with
 `restart: unless-stopped` the container loops, and `sh/ci/deploy.sh` prints container status and
 logs when `make recreate` fails. The guard is part of the image, so a host gets it only from an
 image published under a new tag (compose does not re-pull an existing tag; see the tag rule

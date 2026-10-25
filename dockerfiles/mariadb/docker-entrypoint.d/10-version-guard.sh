@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-# Refuse to start the server when the data directory was last upgraded by a different server
-# version, so a changed image tag never runs a new version on old data silently.
+# Refuse to start the server when the data directory was last upgraded by a different release
+# series (major.minor), so a changed image tag never runs a new series on old data silently.
+# Patch bumps within a series need no mariadb-upgrade and only the official entrypoint's
+# mariadb-upgrade rewrites mariadb_upgrade_info, so comparing x.y.z would block every start after
+# a patch bump; the official entrypoint compares major.minor too.
 # The upgrade is an explicit opt-in: MARIADB_AUTO_UPGRADE=1 (the official entrypoint backs up first).
 
 set -Eeuo pipefail
@@ -19,12 +22,14 @@ fi
 
 CUR=$(mariadbd --version | grep -oE "$VERSION_RE" | head -1)
 OLD=$(grep -oE "$VERSION_RE" "$DATADIR/mariadb_upgrade_info" 2>/dev/null | head -1 || true)
+CUR_SERIES=${CUR%.*}
+OLD_SERIES=${OLD%.*}
 
-if [ -z "$OLD" ] || [ "$CUR" != "$OLD" ]; then
+if [ -z "$OLD" ] || [ "$CUR_SERIES" != "$OLD_SERIES" ]; then
     echo "[version-guard] ERROR: MariaDB server NOT started." >&2
     echo "[version-guard]   image version:    $CUR" >&2
     echo "[version-guard]   data directory:   ${OLD:-unknown (mariadb_upgrade_info missing)}" >&2
-    echo "[version-guard] The data was written by another version. Back up db-data, then start once" >&2
+    echo "[version-guard] The data was written by another release series. Back up db-data, then start once" >&2
     echo "[version-guard] with MARIADB_AUTO_UPGRADE=1, or switch the image back to the old version." >&2
     exit 1
 fi
