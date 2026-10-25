@@ -42,9 +42,10 @@ Never edit deploy/provision logic ad hoc without checking both the trigger and t
   variants, `config/ssl/`, uploads/languages/cache — see the `--exclude` list before changing what
   ships), then over SSH on the target: `make secret`, `make APP_MULTI_INSTANCE=<var> proxy deploy
   '<env>'` (Stage C hook — writes the instance's Traefik/nginx wiring before `sh/env/init.sh`
-  regenerates `.env`), `sh/env/init.sh`, `make ssl`, `make recreate`, `make monitoring off` →
-  `make monitoring on`, DB health check, `make core-install`. See "Shared deploy scripts
-  (`sh/ci/`)" below for the full script inventory and the constraints that shaped it.
+  regenerates `.env`), `sh/env/init.sh`, `make ssl`, `make recreate` (on failure the job prints `docker compose ps -a` and the last 20
+  log lines of every service, e.g. the mariadb `[version-guard] ERROR` — see `docker.md`),
+  `make monitoring off` → `make monitoring on`, DB health check, `make core-install`. See "Shared
+  deploy scripts (`sh/ci/`)" below for the full script inventory and the constraints that shaped it.
 - Required secrets: `SSH_KEY`, `SSH_CONFIG`, `COMPOSER_AUTH` (see `infrastructure.md` for what
   `COMPOSER_AUTH` unlocks) — that's it. **No CI/CD variable is required for the deploy target on
   either platform** — it's derived from `APP_DOMAIN`. Full GitHub-side configuration: the section

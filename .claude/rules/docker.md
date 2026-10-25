@@ -31,7 +31,7 @@ its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/start
 
 | Service | Base | Notes |
 |---|---|---|
-| `mariadb` | `mariadb:11.8.9-noble` | + `pv` for dump progress, + entrypoint wrapper with a version guard (see below) — 11.8 is the current LTS |
+| `mariadb` | official `mariadb` image (tag: `APP_DATABASE_IMAGE`) | + `pv` for dump progress, + entrypoint wrapper with a version guard (see below) |
 | `php` | `php:8.4.27-fpm-alpine3.24` | + WP-CLI 2.12.0 (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
 | `nginx` | `nginx:1.29.8-alpine3.23` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — 3.23 is the newest Alpine variant published for nginx 1.29 |
 | `cron` | `alpine:3.24.3` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
@@ -53,15 +53,36 @@ the shared `docker-entrypoint.sh`.
 `docker-entrypoint.sh`. Its first script refuses to start the server when the image's MariaDB
 version (`mariadbd --version`) differs from the one in `db-data/mariadb_upgrade_info` — the
 official entrypoint would only log "upgrade required, skipped" and start the new version on old
-data. The comparison is the full `x.y.z`, so a patch bump (`11.8.9` → `11.8.10`) stops too. A
+data. The comparison is the full `x.y.z`, so even a patch bump stops too. A
 refusal exits 1 with an `[version-guard] ERROR` block in the container log (`make log mariadb`;
 `sh/ci/deploy.sh` also prints the last lines when `make recreate` fails) and, with
 `restart: unless-stopped`, the container restarts in a loop until resolved.
 
-To upgrade deliberately: back up `db-data` (`make export` + a copy of the directory — downgrading
-is not supported), start once with `MARIADB_AUTO_UPGRADE=1` (`config/environment/.env.secret`),
-confirm healthy, then remove the variable. Empty and `0` mean off, same as the official image. A
-fresh (empty) `db-data` is never blocked.
+To upgrade deliberately (full user-facing version: `starter-kit-docs/database-management.md`,
+"Upgrading MariaDB major version"; keep both in sync):
+
+1. Back up: check free space (`df -h .`, `du -sh db-data` — the copy needs as much as the data
+   itself), then stop the container and copy the directory (`docker stop <APP_NAME>-mariadb`,
+   `cp -a db-data db-data.bak-<old-version>`). `make export` is not an option here — the guard has
+   already stopped the container and it needs a running DB. The `db-data.bak-*` name matches the
+   `**/db-*/` exclude in `sh/ci/deploy.sh`, so a deploy neither syncs nor deletes it. The image's
+   own `system_mysql_backup_*.sql.zst` covers only the system `mysql` database, not site data.
+   Downgrading is not supported once the new server has opened the data.
+2. `MARIADB_AUTO_UPGRADE=1 make recreate <env>` — the variable lives only in that command (compose
+   interpolates it from the shell), nothing in `.env.secret` to clean up. Empty and `0` mean off,
+   same as the official image.
+3. Verify: log shows `Starting mariadb-upgrade` / `Finished mariadb-upgrade`, container healthy,
+   `db-data/mariadb_upgrade_info` holds the new version.
+4. `make recreate <env>` again without the variable — the container keeps the env it was created
+   with, so this switches the flag off. The guard then passes silently (only the `Launching ...
+   10-version-guard.sh` line in the log). Never leave the flag on permanently.
+
+A fresh (empty) `db-data` is never blocked. The guard is part of the **image**: a host has it only
+once an image that contains it is published under a new tag that `APP_DATABASE_IMAGE` points to
+(`docker compose up` does not re-pull an existing tag — hence the "never push over an existing
+tag" rule below).
+Check with `docker inspect --format '{{json .Config.Entrypoint}}' <APP_NAME>-mariadb` —
+`["/docker-entrypoint.sh"]` = guard present, `["docker-entrypoint.sh"]` = official entrypoint only.
 
 ## Building/publishing images (`make docker`, `sh/system/docker.sh`)
 
