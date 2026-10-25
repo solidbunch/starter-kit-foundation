@@ -10,7 +10,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      # Off by default. See database-management.md "Upgrading MariaDB major version".
+      # Off by default. See https://github.com/solidbunch/starter-kit-docs/blob/main/database-management.md ("Upgrading MariaDB major version").
       # While empty, the image's version guard (dockerfiles/mariadb/docker-entrypoint.d/10-version-guard.sh)
       # refuses to start the server if the image version differs from the one that last upgraded
       # the data directory (reason goes to the container log).
