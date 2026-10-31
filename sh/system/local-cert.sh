@@ -7,8 +7,15 @@
 #   local-cert.sh [force]   # force regenerates even if a valid cert already exists
 #
 # Requires:
-#   - ./.env.runtime (run `make env` first)
-#   - `mkcert` on the host PATH, with `mkcert -install` run once (not installed by this script)
+#   - ./.env.runtime (run `make env` first) with WP_ENVIRONMENT_TYPE=local
+#   - `mkcert` on the host PATH (not installed by this script)
+#
+# Local-only by design: this target writes into the same directories `make ssl`/certbot manages
+# (config/ssl/live/<APP_DOMAIN>/ for nginx mode), which on a server are symlinks into
+# config/ssl/archive/. Overwriting them with a mkcert certificate would break the live
+# Let's Encrypt chain until it is reissued, so the script refuses to run unless
+# WP_ENVIRONMENT_TYPE is exactly `local` and refuses to write through a symlink. Real hosts must
+# use `make ssl`. Exit codes: 0 success/skip, 1 runtime failure, 2 preflight refusal.
 #
 # Target paths, chosen from APP_MULTI_INSTANCE in ./.env.runtime:
 #   APP_MULTI_INSTANCE=0 (default, nginx) -> config/ssl/live/<APP_DOMAIN>/{fullchain,privkey}.pem
@@ -17,51 +24,51 @@
 # In multi-instance mode, skips cleanly (exit 0) if kit-modules/proxy/ is absent, mirroring the
 # `make proxy` target's own skip branch (Makefile).
 #
-# SAN list mirrors sh/system/certbot.sh's apex/subdomain test exactly: apex APP_DOMAIN gets
-# <domain> www.<domain>, subdomain (*.*.*) gets <domain> only.
+# The certificate always covers both <APP_DOMAIN> and www.<APP_DOMAIN>: mkcert has no ACME
+# validation to satisfy, and asking for both avoids a second certificate when a www host is
+# used. This is intentionally independent of the apex/subdomain decision `make ssl` makes.
 #
-# Idempotent: if both cert files already exist, and `openssl x509 -checkend 2592000 -noout`
-# passes (not expiring within 30 days), and the SAN list covers APP_DOMAIN, this is a no-op
-# unless `force` is passed as the first argument. Degrades to an existence-only check if
-# `openssl` is not available on the host.
+# Idempotent: if both cert files already exist, `openssl x509 -checkend 2592000 -noout` passes
+# (not expiring within 30 days), and the SAN list covers every requested name, this is a no-op
+# unless `force` is passed. SANs are parsed from `openssl x509 -text` rather than `-ext`, because
+# macOS ships LibreSSL, where `-ext` is unsupported; degrades to an existence-only check if
+# `openssl` itself is unavailable.
 set -e -o pipefail
 
 source ./sh/utils/colors.sh
 
 FORCE="${1:-}"
+case "$FORCE" in
+  ""|force) ;;
+  *)
+    echo -e "${RED}[Error]${RESET} Unknown argument '${FORCE}'. Usage: local-cert.sh [force]" >&2
+    exit 2
+    ;;
+esac
 
 ENV_RUNTIME="./.env.runtime"
 if [ ! -f "$ENV_RUNTIME" ]; then
   echo -e "${RED}[Error]${RESET} $ENV_RUNTIME not found. Run 'make env' first." >&2
-  exit 1
+  exit 2
 fi
 
 # Last occurrence wins, mirroring the env system's own merge semantics. Do NOT source the file.
 APP_DOMAIN="$(sed -n 's/^[[:space:]]*APP_DOMAIN=\([^#[:space:]]*\).*/\1/p' "$ENV_RUNTIME" | tail -n1)"
 APP_MULTI_INSTANCE="$(sed -n 's/^[[:space:]]*APP_MULTI_INSTANCE=\([^#[:space:]]*\).*/\1/p' "$ENV_RUNTIME" | tail -n1)"
+WP_ENVIRONMENT_TYPE="$(sed -n 's/^[[:space:]]*WP_ENVIRONMENT_TYPE=\([^#[:space:]]*\).*/\1/p' "$ENV_RUNTIME" | tail -n1)"
+
+if [ "$WP_ENVIRONMENT_TYPE" != "local" ]; then
+  echo -e "${RED}[Error]${RESET} WP_ENVIRONMENT_TYPE is '${WP_ENVIRONMENT_TYPE}', not 'local'." >&2
+  echo -e "${RED}[Error]${RESET} local-cert.sh writes into the same paths certbot manages and refuses to run outside local. Use 'make ssl' on real hosts." >&2
+  exit 2
+fi
 
 if [ -z "$APP_DOMAIN" ]; then
   echo -e "${RED}[Error]${RESET} APP_DOMAIN is not set in $ENV_RUNTIME." >&2
-  exit 1
+  exit 2
 fi
 
-if ! command -v mkcert >/dev/null 2>&1; then
-  echo -e "${RED}[Error]${RESET} mkcert is not installed on this host." >&2
-  echo "Install it first (https://github.com/FiloSottile/mkcert), e.g.:" >&2
-  echo "  macOS:   brew install mkcert" >&2
-  echo "  Linux:   see the mkcert README for your distro's package" >&2
-  echo "Then run 'mkcert -install' once to trust its local CA, and re-run this script." >&2
-  exit 1
-fi
-
-echo -e "${CYAN}[Info]${RESET} Reminder: run 'mkcert -install' once per machine (installs the local CA into your system/browser trust store) if you haven't already."
-
-# Apex/subdomain test mirrors sh/system/certbot.sh's *.*.* pattern exactly.
-if [[ "$APP_DOMAIN" == *.*.* ]]; then
-  SAN_LIST=("$APP_DOMAIN")
-else
-  SAN_LIST=("$APP_DOMAIN" "www.${APP_DOMAIN}")
-fi
+SAN_LIST=("$APP_DOMAIN" "www.${APP_DOMAIN}")
 
 # Determine target paths for the active mode.
 if [ "$APP_MULTI_INSTANCE" = "1" ]; then
@@ -80,6 +87,17 @@ fi
 
 CERT_PATH="${CERT_DIR}/fullchain.pem"
 KEY_PATH="${CERT_DIR}/privkey.pem"
+
+# Never write through a symlink: on a real host these paths are certbot's
+# live/<domain>/*.pem -> ../../archive/<domain>/*.pem links, and mkcert would truncate the
+# archived certificate behind the link.
+for target in "$CERT_PATH" "$KEY_PATH"; do
+  if [ -L "$target" ]; then
+    echo -e "${RED}[Error]${RESET} ${target} is a symlink (certbot-managed). Refusing to overwrite it." >&2
+    echo -e "${RED}[Error]${RESET} local-cert.sh only manages standalone local files; use 'make ssl' on real hosts." >&2
+    exit 2
+  fi
+done
 
 # Idempotency check.
 should_generate() {
@@ -101,9 +119,12 @@ should_generate() {
     return 0
   fi
 
-  SAN_TEXT="$(openssl x509 -noout -ext subjectAltName -in "$CERT_PATH" 2>/dev/null || true)"
+  # `-text` works with both OpenSSL and macOS LibreSSL (`-ext` is OpenSSL-only). The SAN block
+  # is the line after the "Subject Alternative Name" header.
+  SAN_TEXT="$(openssl x509 -noout -text -in "$CERT_PATH" 2>/dev/null \
+    | sed -n '/X509v3 Subject Alternative Name/{n;p;}' || true)"
   for SAN in "${SAN_LIST[@]}"; do
-    if ! echo "$SAN_TEXT" | grep -q "DNS:${SAN}\b"; then
+    if ! printf '%s\n' "$SAN_TEXT" | tr ',' '\n' | sed 's/^[[:space:]]*//' | grep -qx "DNS:${SAN}"; then
       echo -e "${CYAN}[Info]${RESET} Existing certificate does not cover ${SAN} — regenerating."
       return 0
     fi
@@ -115,6 +136,25 @@ should_generate() {
 if ! should_generate; then
   echo -e "${CYAN}[Info]${RESET} Valid local certificate already exists at ${CERT_DIR}. Skipping (pass 'force' to regenerate)."
 else
+  # Checked only when a certificate is actually about to be issued: a still-valid existing
+  # certificate should skip cleanly even on a host that has since lost mkcert.
+  if ! command -v mkcert >/dev/null 2>&1; then
+    echo -e "${RED}[Error]${RESET} mkcert is not installed on this host." >&2
+    echo "Install it first (https://github.com/FiloSottile/mkcert), e.g.:" >&2
+    echo "  macOS:   brew install mkcert" >&2
+    echo "  Linux:   see the mkcert README for your distro's package" >&2
+    echo "Then re-run this script — it installs the local CA itself when none exists yet." >&2
+    exit 2
+  fi
+
+  # mkcert -install is interactive (system trust store). Only run it when a certificate is
+  # actually about to be issued and the local CA is missing.
+  CAROOT_DIR="$(mkcert -CAROOT 2>/dev/null || true)"
+  if [ -n "$CAROOT_DIR" ] && [ ! -f "${CAROOT_DIR}/rootCA.pem" ]; then
+    echo -e "${YELLOW}[Warning]${RESET} No local mkcert root CA found — running 'mkcert -install' (may prompt for your password)."
+    mkcert -install
+  fi
+
   mkdir -p "$CERT_DIR"
 
   echo -e "${CYAN}[Info]${RESET} Generating locally-trusted certificate for ${SAN_LIST[*]}..."
@@ -139,8 +179,7 @@ fi
 echo ""
 if [ "$APP_MULTI_INSTANCE" = "1" ]; then
   echo -e "${CYAN}[Info]${RESET} Next steps (multi-instance / Traefik mode):"
-  echo "  1. make proxy stop && make proxy start   # required once so Traefik picks up the new certs/local bind mount"
-  echo "  2. make recreate local"
+  echo "  1. make recreate local   # Traefik's file provider hot-reloads certs/local and local-tls.yml"
 else
   echo -e "${CYAN}[Info]${RESET} Next steps (single-instance / nginx mode):"
   echo "  1. Set APP_PROTOCOL=https in config/environment/.env.type.local.override"
