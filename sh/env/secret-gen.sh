@@ -27,9 +27,12 @@ if [ ! -f "$SECRET_FILE" ]; then
     # creating Alpine container, running pass gen, removing container.
     echo -e "${CYAN}[Info]${RESET} Generating Secrets..."
 
+    # A previous crashed run can leave the fixed container name behind; clear it first.
+    docker rm -f pass-gen-container >/dev/null 2>&1 || true
+
     docker run --name pass-gen-container -v "./sh:/shell:ro" "$APP_PASS_GEN_IMAGE" sh /shell/env/pass_gen.sh
     docker cp pass-gen-container:/.env.secret "$SECRET_FILE"
-    docker rm -f pass-gen-container > /dev/null 2>&1
+    docker rm -f pass-gen-container > /dev/null 2>&1 || true
 
     echo -e "${LIGHTGREEN}[Success]${RESET} Secrets done in $SECRET_FILE"
     exit 0
@@ -70,22 +73,50 @@ fi
 # Generate values for the missing keys only, reusing the same Alpine password generator
 # (pass_gen.sh), but pointed at an isolated temp copy containing ONLY the missing lines —
 # so it can never read or write the real .env.secret / .env.secret.template files.
-tmp_dir="$(mktemp -d)"
+#
+# The temp copy holds real generated secrets, so it lives under ./tmp: gitignored and excluded
+# from the deploy rsync, and a bind-mountable path on every platform (macOS Docker Desktop only
+# shares selected filesystem roots). The trap removes it on any exit, including a failed
+# `docker run`/`docker cp`.
+mkdir -p ./tmp
+tmp_dir="$(cd "$(mktemp -d ./tmp/secret-gen.XXXXXX)" && pwd)"
+trap 'rm -rf "$tmp_dir"' EXIT
+
+# A previous crashed run can leave the fixed container name behind; clear it so the
+# `docker run --name pass-gen-container` below does not fail with "name already in use".
+docker rm -f pass-gen-container >/dev/null 2>&1 || true
+
 mkdir -p "$tmp_dir/env"
 cp ./sh/env/pass_gen.sh "$tmp_dir/env/pass_gen.sh"
 printf '%s\n' "${missing_lines[@]}" > "$tmp_dir/env/.env.secret.template"
 
 docker run --name pass-gen-container -v "$tmp_dir:/shell:ro" "$APP_PASS_GEN_IMAGE" sh /shell/env/pass_gen.sh
 docker cp pass-gen-container:/.env.secret "$tmp_dir/generated.env.secret"
-docker rm -f pass-gen-container > /dev/null 2>&1
+docker rm -f pass-gen-container > /dev/null 2>&1 || true
+
+# Never append to a live secrets file without a recoverable copy. The backup sits in ./tmp
+# (gitignored, rsync-excluded) and is readable by the current user only. `umask 077` closes the
+# "created 0644, chmod later" window, and the existence check makes two runs inside the same
+# second fail loudly instead of silently overwriting the first backup.
+mkdir -p ./tmp/backups
+backup_file="./tmp/backups/.env.secret.$(date -u +%Y%m%dT%H%M%SZ).bak"
+if [ -e "$backup_file" ]; then
+    echo -e "${RED}[Error]${RESET} Backup file $backup_file already exists — refusing to overwrite it." >&2
+    exit 1
+fi
+old_umask="$(umask)"
+umask 077
+cp "$SECRET_FILE" "$backup_file"
+umask "$old_umask"
+# `cp` without -p creates the file with 0666 & ~umask (= 600); enforce it explicitly anyway.
+chmod 600 "$backup_file"
+echo -e "${CYAN}[Info]${RESET} Backup of the current .env.secret: ${backup_file}"
 
 {
     echo ""
-    echo "# --- Appended by secret-gen.sh on $(date -u +"%Y-%m-%dT%H:%M:%SZ") — keys missing from .env.secret.template ---"
+    echo "# --- Appended by secret-gen.sh on $(date -u +"%Y-%m-%dT%H:%M:%SZ") — keys missing from .env.secret ---"
     cat "$tmp_dir/generated.env.secret"
 } >> "$SECRET_FILE"
-
-rm -rf "$tmp_dir"
 
 echo -e "${LIGHTGREEN}[Success]${RESET} Added missing key(s) to $SECRET_FILE:"
 for line in "${missing_lines[@]}"; do
