@@ -6,8 +6,18 @@ description: Updates a downstream project (built from starter-kit-foundation) to
 # Upgrade Foundation — update a downstream project
 
 Run this inside a **downstream project** checkout, never inside `starter-kit-foundation` itself.
-Foundation versions are git tags on `https://github.com/solidbunch/starter-kit-foundation`
-(tag naming not verified — list them in Step 1 and use what exists).
+Foundation versions are git tags on `https://github.com/solidbunch/starter-kit-foundation`,
+format `X.Y.Z` (older ones `0.N`; no `v` prefix), cut on `main`. Always upgrade to a **tag**
+unless the user explicitly asks for `main` or `develop` (unreleased).
+
+The project records its current base release in **`FOUNDATION_VERSION`** (repo root, one line):
+either a tag (`1.3.0`) or, when the base was an unreleased branch state, `<nearest-tag>+<short-sha>`
+(e.g. `1.3.0+291d8e1`, meaning "at least this tag plus foundation commits up to that sha"). It is
+project-owned: foundation does not ship it, `bootstrap-project` creates it, and this skill rewrites
+it at the end. If it is missing (project older than this convention), ask the user which tag the
+project was based on; if they do not know, say so and fall back to the merge-base / path comparison
+in Step 2. For a `<tag>+<sha>` base, take the notes after `<tag>` and diff from the sha when it is
+reachable (`git cat-file -e <sha>`), else from the tag, and tell the user the base is approximate.
 
 Nothing here is automated end to end: show each diff to the user before applying it, and do not
 commit or push unless asked. Never touch `vendor/`, `web/wp-core/`, `.env`, `.env.runtime`,
@@ -42,7 +52,17 @@ git tag -l --sort=-v:refname | head
 
 ## Step 2 — Find what changed
 
-Detect whether history is shared:
+First read the release notes: `git show <target>:CHANGELOG.md`, and take the sections between the
+version in `FOUNDATION_VERSION` (exclusive) and `<target>` (inclusive). Show the **Action
+required** items to the user up front and use them as the checklist for Step 4. A tag without a
+`CHANGELOG.md` entry (or with no `CHANGELOG.md` at all) has no notes — derive the actions from the
+diff as below and say so in the report.
+
+Then list the file changes. With a known base version, `git diff --name-status <base-tag> <target>`
+works in both cases (the tags are fetched, shared history is not required for tag-to-tag diffs),
+but it shows foundation's changes only — the project's own edits to foundation-owned files are
+found when each file is applied (Step 3). Without a base version, detect whether history is
+shared:
 
 ```bash
 git merge-base HEAD foundation/main    # empty output or an error = no shared history
@@ -90,7 +110,10 @@ Apply file by file; do **not** delete files the project added (its own rules or 
 
 **Project-owned (never overwrite):** `.env.secret`, the theme, `db-data/`, `kit-modules/`,
 `config/ssl/`, `.claude/qa-login.json` (bootstrap sets the project URL there), project-added
-files under `.claude/`.
+files under `.claude/`, `FOUNDATION_VERSION`, and the project's own `CHANGELOG.md` if it has one
+(foundation's `CHANGELOG.md` is only read via `git show`, never applied — do not
+`git checkout` it, and after a merge restore the project's copy with `git checkout HEAD --
+CHANGELOG.md`, or remove the file if the project had none).
 
 Apply foundation-owned files with `git checkout <target> -- <path>` (shared history) or by
 copying from the worktree (no shared history). For shared history prefer
@@ -108,9 +131,10 @@ Read the changes and walk the user through whichever of these apply:
   `CR_TOKEN`). If the project builds images itself, use `make docker build` / `make docker push`.
   A host re-pulls only a **new** tag, never an existing one — if a tag did not change, a changed
   image behind it is not picked up.
-- **MariaDB server version changed — any `x.y.z`, including a patch bump:** an image with the
-  version guard (`dockerfiles/mariadb/docker-entrypoint.d/10-version-guard.sh`) refuses to start
-  when the server version differs from `db-data/mariadb_upgrade_info`. After
+- **MariaDB release series changed (`major.minor`, e.g. 11.5 → 11.8; a patch bump within a series
+  starts normally):** an image with the version guard
+  (`dockerfiles/mariadb/docker-entrypoint.d/10-version-guard.sh`) refuses to start
+  when the image's `major.minor` differs from the one in `db-data/mariadb_upgrade_info`. After
   `make recreate <env>` the database container will crash-loop (`restart: unless-stopped`);
   that is expected. Read the reason with `make log mariadb`. To upgrade, start once with
   `MARIADB_AUTO_UPGRADE=1` (the official entrypoint backs up first), then remove it again. The
@@ -141,9 +165,19 @@ Open the site and wp-admin. Then roll out in the project's normal order: `dev` f
 (prod is a manual deploy; a MariaDB version change on prod has the same irreversibility as local —
 back up first).
 
+## Step 6 — Record the new version
+
+Only after the user confirms the upgrade is applied (not when it is partial or aborted), write the
+target tag into `FOUNDATION_VERSION` (create it if missing). Never write `main` or a branch name
+there. If the target was unreleased (`main`/`develop`), write `<nearest-tag>+<short-sha>` of the
+foundation commit applied (`git describe --tags --abbrev=0 <target>` and `git rev-parse --short
+<target>`) and say in the report that the base is not a release.
+
 ## Final report
 
 Always end with:
+- the old and new `FOUNDATION_VERSION`, and the **Action required** items from `CHANGELOG.md`
+  with their status (done / pending);
 - every changed file, with its **full path**;
 - steps skipped and why;
 - anything not verified (for example the MariaDB env-variable location);

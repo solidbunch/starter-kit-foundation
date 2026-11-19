@@ -32,13 +32,13 @@ its variable is `APP_DATABASE_IMAGE`) and published to `ghcr.io/solidbunch/start
 | Service | Base | Notes |
 |---|---|---|
 | `mariadb` | official `mariadb` image (tag: `APP_DATABASE_IMAGE`) | + `pv` for dump progress, + entrypoint wrapper with a version guard (see below) |
-| `php` | `php:8.4.27-fpm-alpine3.24` | + WP-CLI 2.12.0 (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
-| `nginx` | `nginx:1.29.8-alpine3.23` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — 3.23 is the newest Alpine variant published for nginx 1.29 |
-| `cron` | `alpine:3.24.3` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
-| `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.10.3 binary, git/svn/hg/unzip tooling |
+| `php` | `php:8.4.28-fpm-alpine3.24` | + WP-CLI 2.12.0 (copied from `wordpress:cli` image), Xdebug, Imagick, GD w/ AVIF/WebP; UID/GID remap in entrypoint |
+| `nginx` | `nginx:1.30.7-alpine3.24` | + Basic Auth setup script (`15-setup-basic-auth.sh`) — follows the **stable** branch (1.30.x), not mainline: it gets the same security fixes with fewer feature changes; keep bumping within it |
+| `cron` | `alpine:3.24.4` | + `docker-cli` only (no Docker-in-Docker) — runs `docker compose exec` from the host's daemon via the mounted socket |
+| `composer` | built `FROM ${APP_PHP_IMAGE}` | + Composer 2.11.2 binary, git/svn/hg/unzip tooling |
 | `node` | `node:18.20.8-alpine3.21` | theme asset builds — 3.21 is the newest Alpine variant upstream ever published for Node 18 (Node 18 itself reached EOL 2025-04-30; a major-version bump is a separate, larger task) |
-| `certbot` | `alpine:3.24.3` | + `certbot`, `openssl`, `libpsl-utils` (`psl` CLI, apex/subdomain detection for `sh/system/certbot.sh` — see that script and `kit-modules/basis/CLAUDE.md`'s DNS-provider notes for the rule) — current tag `5.6.0-alpine3.24.3` (certbot version from apk — update the tag when it changes) |
-| `iac` | `debian:12.15-slim` | Terraform 1.17.0, Terragrunt 1.2.0, Ansible 12.3.0, AWS CLI 2.38.5, gcloud, pinned versions via build ARGs, + `psl` (Debian package providing the same `psl` CLI as `certbot`'s `libpsl-utils`, used by `kit-modules/basis/sh/dns.sh`) — current tag `1.1.4` (this service pins its own version scheme, not an alpine/upstream tag) |
+| `certbot` | `alpine:3.24.4` | + `certbot`, `openssl`, `libpsl-utils` (`psl` CLI, apex/subdomain detection for `sh/system/certbot.sh` — see that script and `kit-modules/basis/CLAUDE.md`'s DNS-provider notes for the rule) — current tag `5.6.0-alpine3.24.4` (certbot version from apk — update the tag when it changes) |
+| `iac` | `debian:13.7-slim` | Terraform 1.17.2, Terragrunt 1.2.2, Ansible 15.0.0 (ansible-core 2.22 needs Python ≥3.13, so the Debian 13 base is required), AWS CLI 2.41.1, gcloud, pinned versions via build ARGs, + `psl` (Debian package providing the same `psl` CLI as `certbot`'s `libpsl-utils`, used by `kit-modules/basis/sh/dns.sh`) — current tag `1.2.0` (this service pins its own version scheme, not an alpine/upstream tag) |
 
 All images share the same **entrypoint pattern**: a `docker-entrypoint.sh` that runs numbered
 scripts from `docker-entrypoint.d/*.sh` (alphabetical) before `exec`-ing the real command — e.g.
@@ -92,15 +92,15 @@ with no way to tell which, and no rollback target. Always mint a new tag and upd
 Dockerfile change.
 
 Tag convention: base images are pinned to the **full patch version** in every `FROM`/`COPY --from`
-(`php:8.4.27-fpm-alpine3.24`, `nginx:1.29.8-alpine3.23`, `alpine:3.24.3`) — never a floating
+(`php:8.4.28-fpm-alpine3.24`, `nginx:1.30.7-alpine3.24`, `alpine:3.24.4`) — never a floating
 minor tag, so a rebuild can't silently pull a different patch. Our own tags mirror that:
-`php`/`nginx`/`node` are `<full-upstream-version>-alpine<version>` (e.g. `8.4.27-fpm-alpine3.24`),
-`composer` is `<composer>-php<php-patch>-alpine<version>` (e.g. `2.10.3-php8.4.27-alpine3.24`), `certbot` is
+`php`/`nginx`/`node` are `<full-upstream-version>-alpine<version>` (e.g. `8.4.28-fpm-alpine3.24`),
+`composer` is `<composer>-php<php-patch>-alpine<version>` (e.g. `2.11.2-php8.4.28-alpine3.24`), `certbot` is
 `<certbot>-alpine<full-version>`. The tag only changes when the base is bumped. For a content-only change
-(Dockerfile/entrypoint edit, no base bump), append a revision suffix: `8.4.27-fpm-alpine3.24-r1`, then `-r2`,
+(Dockerfile/entrypoint edit, no base bump), append a revision suffix: `8.4.28-fpm-alpine3.24-r1`, then `-r2`,
 etc. — bump the trailing `-rN` on every subsequent content-only change, reset it (drop the suffix) whenever
 the base version changes. `cron` follows an adjacent scheme: its own independent version ahead of the alpine
-tag (`1.5-alpine3.24.3`), bumped whenever cron's own scripts change. `apk add` packages are not pinned
+tag (`1.5-alpine3.24.4`), bumped whenever cron's own scripts change. `apk add` packages are not pinned
 (Alpine drops old package versions from its repos); reproducibility comes from the pinned base plus the
 immutable pushed tag. Nothing updates automatically: a new upstream patch reaches an environment only after
 the Dockerfile pin is bumped, the image rebuilt and pushed under a new tag. Match whichever scheme the service already uses; don't invent
