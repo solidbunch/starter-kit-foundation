@@ -32,6 +32,14 @@ This is a mature codebase with strong conventions. Follow them — do not invent
   merged back into both `main` and `develop`
 - Never `git push --force` to `main` or `develop` (see Hard Rules in the root `CLAUDE.md`)
 
+## Releasing foundation
+
+- A release is a tag `X.Y.Z` (no `v` prefix) on `main`, after `develop` → `main`
+- Before tagging: turn `## Unreleased` in `CHANGELOG.md` into `## X.Y.Z — <date>` (see the bump
+  rule in that file). Anything a downstream project must do by hand goes under **Action required**
+  — `upgrade-foundation` relies on it
+- `FOUNDATION_VERSION` is project-owned: it exists only in downstream projects, never add it here
+
 ## Scope control
 
 - Never reset a real WordPress user's password (`wp user update <user> --user_pass=...`) without

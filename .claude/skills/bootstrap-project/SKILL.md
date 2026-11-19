@@ -45,6 +45,13 @@ regenerated, see root `CLAUDE.md`):
 - `config/environment/.env.main`: `APP_NAME=<slug>`, `APP_TITLE="<title>"`
 - `config/environment/.env.type.local`: `APP_DOMAIN=<domain>` (repeat for `.env.type.dev`/
   `.env.type.stage`/`.env.type.prod` for any environment the user gave a domain for in Step 0)
+- `FOUNDATION_VERSION` (repo root, new file, one line): the foundation release this project starts
+  from. Release tags sit on `main` merge commits, so `git describe` on a `develop` checkout names an
+  older tag than the content really is — do not trust it blindly. Use: `git describe --tags
+  --exact-match` if HEAD is exactly a tag → that tag (`1.3.0`); otherwise
+  `<git describe --tags --abbrev=0>+<git rev-parse --short HEAD>` (e.g. `1.2.2+291d8e1`) and flag
+  in Step 9 that the base is an unreleased state. No tags at all (template copy) → ask the user;
+  do not guess. `upgrade-foundation` reads and updates it.
 - `.claude/qa-login.json`: `url` → `http://<local APP_DOMAIN>/wp-login.php` (the same domain as
   `.env.type.local`; the `qa-login` skill reads this file, see "Local installation" in Step 7's README)
 - `config/environment/.env.main`: `GITHUB_ORG`/`GITHUB_REPO` — run `git remote get-url origin`; if

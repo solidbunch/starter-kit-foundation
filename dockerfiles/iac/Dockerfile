@@ -8,15 +8,15 @@
 ##   Integrity is checked against the publishers' SHA256SUMS instead of a `--version` smoke test.
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG IMAGE_VERSION=1.1.4
-ARG TF_VERSION=1.17.0
-ARG TG_VERSION=1.2.0
-ARG AWSCLI_VERSION=2.38.5
-ARG ANSIBLE_PIP_VERSION=12.3.0
+ARG IMAGE_VERSION=1.2.0
+ARG TF_VERSION=1.17.2
+ARG TG_VERSION=1.2.2
+ARG AWSCLI_VERSION=2.41.1
+ARG ANSIBLE_PIP_VERSION=15.0.0
 
 # Fetch stage — always runs on the builder's own architecture, no emulation.
 # TARGETARCH still selects which architecture's binaries get downloaded.
-FROM --platform=${BUILDPLATFORM} debian:12.15-slim AS fetch
+FROM --platform=${BUILDPLATFORM} debian:13.7-slim AS fetch
 
 ARG DEBIAN_FRONTEND
 ARG TF_VERSION
@@ -54,7 +54,7 @@ RUN set -e; \
     rm -f terragrunt.sums
 
 
-FROM debian:12.15-slim
+FROM debian:13.7-slim
 
 ARG DEBIAN_FRONTEND
 ARG IMAGE_VERSION
