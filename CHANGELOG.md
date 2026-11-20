@@ -15,7 +15,7 @@ Each release lists only what a downstream project must **do or know**. Routine c
 Bump rule: patch = fixes only; minor = new behaviour, no manual steps; anything under
 **Action required** is at least a minor bump and gets called out in the release notes.
 
-## Unreleased
+## 1.4.0 — 2026-11-20
 
 ### Action required
 
