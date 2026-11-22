@@ -52,8 +52,8 @@ Auth is supplied via the `COMPOSER_AUTH` env var (a serialized JSON credentials 
 `sh/env/.env.secret.template`), consumed by the `composer` container's
 `dockerfiles/composer/docker-entrypoint.d/30-composer-config.sh` and injected in CI from the
 `COMPOSER_AUTH` GitHub secret (`job-deploy.yml`, `job-provision.yml`), stored as plain JSON with
-ordinary quotes — never backslash-escaped, the workflows write it to `.env.secret` verbatim. Set it locally in
-`config/environment/.env.secret` to unlock real module code.
+ordinary quotes — never backslash-escaped, the workflows write it to `.env.secret` verbatim. Set it
+locally in `config/environment/.env.secret` to unlock real module code.
 
 ## basis — Infrastructure as Code
 
