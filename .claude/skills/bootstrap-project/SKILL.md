@@ -322,16 +322,16 @@ exactly — both pipelines pin themselves to the environment named after the run
   pipelines use `APP_DOMAIN` directly as the SSH destination alias, so a mismatch fails the deploy
   with `Could not resolve hostname`, not a silent misdeploy.
 
-- `COMPOSER_AUTH`: a GitHub personal access token in Composer's `github-oauth` JSON shape, quotes
-  escaped (see `sh/env/.env.secret.template` and the
+- `COMPOSER_AUTH`: a GitHub personal access token in Composer's `github-oauth` JSON shape, plain
+  quotes, no backslashes (see `sh/env/.env.secret.template` and the
   [StarterKit CI/CD docs](https://starter-kit.io/docs/ci-cd-deployments/)):
   \`\`\`
-  {\"github-oauth\":{\"github.com\":\"<GITHUB_PERSONAL_ACCESS_TOKEN>\"}}
+  {"github-oauth":{"github.com":"<GITHUB_PERSONAL_ACCESS_TOKEN>"}}
   \`\`\`
   If you have paid `kit-modules` licenses, add an `http-basic` entry for
   `licensing.starter-kit.io` to the same JSON object:
   \`\`\`
-  {\"github-oauth\":{\"github.com\":\"<GITHUB_PERSONAL_ACCESS_TOKEN>\"},\"http-basic\":{\"licensing.starter-kit.io\":{\"username\":\"<your email>\",\"password\":\"<your license password>\"}}}
+  {"github-oauth":{"github.com":"<GITHUB_PERSONAL_ACCESS_TOKEN>"},"http-basic":{"licensing.starter-kit.io":{"username":"<your email>","password":"<your license password>"}}}
   \`\`\`
 
 - `TFPLAN_PASSPHRASE` (optional): any strong passphrase. Enables the provisioning pipeline's

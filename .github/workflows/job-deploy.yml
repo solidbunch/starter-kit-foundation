@@ -29,10 +29,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Prepare .env
+        env:
+          COMPOSER_AUTH_SECRET: ${{ secrets.COMPOSER_AUTH }}
         run: |
           bash ./sh/env/secret-gen.sh
-          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
-            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          if [ -n "$COMPOSER_AUTH_SECRET" ]; then
+            printf 'COMPOSER_AUTH=%s\n' "$COMPOSER_AUTH_SECRET" >> ./config/environment/.env.secret
           fi
           bash ./sh/env/init.sh ${{ inputs.ENVIRONMENT_TYPE }}
 

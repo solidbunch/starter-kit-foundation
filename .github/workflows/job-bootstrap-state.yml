@@ -47,10 +47,12 @@ jobs:
         # terraform/state), so init.sh runs with no argument and falls back to its own
         # APP_DEFAULT_ENV_TYPE default. Otherwise identical to job-provision.yml/job-deploy.yml's
         # 'Prepare .env' step.
+        env:
+          COMPOSER_AUTH_SECRET: ${{ secrets.COMPOSER_AUTH }}
         run: |
           bash ./sh/env/secret-gen.sh
-          if [ -n "${{ secrets.COMPOSER_AUTH }}" ]; then
-            echo "COMPOSER_AUTH=${{ secrets.COMPOSER_AUTH }}" >> ./config/environment/.env.secret
+          if [ -n "$COMPOSER_AUTH_SECRET" ]; then
+            printf 'COMPOSER_AUTH=%s\n' "$COMPOSER_AUTH_SECRET" >> ./config/environment/.env.secret
           fi
           bash ./sh/env/init.sh
 
