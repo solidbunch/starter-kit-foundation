@@ -5,6 +5,9 @@
 *.md    text diff=markdown
 *.txt   text
 
+# PHP
+*.php   text eol=lf
+
 # Scripts
 *.sh    text eol=lf
 *.bash  text eol=lf

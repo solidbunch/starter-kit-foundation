@@ -24,6 +24,14 @@ if [ "$2" ]; then
     BUILD_SERVICE="$2"
 fi
 
+case "$MODE" in
+  build|push|clean|prune|login) ;;
+  *)
+    echo -e "${RED}[Error]${RESET} Unknown mode '${MODE}'. Usage: docker.sh [build|push|clean|prune|login] [service]" >&2
+    exit 2
+    ;;
+esac
+
 # Define the services and images arrays
 SERVICES=("mariadb"             "php"              "nginx"              "cron"              "composer"              "node"              "certbot"              "iac")
 IMAGES=("${APP_DATABASE_IMAGE}" "${APP_PHP_IMAGE}" "${APP_NGINX_IMAGE}" "${APP_CRON_IMAGE}" "${APP_COMPOSER_IMAGE}" "${APP_NODE_IMAGE}" "${APP_CERTBOT_IMAGE}" "${APP_IAC_IMAGE}")

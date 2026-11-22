@@ -81,8 +81,10 @@ services:
     # Direct php-fpm ping probe (bypasses nginx entirely) via cgi-fcgi against the ping.path
     # enabled in dockerfiles/php/zz-healthcheck.conf. Catches a wedged/dead FPM master even
     # though nginx's own /health check (config/common.conf.template) never reaches PHP.
+    # `grep -q pong` requires the literal "pong" body, so a wedged FPM master that still accepts
+    # the connection fails the check.
     healthcheck:
-      test: ["CMD-SHELL", "REQUEST_METHOD=GET SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping cgi-fcgi -bind -connect 127.0.0.1:9000"]
+      test: ["CMD-SHELL", "SCRIPT_NAME=/ping SCRIPT_FILENAME=/ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q pong"]
       interval: 30s
       timeout: 5s
       retries: 3

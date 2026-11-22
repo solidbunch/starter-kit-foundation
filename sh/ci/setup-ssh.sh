@@ -42,6 +42,12 @@ if [ "$SSH_INPUT_MODE" = "file" ]; then
 fi
 
 mkdir -p ~/.ssh
+chmod 700 ~/.ssh
+
+# Create the key/config with restrictive permissions from the first byte: `printf > file` and
+# `cp` both honour umask, and chmod afterwards would leave a readable window on the runner.
+old_umask="$(umask)"
+umask 077
 
 if [ "$SSH_INPUT_MODE" = "file" ]; then
   cp "$SSH_KEY" ~/.ssh/id_rsa
@@ -50,6 +56,8 @@ else
   printf '%s\n' "$SSH_KEY" > ~/.ssh/id_rsa
   printf '%s\n' "$SSH_CONFIG" > ~/.ssh/config
 fi
+
+umask "$old_umask"
 
 chmod 400 ~/.ssh/id_rsa
 chmod 600 ~/.ssh/config
