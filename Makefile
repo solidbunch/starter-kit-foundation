@@ -105,6 +105,10 @@ watch:
 	$(LOGO_SH)
 	bash ./sh/dev/npm-watch.sh $(PARAMS)
 
+# Run npm run prod (production build) from Node container (make run node)
+npm-prod:
+	docker compose -f docker-compose.toolkit.yml run --service-ports --rm node su -c " npm run prod --prefix ./wp-content/themes/$(WP_DEFAULT_THEME)" "$(DEFAULT_USER)"
+
 # Regular docker compose up with root .env file concatenation
 # Guarded no-op when invoked alongside `localci` (see LOCALCI_GOAL above) — `make localci up`
 # must only run the harness, never the app stack.
